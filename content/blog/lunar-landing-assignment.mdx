@@ -1,0 +1,691 @@
+---
+slug: lunar-landing-assignment
+title: "Lunar Landing Assignment"
+subtitle: "Training a PPO agent to land precisely between two flags."
+date: "November 2023"
+updated: "January 2026"
+excerpt: "Trained a reinforcement learning agent with reward shaping to maximize stable, accurate landings."
+tags:
+  - Reinforcement Learning
+  - PPO
+  - Game Theory
+source: Project
+coverImage: /images/blog/lunar-landing.jpg
+---
+
+Reinforcement learning can feel like a black box until you build it yourself.
+
+In this assignment, I train a **PPO (Proximal Policy Optimization)** agent in **Gym's LunarLander-v2** to land precisely between two flags. The core setup uses standard PPO with reward shaping; I also include an optional recurrent (LSTM) extension for partial observability.
+
+We will cover:
+
+- Why PPO works well in practice (and when it fails)
+- Optional: recurrence (LSTM) for partial observability
+- How to gather trajectories efficiently (vector environments)
+- How to compute discounted returns and **GAE** advantages
+- How to implement the PPO clipped objective
+- Optional: how to batch sequences for recurrent training
+- A realistic hyperparameter starting point
+- Evaluation strategy and common failure modes
+- Pseudocode for the full algorithm (end-to-end)
+- A reproducibility checklist (seeds, metrics, checkpoints)
+- A complete training loop with logging and checkpoints
+
+<Video
+  src="https://www.youtube.com/embed/RSggurOx6Ug?start=5"
+  title="LunarLander PPO agent landing between the flags"
+  caption="Demo: PPO agent landing between the two flags in LunarLander-v2."
+/>
+
+## 1) The environment: LunarLander-v2 (optional partial observability)
+
+`LunarLander-v2` provides an 8D observation vector and expects a discrete action:
+
+- `0`: do nothing
+- `1`: fire left engine
+- `2`: fire main engine
+- `3`: fire right engine
+
+The observation vector is 8-dimensional and (roughly) contains:
+
+- x position
+- y position
+- x velocity
+- y velocity
+- angle
+- angular velocity
+- left leg contact
+- right leg contact
+
+To make the problem more interesting, I intentionally remove velocity information. This turns the task into a **partially observable** MDP, where memory becomes useful.
+
+```python
+class MaskVelocityWrapper(gym.ObservationWrapper):
+    # Mask velocity terms to make the environment partially observable.
+    def __init__(self, env):
+        super().__init__(env)
+        if ENV == "LunarLander-v2":
+            self.mask = np.array([1., 1., 0., 0., 1., 0., 1., 1.])
+    def observation(self, observation):
+        return observation * self.mask
+```
+
+With this wrapper enabled, the agent cannot observe velocity directly and must infer motion over time. That is exactly what LSTMs are good at.
+
+In this specific mask, I remove both linear velocities and angular velocity. If you want an easier partial observability setting, mask only `x_dot` and `y_dot` and keep angular velocity.
+
+### Reward signal (default + shaping ideas)
+
+LunarLander's built-in reward already encourages landing between the flags, staying upright, and touching down gently. In this project I keep the default reward, but there are a few simple shaping terms you can experiment with:
+
+- Add a penalty for horizontal distance to the landing zone center.
+- Add a penalty for high vertical speed right before touchdown.
+- Add a small bonus for keeping both legs in contact after landing (stability).
+
+Shaping is optional; PPO can learn with the stock reward, but careful shaping can make learning faster and more consistent.
+
+Be conservative with shaping. If a shaping term dominates the reward, the agent can learn to “game” that term while ignoring the true objective (e.g., hovering near the pad but never landing).
+
+## 2) PPO recap (short and practical)
+
+PPO is a policy-gradient method that keeps updates stable by limiting how much the policy can change at each step.
+
+The key quantity is the probability ratio:
+
+$$
+r_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{old}}(a_t \mid s_t)}
+$$
+
+PPO maximizes a clipped objective:
+
+$$
+L^{CLIP} = \mathbb{E}\left[\min\left(r_t A_t,\ \text{clip}(r_t, 1-\epsilon, 1+\epsilon) A_t\right)\right]
+$$
+
+The full loss usually adds value loss and an entropy bonus:
+
+$$
+L = -L^{CLIP} + c_1 \cdot L_{value} - c_2 \cdot H(\pi)
+$$
+
+Two small but important implementation details:
+
+- **Normalize advantages** within each batch to stabilize gradients.
+- **Clip value loss** if the critic becomes unstable (optional but helpful).
+
+```python
+advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+```
+
+### PPO health metrics (track these)
+
+When PPO diverges, it usually shows up in a few metrics first:
+
+- **Approximate KL** between old and new policy (too high = updates too large).
+- **Clip fraction** (fraction of samples that were clipped; too high = overly aggressive updates).
+- **Entropy** (drops too fast = premature convergence).
+
+```python
+with torch.no_grad():
+    approx_kl = (old_log_probs - new_log_probs).mean()
+    clip_frac = (torch.abs(ratio - 1.0) > hp.ppo_clip).float().mean()
+```
+
+## 3) Recurrent actor-critic architecture (LSTM)
+
+I use an actor-critic setup:
+
+- **Actor** outputs a policy distribution $\pi(a \mid s)$
+- **Critic** estimates the value $V(s)$
+
+Both are LSTMs, so they can accumulate memory across timesteps.
+
+### Actor (policy network)
+
+```python
+class Actor(nn.Module):
+    def __init__(self, state_dim, action_dim, continuous_action_space, trainable_std_dev, init_log_std_dev=None):
+        super().__init__()
+        self.lstm = nn.LSTM(state_dim, hp.hidden_size, num_layers=hp.recurrent_layers)
+        self.layer_hidden = nn.Linear(hp.hidden_size, hp.hidden_size)
+        self.layer_policy_logits = nn.Linear(hp.hidden_size, action_dim)
+        self.hidden_cell = None
+    def get_init_state(self, batch_size, device):
+        self.hidden_cell = (
+            torch.zeros(hp.recurrent_layers, batch_size, hp.hidden_size).to(device),
+            torch.zeros(hp.recurrent_layers, batch_size, hp.hidden_size).to(device),
+        )
+    def forward(self, state, terminal=None):
+        batch_size = state.shape[1]
+        device = state.device
+        if self.hidden_cell is None or batch_size != self.hidden_cell[0].shape[1]:
+            self.get_init_state(batch_size, device)
+        # Reset memory when episodes end
+        if terminal is not None:
+            self.hidden_cell = [
+                value * (1. - terminal).reshape(1, batch_size, 1)
+                for value in self.hidden_cell
+            ]
+        _, self.hidden_cell = self.lstm(state, self.hidden_cell)
+        hidden_out = F.elu(self.layer_hidden(self.hidden_cell[0][-1]))
+        logits = self.layer_policy_logits(hidden_out)
+        # Discrete action space -> categorical distribution
+        policy_dist = distributions.Categorical(F.softmax(logits, dim=1).to("cpu"))
+        return policy_dist
+```
+
+Two details matter here:
+
+- **Reset LSTM state on episode boundaries** to avoid leaking memory across episodes.
+- **Build the Categorical distribution on CPU** to avoid CUDA memory issues.
+
+### Critic (value network)
+
+```python
+class Critic(nn.Module):
+    def __init__(self, state_dim):
+        super().__init__()
+        self.layer_lstm = nn.LSTM(state_dim, hp.hidden_size, num_layers=hp.recurrent_layers)
+        self.layer_hidden = nn.Linear(hp.hidden_size, hp.hidden_size)
+        self.layer_value = nn.Linear(hp.hidden_size, 1)
+        self.hidden_cell = None
+    def get_init_state(self, batch_size, device):
+        self.hidden_cell = (
+            torch.zeros(hp.recurrent_layers, batch_size, hp.hidden_size).to(device),
+            torch.zeros(hp.recurrent_layers, batch_size, hp.hidden_size).to(device),
+        )
+    def forward(self, state, terminal=None):
+        batch_size = state.shape[1]
+        device = state.device
+        if self.hidden_cell is None or batch_size != self.hidden_cell[0].shape[1]:
+            self.get_init_state(batch_size, device)
+        if terminal is not None:
+            self.hidden_cell = [
+                value * (1. - terminal).reshape(1, batch_size, 1)
+                for value in self.hidden_cell
+            ]
+        _, self.hidden_cell = self.layer_lstm(state, self.hidden_cell)
+        hidden_out = F.elu(self.layer_hidden(self.hidden_cell[0][-1]))
+        value_out = self.layer_value(hidden_out)
+        return value_out
+```
+
+### Batch and time dimensions
+
+PyTorch LSTMs expect input with shape `(seq_len, batch, features)` by default. That means you should stack timesteps along the **first** dimension and keep parallel environments along **batch**.
+
+For example:
+
+- `states`: `(T, N, obs_dim)`
+- `actions`: `(T, N)`
+- `hidden_state`: `(num_layers, N, hidden_size)`
+
+Keeping this consistent avoids subtle bugs when you later split episodes and pad sequences.
+
+### Sequence handling (why this is tricky)
+
+Recurrent PPO is not just "PPO with an LSTM". You need to make sure:
+
+- Each environment keeps its own hidden state.
+- You reset hidden states on terminal steps only.
+- You keep sequence order when building minibatches.
+- You pad sequences and apply masks so loss ignores padded timesteps.
+
+If any of those are wrong, the agent will still run, but performance will be erratic.
+
+## 4) Discounted returns and GAE advantages
+
+PPO needs two signals:
+
+- **Discounted returns** (targets for the critic)
+- **Advantages** (signals for the actor)
+
+### Discounted return
+
+$$
+G_t = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + \dots
+$$
+
+```python
+def calc_discounted_return(rewards, discount, final_value):
+    seq_len = len(rewards)
+    discounted_returns = torch.zeros(seq_len)
+    discounted_returns[-1] = rewards[-1] + discount * final_value
+    for i in range(seq_len - 2, -1, -1):
+        discounted_returns[i] = rewards[i] + discount * discounted_returns[i + 1]
+    return discounted_returns
+```
+
+### Generalized Advantage Estimation (GAE)
+
+$$
+\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)
+$$
+
+$$
+A_t = \sum_{l=0}^{\infty} (\gamma \lambda)^l \delta_{t+l}
+$$
+
+```python
+def compute_advantages(rewards, values, discount, gae_lambda):
+    deltas = rewards + discount * values[1:] - values[:-1]
+    seq_len = len(rewards)
+    advs = torch.zeros(seq_len + 1)
+    multiplier = discount * gae_lambda
+    for i in range(seq_len - 1, -1, -1):
+        advs[i] = advs[i + 1] * multiplier + deltas[i]
+    return advs[:-1]
+```
+
+A few details that matter in practice:
+
+- **Bootstrapping**: the final value estimate should be zero if the episode ended, otherwise use the critic value.
+- **Masking terminals**: make sure you do not leak value estimates across episode boundaries.
+- **Lambda**: lower values reduce variance but increase bias. 0.95 is a good starting point.
+
+## 5) Gathering trajectories (vector environments)
+
+PPO is on-policy, so every iteration starts with fresh rollouts. I use a vectorized environment to gather experience from multiple environments in parallel:
+
+```python
+env = gym.vector.make(ENV, hp.parallel_rollouts, asynchronous=ASYNCHRONOUS_ENVIRONMENT)
+```
+
+This speeds up data collection and reduces gradient noise.
+
+The rollout buffer stores:
+
+- states
+- actions
+- log probabilities
+- rewards
+- values
+- terminal flags
+- actor and critic LSTM states
+
+```python
+def gather_trajectories(input_data):
+    env = input_data["env"]
+    actor = input_data["actor"]
+    critic = input_data["critic"]
+    obsv = env.reset()
+    terminal = torch.ones(hp.parallel_rollouts)
+    trajectory_data = {
+        "states": [],
+        "actions": [],
+        "action_probabilities": [],
+        "rewards": [],
+        "true_rewards": [],
+        "values": [],
+        "terminals": [],
+        "actor_hidden_states": [],
+        "actor_cell_states": [],
+        "critic_hidden_states": [],
+        "critic_cell_states": [],
+    }
+    with torch.no_grad():
+        actor.get_init_state(hp.parallel_rollouts, GATHER_DEVICE)
+        critic.get_init_state(hp.parallel_rollouts, GATHER_DEVICE)
+        for _ in range(hp.rollout_steps):
+            trajectory_data["actor_hidden_states"].append(actor.hidden_cell[0].squeeze(0).cpu())
+            trajectory_data["actor_cell_states"].append(actor.hidden_cell[1].squeeze(0).cpu())
+            trajectory_data["critic_hidden_states"].append(critic.hidden_cell[0].squeeze(0).cpu())
+            trajectory_data["critic_cell_states"].append(critic.hidden_cell[1].squeeze(0).cpu())
+            state = torch.tensor(obsv, dtype=torch.float32)
+            trajectory_data["states"].append(state)
+            value = critic(state.unsqueeze(0).to(GATHER_DEVICE), terminal.to(GATHER_DEVICE))
+            trajectory_data["values"].append(value.squeeze(1).cpu())
+            action_dist = actor(state.unsqueeze(0).to(GATHER_DEVICE), terminal.to(GATHER_DEVICE))
+            action = action_dist.sample().squeeze(1)
+            trajectory_data["actions"].append(action.cpu())
+            trajectory_data["action_probabilities"].append(action_dist.log_prob(action).cpu())
+            obsv, reward, done, _ = env.step(action.cpu().numpy())
+            terminal = torch.tensor(done).float()
+            trajectory_data["rewards"].append(torch.tensor(reward).float())
+            trajectory_data["terminals"].append(terminal)
+        state = torch.tensor(obsv, dtype=torch.float32)
+        value = critic(state.unsqueeze(0).to(GATHER_DEVICE), terminal.to(GATHER_DEVICE))
+        trajectory_data["values"].append(value.squeeze(1).cpu() * (1 - terminal))
+    return {k: torch.stack(v) for k, v in trajectory_data.items()}
+```
+
+Two extra tips:
+
+- **Track time limits**. If an episode ends due to a time limit, treat it as a truncated episode and bootstrap value instead of zeroing it.
+- **Keep rollouts small enough** to avoid GPU memory spikes when stacking sequences.
+
+## 6) Splitting episodes and padding sequences
+
+Vector environments reset automatically, which means a single rollout buffer contains many episodes. I split trajectories on `done=True`, pad them to a fixed length, and then compute returns and advantages per episode.
+
+This is critical for recurrent training because you want clean, consistent sequences.
+
+A minimal outline looks like this:
+
+```python
+def split_and_pad(buffer, max_len):
+    episodes = []
+    current = []
+    for t in range(buffer_len):
+        current.append(step_t)
+        if done_t:
+            episodes.append(current)
+            current = []
+    padded = [pad(ep, max_len) for ep in episodes]
+    masks = [make_mask(ep, max_len) for ep in episodes]
+    return padded, masks
+```
+
+The **mask** is essential. It tells the loss which timesteps are real and which are padding.
+
+Here is a simple masked loss pattern:
+
+```python
+masked_adv = advantages * mask
+masked_logp = logp * mask
+actor_loss = -(masked_logp * masked_adv).sum() / mask.sum()
+```
+
+If you prefer not to pad, you can use `pack_padded_sequence` to let the LSTM skip padded timesteps entirely. Padding + masking is simpler and works well, but packing is often more memory efficient.
+
+## 7) PPO update step
+
+Once we have batches, PPO updates both networks.
+
+### Actor loss (clipped objective)
+
+```python
+action_dist = actor(batch.states)
+action_probabilities = action_dist.log_prob(batch.actions[-1, :].to("cpu")).to(TRAIN_DEVICE)
+ratio = torch.exp(action_probabilities - batch.action_probabilities[-1, :])
+surrogate_0 = ratio * batch.advantages[-1, :]
+surrogate_1 = torch.clamp(ratio, 1. - hp.ppo_clip, 1. + hp.ppo_clip) * batch.advantages[-1, :]
+entropy = action_dist.entropy().to(TRAIN_DEVICE)
+actor_loss = -torch.mean(torch.min(surrogate_0, surrogate_1)) - torch.mean(hp.entropy_factor * entropy)
+```
+
+### Critic loss (value regression)
+
+```python
+values = critic(batch.states)
+critic_loss = F.mse_loss(batch.discounted_returns[-1, :], values.squeeze(1))
+```
+
+### Stability helpers
+
+I also recommend:
+
+- **Gradient clipping** (e.g. `max_grad_norm = 0.5`)
+- **Mini-batch updates** over sequences instead of full batch
+- **Early stopping** when KL divergence explodes
+
+Example KL early-stop check:
+
+```python
+if approx_kl > 0.02:
+    break
+```
+
+## 8) Hyperparameters and training setup
+
+Here is a reasonable starting point for LunarLander with recurrence. Use this as a baseline and tune from there:
+
+```yaml
+parallel_rollouts: 8
+rollout_steps: 256
+ppo_epochs: 4
+minibatch_size: 64
+learning_rate: 3e-4
+hidden_size: 128
+recurrent_layers: 1
+ppo_clip: 0.2
+gamma: 0.99
+gae_lambda: 0.95
+entropy_factor: 0.01
+value_coef: 0.5
+max_grad_norm: 0.5
+```
+
+If training is unstable, the first two knobs to try are **learning rate** and **clip range**.
+
+Other common tuning levers:
+
+- **Rollout length**: longer rollouts reduce bias but increase variance and memory.
+- **Entropy factor**: higher keeps exploration longer; too high prevents convergence.
+- **Hidden size**: larger LSTM can help partial observability, but increases compute.
+
+### Three tuned options (for LunarLander-v2)
+
+Below are three configurations adapted to **LunarLander-v2**. Start with Option A to validate end-to-end training, then try B or C only after the loop is stable.
+
+#### Option A (recommended): Stable baseline for LunarLander-v2 ✅
+
+Why this one: closest to safe defaults (reasonable LR, not too many PPO epochs, moderate batch), so it is least likely to explode while you are validating the pipeline.
+
+```yaml
+# Environment parameters
+ENV: "LunarLander-v2"
+EXPERIMENT_NAME: "ll-v2-baseline"
+ENV_MASK_VELOCITY: true
+# Default Hyperparameters
+SCALE_REWARD: 0.01
+MIN_REWARD: -1000.0
+HIDDEN_SIZE: 128
+BATCH_SIZE: 64
+DISCOUNT: 0.999
+GAE_LAMBDA: 0.98
+PPO_CLIP: 0.2
+PPO_EPOCHS: 8
+MAX_GRAD_NORM: 1.0
+ENTROPY_FACTOR: 0.01
+ACTOR_LEARNING_RATE: 0.0003
+CRITIC_LEARNING_RATE: 0.0003
+RECURRENT_SEQ_LEN: 8
+RECURRENT_LAYERS: 1
+ROLLOUT_STEPS: 1024
+PARALLEL_ROLLOUTS: 8
+PATIENCE: 200
+TRAINABLE_STD_DEV: false
+INIT_LOG_STD_DEV: 0.0
+```
+
+#### Option B: Faster learning (a bit more “pushy”) ⚡️
+
+Why this one: can learn faster once everything runs, but it is more sensitive (more PPO updates, larger critic LR).
+
+```yaml
+ENV: "LunarLander-v2"
+EXPERIMENT_NAME: "ll-v2-faster"
+ENV_MASK_VELOCITY: true
+SCALE_REWARD: 0.01
+MIN_REWARD: -1000.0
+HIDDEN_SIZE: 128
+BATCH_SIZE: 64
+DISCOUNT: 0.999
+GAE_LAMBDA: 0.98
+PPO_CLIP: 0.2
+PPO_EPOCHS: 16
+MAX_GRAD_NORM: 1.0
+ENTROPY_FACTOR: 0.01
+ACTOR_LEARNING_RATE: 0.0003
+CRITIC_LEARNING_RATE: 0.001
+RECURRENT_SEQ_LEN: 8
+RECURRENT_LAYERS: 1
+ROLLOUT_STEPS: 1024
+PARALLEL_ROLLOUTS: 8
+PATIENCE: 200
+TRAINABLE_STD_DEV: false
+INIT_LOG_STD_DEV: 0.0
+```
+
+#### Option C: Throughput / efficiency (bigger batches) 🧱
+
+Why this one: more stable gradients and fewer noisy updates, but heavier on memory/compute.
+
+```yaml
+ENV: "LunarLander-v2"
+EXPERIMENT_NAME: "ll-v2-bigbatch"
+ENV_MASK_VELOCITY: true
+SCALE_REWARD: 0.01
+MIN_REWARD: -1000.0
+HIDDEN_SIZE: 128
+BATCH_SIZE: 512
+DISCOUNT: 0.999
+GAE_LAMBDA: 0.98
+PPO_CLIP: 0.2
+PPO_EPOCHS: 10
+MAX_GRAD_NORM: 0.5
+ENTROPY_FACTOR: 0.01
+ACTOR_LEARNING_RATE: 0.0015
+CRITIC_LEARNING_RATE: 0.0015
+RECURRENT_SEQ_LEN: 8
+RECURRENT_LAYERS: 1
+ROLLOUT_STEPS: 512
+PARALLEL_ROLLOUTS: 8
+PATIENCE: 200
+TRAINABLE_STD_DEV: false
+INIT_LOG_STD_DEV: 0.0
+```
+
+What I would do: start with **Option A** until env creation works, the loop runs end-to-end, and logs/checkpoints look sane. Then try **Option B** if learning is too slow, or **Option C** if you want smoother updates.
+
+## 9) Training loop (full picture)
+
+Each PPO iteration looks like this:
+
+1. Gather trajectories
+2. Split episodes
+3. Compute returns and advantages
+4. Train for several PPO epochs
+5. Log metrics and save checkpoints
+
+Minimal pseudocode:
+
+```python
+for iteration in range(num_iters):
+    buffer = gather_trajectories(env, actor, critic)
+    episodes, masks = split_and_pad(buffer, max_len)
+    returns, advs = compute_returns_and_advs(episodes, masks)
+    for epoch in range(ppo_epochs):
+        for batch in make_sequence_batches(episodes, masks, returns, advs):
+            update_actor_critic(batch)
+```
+
+During training, I print progress like:
+
+```
+Iteration: 9, Mean reward: -79.63, Mean Entropy: 1.21, complete_episode_count: 194.0
+```
+
+Reward improved quickly early on, while entropy slowly decreased as the policy became more confident.
+
+## 10) Evaluation and results
+
+For evaluation, I run the policy **deterministically** (take `argmax` action) and average reward over 10 to 20 episodes. This removes stochasticity from the metric and makes progress easier to see.
+
+Common success signals:
+
+- Average reward consistently above 200
+- Stable landings with low vertical speed
+- Few crashes after training stabilizes
+
+If results stall, try training longer (more total environment steps) or widening the LSTM hidden size.
+
+I also recommend:
+
+- Keep evaluation and training wrappers consistent (same observation masking).
+- Log both **train reward** and **eval reward** to detect overfitting.
+- Fix a small set of evaluation seeds for smoother curves.
+
+## 11) Practical takeaways
+
+- Recurrent PPO is mostly about correct bookkeeping (hidden states, episode boundaries, sequence batching).
+- Vector environments make training much faster and smoother.
+- PPO is stable, but hyperparameters still matter: learning rate, clip range, entropy coefficient, batch size, rollout length.
+- Advantage normalization can make the difference between learning and divergence.
+
+## 12) Common pitfalls and debugging checklist
+
+- **Hidden state not reset on done**: the agent leaks memory between episodes.
+- **Masking bugs**: padding timesteps are accidentally included in the loss.
+- **Action log-prob mismatch**: storing log-probs from CPU but recomputing on GPU without care.
+- **Time-limit truncation**: treating truncations as terminal states hurts value estimates.
+- **Batch order**: shuffling sequences without keeping time order can break recurrence.
+- **Seed drift**: evaluation and training use different seeds and you misread progress.
+- **Exploding gradients**: forget to clip and training silently destabilizes.
+- **Wrong tensor shapes**: feeding `(batch, time, feat)` into an LSTM expecting `(time, batch, feat)`.
+
+A quick sanity test is to disable the LSTM and verify that your PPO baseline still learns. If it does, the recurrence logic is likely the issue.
+
+## 13) Next improvements
+
+If I extend this project, I want to:
+
+- Normalize advantages per batch
+- Add value function clipping
+- Train longer (1M+ steps)
+- Compare with Stable-Baselines3 RecurrentPPO
+- Try a GRU-based actor-critic as a lighter baseline
+
+## 14) End-to-end algorithm (expanded pseudocode)
+
+This is the full logic in one place, with the recurrent pieces highlighted:
+
+```python
+for iteration in range(num_iters):
+    # 1) Rollout
+    actor.get_init_state(N, device)
+    critic.get_init_state(N, device)
+    buffer = []
+    obs = env.reset()
+    done = torch.ones(N)
+    for t in range(rollout_steps):
+        # Save hidden states BEFORE stepping
+        buffer.append({
+            "obs": obs,
+            "done": done,
+            "actor_h": actor.hidden_cell,
+            "critic_h": critic.hidden_cell,
+        })
+        dist = actor(obs, done)
+        action = dist.sample()
+        value = critic(obs, done)
+        next_obs, reward, done, info = env.step(action)
+        buffer[-1].update({"action": action, "reward": reward, "value": value})
+        obs = next_obs
+    # 2) Split into episodes, pad, and mask
+    episodes, masks = split_and_pad(buffer, max_len)
+    # 3) Compute returns and advantages per episode
+    returns, advs = compute_returns_and_advs(episodes, masks)
+    # 4) PPO updates (sequence minibatches)
+    for epoch in range(ppo_epochs):
+        for batch in make_sequence_batches(episodes, masks, returns, advs):
+            update_actor_critic(batch)
+```
+
+## 15) Reproducibility checklist
+
+If you want learning curves you can trust:
+
+- Fix random seeds for Python, NumPy, PyTorch, and the environment.
+- Log **train reward**, **eval reward**, **KL**, **clip fraction**, and **entropy**.
+- Save checkpoints regularly and keep a “best so far” snapshot.
+- Track the exact hyperparameters used for each run.
+- Record environment versions (Gym/Gymnasium) and hardware info.
+
+## 16) FAQ (short answers)
+
+**Do I really need an LSTM?**  
+Not always. If you remove the velocity mask, a feed-forward PPO should solve LunarLander. The LSTM is mainly to handle partial observability.
+
+**Why does the agent learn but then collapse?**  
+Usually the learning rate is too high, the clip range is too wide, or the value loss is overpowering the policy loss.
+
+**How many steps does it take to learn?**  
+It depends on hyperparameters and reward shaping. Recurrent setups typically need more steps than feed-forward PPO.
+
+## Final thoughts
+
+Implementing PPO from scratch is one of the best ways to build intuition for reinforcement learning. Adding recurrence makes it harder, but also much more realistic for partially observable environments.
+
+If you are learning RL, I strongly recommend implementing PPO at least once. Even if you later switch to libraries, you will understand exactly what they are doing.

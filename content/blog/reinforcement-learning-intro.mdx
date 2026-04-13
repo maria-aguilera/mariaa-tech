@@ -1,0 +1,135 @@
+---
+slug: reinforcement-learning-intro
+title: "Reinforcement Learning, Explained"
+subtitle: "A gentle primer on agents, rewards, and learning by trial and error."
+date: "February 2025"
+updated: "February 2025"
+excerpt: "A beginner-friendly introduction to reinforcement learning: the agent-environment loop, MDPs, policies, and the exploration tradeoff."
+tags:
+  - Reinforcement Learning
+  - Fundamentals
+  - MDP
+  - Policy
+source: Blog
+coverImage: /featured-media.svg
+---
+
+## Overview
+
+Reinforcement learning (RL) is about learning by doing. Instead of training on labeled examples, an agent interacts with an environment, takes actions, and receives feedback as rewards.
+
+If supervised learning says "here is the right answer," RL says "try something and see what happens."
+
+This post introduces the core ideas without heavy math so you can read research papers and code with confidence.
+
+## 1) The basic loop
+
+At a high level, every RL system follows the same loop:
+
+- observe the current state
+- choose an action
+- receive a reward and the next state
+- repeat
+
+```python
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    while not done:
+        action = policy(state)
+        next_state, reward, done, info = env.step(action)
+        store(state, action, reward, next_state, done)
+        state = next_state
+    update_policy()
+```
+
+The policy improves over time, using the data collected from interaction.
+
+## 2) The MDP frame
+
+Most RL problems are modeled as a Markov Decision Process (MDP). It is defined by:
+
+- **States (S):** the situation the agent sees
+- **Actions (A):** the choices the agent can make
+- **Transition (P):** how the environment changes after an action
+- **Reward (R):** the feedback signal
+- **Discount (gamma):** how much to value future rewards
+
+The agent tries to maximize the expected return:
+
+$$
+G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}
+$$
+
+The discount factor $\gamma$ (0 to 1) trades off short-term vs long-term rewards.
+
+## 3) Policies and value functions
+
+Two objects show up everywhere in RL:
+
+- **Policy $\pi(a \mid s)$:** what action to take in a state
+- **Value $V(s)$ or $Q(s, a)$:** how good a state or action is in terms of future reward
+
+If the policy is the behavior, the value function is the prediction.
+
+Actor-critic methods keep both:
+
+- the **actor** is the policy
+- the **critic** estimates value and guides learning
+
+## 4) Exploration vs exploitation
+
+RL agents must balance:
+
+- **exploration:** try new actions to discover better outcomes
+- **exploitation:** use what already works to collect reward
+
+This is why early training looks noisy. A purely greedy agent can get stuck; a purely random agent never improves.
+
+Common tricks include epsilon-greedy exploration, entropy bonuses, or adding noise to actions.
+
+## 5) Why RL is hard
+
+RL looks simple, but it is tough in practice because:
+
+- rewards can be **delayed** or **sparse**
+- the agent learns from its own changing behavior (non-stationary data)
+- small reward changes can produce big behavior changes
+- collecting data is expensive in the real world
+
+In short, RL is unstable, data-hungry, and sensitive to reward design.
+
+<Tip>
+Reward shaping is not cheating. It is the main way to make learning practical, as long as the shaped reward still aligns with the real goal.
+</Tip>
+
+## 6) Algorithm families (quick map)
+
+You will see three major families:
+
+- **Value-based:** learn $Q(s, a)$, then act greedily (Q-learning, DQN)
+- **Policy-based:** optimize the policy directly (REINFORCE)
+- **Actor-critic:** combine both for stability (A2C, PPO)
+
+PPO is popular because it is robust and tends to train reliably with reasonable defaults.
+
+## 7) Practical starting advice
+
+If you are new to RL, start small:
+
+- pick a classic control task like CartPole
+- use dense rewards first, then reduce shaping later
+- plot learning curves (reward vs episode)
+- evaluate with fixed seeds to measure real progress
+
+Small environments teach the core ideas without long training times.
+
+## 8) Where to go next
+
+Once the basics click, try:
+
+- implementing a minimal policy gradient from scratch
+- reading Sutton and Barto, Chapters 1-3
+- studying PPO and DQN in a reference implementation
+
+RL is a deep topic, but the core loop is simple. Master the basics and the advanced pieces will make sense faster.

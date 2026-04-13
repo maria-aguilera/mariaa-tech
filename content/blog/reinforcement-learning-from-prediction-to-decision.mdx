@@ -1,0 +1,256 @@
+---
+slug: reinforcement-learning-from-prediction-to-decision
+title: "From Prediction to Decision: A Gentle Introduction to Reinforcement Learning"
+subtitle: "Why reinforcement learning is not just another machine learning method."
+date: "February 2026"
+updated: "February 2026"
+excerpt: "A clear and visual introduction to reinforcement learning, and how it differs fundamentally from supervised and unsupervised learning."
+tags:
+  - Reinforcement Learning
+  - Machine Learning
+  - Foundations
+  - AI
+source: Blog
+coverImage: /images/blog/lunar-landing.jpg
+---
+
+## Overview
+
+Reinforcement learning (RL) is the science of decision-making.
+
+Unlike most machine learning, it is not about predicting labels. It is about learning how to act.
+
+If supervised learning says "here is the right answer," RL says "try something and see what happens."
+
+This post is a short, visual-first intro so you can read papers and code with confidence.
+
+## 1) From prediction to decision
+
+Most ML problems are about **mapping inputs to outputs**. RL is about **choosing actions over time**.
+
+In RL, actions change what you see next. The data depends on the policy, and the policy keeps changing. That loop is the whole point.
+
+### A quick comparison
+
+<div className="post-content__tableWrap">
+  <table className="post-content__table post-content__table--three">
+    <colgroup>
+      <col style={{ width: "22%" }} />
+      <col style={{ width: "39%" }} />
+      <col style={{ width: "39%" }} />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Topic</th>
+        <th>Supervised</th>
+        <th>Reinforcement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Goal</td>
+        <td>Predict labels</td>
+        <td>Maximize long-term reward</td>
+      </tr>
+      <tr>
+        <td>Feedback</td>
+        <td>Immediate and direct</td>
+        <td>Often delayed</td>
+      </tr>
+      <tr>
+        <td>Data</td>
+        <td>Fixed dataset</td>
+        <td>Collected by the agent</td>
+      </tr>
+      <tr>
+        <td>Output</td>
+        <td>A prediction</td>
+        <td>A decision policy</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+## 2) How RL differs from supervised and unsupervised learning
+
+To understand RL clearly, compare it to the other two paradigms.
+
+### Supervised learning
+
+You are given:
+
+```
+input -> correct output
+```
+
+The model's job is to minimize prediction error.
+
+Examples:
+
+- Spam detection
+- Image classification
+- House price prediction
+
+You measure performance with accuracy, loss, MSE, and related metrics. The dataset is fixed.
+
+### Unsupervised learning
+
+You are given:
+
+```
+input only
+```
+
+The model discovers structure:
+
+- clusters
+- patterns
+- low-dimensional representations
+
+There is no "correct answer." But the dataset is still static.
+
+### Reinforcement learning
+
+You are given:
+
+```
+state -> choose action -> receive reward
+```
+
+There are no labels, no predefined dataset, and no immediate error signal.
+
+Instead:
+
+- The agent collects its own data.
+- Its actions influence what it sees next.
+- The goal is to maximize long-term reward, not minimize prediction error.
+
+Think of how a baby learns to walk:
+
+- Try a step.
+- Fall.
+- Adjust.
+- Try again.
+
+No labels. Just feedback.
+
+<div className="post-content__tableWrap">
+  <table className="post-content__table post-content__table--four">
+    <colgroup>
+      <col style={{ width: "22%" }} />
+      <col style={{ width: "26%" }} />
+      <col style={{ width: "26%" }} />
+      <col style={{ width: "26%" }} />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Supervised</th>
+        <th>Unsupervised</th>
+        <th>Reinforcement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Data</td>
+        <td>Labeled data</td>
+        <td>No labels</td>
+        <td>Reward signal</td>
+      </tr>
+      <tr>
+        <td>Dataset</td>
+        <td>Static dataset</td>
+        <td>Static dataset</td>
+        <td>Live interaction</td>
+      </tr>
+      <tr>
+        <td>Feedback</td>
+        <td>Immediate error</td>
+        <td>No clear target</td>
+        <td>Delayed reward</td>
+      </tr>
+      <tr>
+        <td>Assumption</td>
+        <td>I.I.D. data</td>
+        <td>I.I.D. data</td>
+        <td>Sequential data</td>
+      </tr>
+      <tr>
+        <td>Objective</td>
+        <td>Predict</td>
+        <td>Discover</td>
+        <td>Decide</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Reinforcement learning is about decisions, not predictions.
+
+LunarLander is not a prediction problem. It is a decision-making problem.
+The agent does not predict where the lander should be. It learns which engines to fire and when to land safely.
+
+## 3) The RL loop
+
+Every RL system is the same loop:
+
+```
+state -> action -> reward -> next state -> ...
+```
+
+The agent tries something, gets feedback, and updates its policy.
+
+<Note>
+Visual idea: A simple agent-environment loop diagram with arrows labeled "state," "action," "reward."
+</Note>
+
+## 4) The core pieces (plain language)
+
+You will see these terms everywhere:
+
+- **Agent:** the decision-maker.
+- **Environment:** the world the agent interacts with.
+- **State:** what the agent observes.
+- **Action:** what the agent does.
+- **Reward:** the feedback signal.
+- **Policy:** the rule that maps state to action.
+- **Episode:** one full run from start to finish.
+
+If the policy is the behavior, the value function is the prediction of how good a state or action is.
+
+## 5) A tiny example
+
+Imagine a robot in a maze:
+
+- Each move is an action.
+- The goal is to reach the exit.
+- The reward is +1 at the exit, 0 elsewhere.
+
+At first, the robot wanders randomly. Over time, it learns which paths lead to the exit and repeats them more often.
+
+<Note>
+Visual idea: A gridworld with a start, a goal, and a few failed paths in light gray.
+</Note>
+
+## 6) Why RL is hard in practice
+
+RL is powerful but fragile:
+
+- Rewards can be **sparse** or **noisy**.
+- Exploration can be expensive or unsafe.
+- Small reward tweaks can change behavior a lot.
+
+<Tip>
+Reward shaping is not cheating. It is how you make learning practical, as long as the shaped reward still matches the real goal.
+</Tip>
+
+## 7) Where to go next
+
+If you want to go deeper, try these steps:
+
+1. Build a small RL agent for CartPole.
+2. Plot reward curves and watch for instability.
+3. Read Sutton and Barto, Chapters 1-3.
+4. Study PPO to see how modern agents learn reliably.
+
+RL is a big field, but the core idea is simple: **learn to make good decisions through experience.**

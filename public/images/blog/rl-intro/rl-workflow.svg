@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .title { font: 700 28px/1.2 Arial, sans-serif; fill: #0f172a; }
+      .label { font: 600 22px/1.2 Arial, sans-serif; fill: #0f172a; }
+      .small { font: 500 18px/1.2 Arial, sans-serif; fill: #475569; }
+      .arrow { stroke: #2563eb; stroke-width: 3; fill: none; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#2563eb" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="420" />
+  <text x="600" y="60" text-anchor="middle" class="title">RL Workflow</text>
+
+  <rect class="box" x="90" y="130" width="260" height="160" />
+  <text x="220" y="195" text-anchor="middle" class="label">State</text>
+  <text x="220" y="230" text-anchor="middle" class="small">Observation s</text>
+
+  <rect class="box" x="470" y="100" width="260" height="220" />
+  <text x="600" y="165" text-anchor="middle" class="label">Policy</text>
+  <text x="600" y="200" text-anchor="middle" class="small">Choose action a</text>
+
+  <rect class="box" x="850" y="130" width="260" height="160" />
+  <text x="980" y="195" text-anchor="middle" class="label">Environment</text>
+  <text x="980" y="230" text-anchor="middle" class="small">Returns s', r</text>
+
+  <line class="arrow" x1="350" y1="210" x2="470" y2="210" marker-end="url(#arrow)" />
+  <text x="410" y="190" text-anchor="middle" class="small">state</text>
+
+  <line class="arrow" x1="730" y1="210" x2="850" y2="210" marker-end="url(#arrow)" />
+  <text x="790" y="190" text-anchor="middle" class="small">action</text>
+
+  <line class="arrow" x1="850" y1="260" x2="730" y2="260" marker-end="url(#arrow)" />
+  <text x="790" y="290" text-anchor="middle" class="small">reward, next state</text>
+
+  <line class="arrow" x1="470" y1="260" x2="350" y2="260" marker-end="url(#arrow)" />
+  <text x="410" y="290" text-anchor="middle" class="small">update memory</text>
+</svg>

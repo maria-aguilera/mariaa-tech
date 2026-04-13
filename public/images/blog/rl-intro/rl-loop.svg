@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <style>
+      .title { font: 700 30px/1.2 Arial, Helvetica, sans-serif; fill: #0f172a; }
+      .label { font: 600 26px/1.2 Arial, Helvetica, sans-serif; fill: #0f172a; }
+      .small { font: 500 20px/1.2 Arial, Helvetica, sans-serif; fill: #475569; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 24; }
+      .accent { stroke: #2563eb; stroke-width: 3; fill: none; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#2563eb" />
+    </marker>
+  </defs>
+
+  <rect width="1200" height="700" fill="#f8fafc" />
+
+  <text x="600" y="80" text-anchor="middle" class="title">Agent-Environment Loop</text>
+
+  <rect x="120" y="230" width="360" height="220" class="box" />
+  <text x="300" y="320" text-anchor="middle" class="label">Agent</text>
+  <text x="300" y="360" text-anchor="middle" class="small">policy pi(a|s)</text>
+
+  <rect x="720" y="230" width="360" height="220" class="box" />
+  <text x="900" y="320" text-anchor="middle" class="label">Environment</text>
+  <text x="900" y="360" text-anchor="middle" class="small">dynamics + rules</text>
+
+  <line x1="480" y1="270" x2="720" y2="270" class="accent" marker-end="url(#arrow)" />
+  <text x="600" y="245" text-anchor="middle" class="small">Action a<tspan baseline-shift="sub">t</tspan></text>
+
+  <line x1="720" y1="410" x2="480" y2="410" class="accent" marker-end="url(#arrow)" />
+  <text x="600" y="445" text-anchor="middle" class="small">Reward r<tspan baseline-shift="sub">t</tspan> + State s<tspan baseline-shift="sub">t+1</tspan></text>
+</svg>

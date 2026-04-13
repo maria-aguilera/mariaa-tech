@@ -1,0 +1,10 @@
+plot-00.png | cell 46 out 0 | # Plotting histograms for numerical features
+plot-01.png | cell 51 out 1 | plot_numerical_graph1('Elevation')
+plot-02.png | cell 59 out 0 | %matplotlib inline
+plot-03.png | cell 83 out 0 | cmap = sns.color_palette("Set2")
+plot-04.png | cell 88 out 0 | classes = np.array(list(df_train.Cover_Type.values))
+plot-05.png | cell 91 out 0 | ax = plt.figure(figsize=(25,20))
+plot-06.png | cell 95 out 0 | soil_dummies = df_train.loc[:,df_train.columns.str.startswith('Soil_Type')]
+plot-07.png | cell 109 out 0 | size = 9
+plot-08.png | cell 136 out 1 | #Split arrays or matrices into train and valid subsets
+plot-09.png | cell 159 out 1 | #Find Feature importance
