@@ -25,7 +25,7 @@ export default function PageHero({ title, subtitle, icon }: PageHeroProps) {
   return (
     <>
       <Script
-        src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"
+        src="https://unpkg.com/lucide@1.7.0/dist/umd/lucide.min.js"
         strategy="afterInteractive"
         onLoad={() => window.lucide?.createIcons()}
       />

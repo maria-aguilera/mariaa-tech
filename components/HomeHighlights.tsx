@@ -3,24 +3,24 @@ import Link from "next/link";
 const highlights = [
   {
     title: "Blog",
-    subtitle: "Insights and AI tutorials",
+    subtitle: "Notes, tutorials, and study guides",
     icon: "book-open",
     href: "/blog",
-    items: ["AWS blog posts", "Python and ML tutorials", "Code samples and guides"],
+    items: ["Study notes from zero", "Project tutorials and walkthroughs", "ML and AI explainers"],
   },
   {
-    title: "Talks",
-    subtitle: "AI meetups and conferences",
-    icon: "mic-2",
-    href: "/talks",
-    items: ["AI industry meetups", "Tech summits and lofts", "Scientific ML conferences"],
-  },
-  {
-    title: "Publications",
-    subtitle: "Academic research papers",
+    title: "Projects",
+    subtitle: "Builds, experiments, and case studies",
     icon: "file-text",
-    href: "/publications",
-    items: ["Conference proceedings", "Peer-reviewed publications", "Journal articles and preprints"],
+    href: "/projects",
+    items: ["End-to-end ML builds", "Reinforcement learning experiments", "Data + AI work with real outputs"],
+  },
+  {
+    title: "Beyond Work",
+    subtitle: "The human side behind the portfolio",
+    icon: "award",
+    href: "/beyond-work",
+    items: ["Life timeline across countries", "Sports, routines, and interests", "The things I am exploring outside work"],
   },
 ];
 

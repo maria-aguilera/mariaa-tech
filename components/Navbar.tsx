@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import {
   Award,
+  BookOpen,
   FileText,
   Home,
-  Monitor,
   Moon,
-  PenSquare,
   Sun,
 } from "lucide-react";
 
@@ -93,41 +92,30 @@ export default function Navbar() {
             href="/blog"
             aria-current={isActive("/blog") ? "page" : undefined}
           >
-            <PenSquare size={iconSize} />
+            <BookOpen size={iconSize} />
             <span>Blog</span>
           </Link>
         </li>
 
-        <li className={`navbar__item ${isActive("/talks") ? "active" : ""}`}>
+        <li className={`navbar__item ${isActive("/projects") ? "active" : ""}`}>
           <Link
             className="navbar__link"
-            href="/talks"
-            aria-current={isActive("/talks") ? "page" : undefined}
-          >
-            <Monitor size={iconSize} />
-            <span>About</span>
-          </Link>
-        </li>
-
-        <li className={`navbar__item ${isActive("/publications") ? "active" : ""}`}>
-          <Link
-            className="navbar__link"
-            href="/publications"
-            aria-current={isActive("/publications") ? "page" : undefined}
+            href="/projects"
+            aria-current={isActive("/projects") ? "page" : undefined}
           >
             <FileText size={iconSize} />
-            <span>Publications</span>
+            <span>Projects</span>
           </Link>
         </li>
 
-        <li className={`navbar__item ${isActive("/awards") ? "active" : ""}`}>
+        <li className={`navbar__item ${isActive("/beyond-work") ? "active" : ""}`}>
           <Link
             className="navbar__link"
-            href="/awards"
-            aria-current={isActive("/awards") ? "page" : undefined}
+            href="/beyond-work"
+            aria-current={isActive("/beyond-work") ? "page" : undefined}
           >
             <Award size={iconSize} />
-            <span>Awards</span>
+            <span>Beyond Work</span>
           </Link>
         </li>
       </ul>

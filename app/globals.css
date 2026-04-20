@@ -391,6 +391,17 @@ body {
   margin: 0;
 }
 
+.page-content {
+  display: grid;
+  gap: 2.75rem;
+}
+
+.page-content .page-section {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* =====================================================
    TALKS PAGE
    ===================================================== */

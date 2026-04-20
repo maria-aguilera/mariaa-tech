@@ -42,10 +42,10 @@ const featuredItems = [
     summary:
       "Design reliable, observable GenAI workflows with guardrails, evaluation loops, and scalable infrastructure patterns.",
     tags: [
-      { label: "Talks", icon: "mic-2" },
-      { label: "Slides", icon: "file-text" },
+      { label: "Project", icon: "folder-kanban" },
+      { label: "Systems", icon: "cpu" },
     ],
-    cta: { label: "View Talk", href: "/talks", icon: "play-circle" },
+    cta: { label: "View Projects", href: "/projects", icon: "arrow-right" },
     image: { src: "/featured-media.svg", alt: "Speaker session snapshot" },
   },
 ];

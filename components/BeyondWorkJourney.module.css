@@ -1,0 +1,459 @@
+.journey {
+  display: grid;
+  gap: 2rem;
+}
+
+.intro {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 44rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.lead {
+  margin: 0;
+  color: #64748b;
+  max-width: 38rem;
+  line-height: 1.7;
+}
+
+.layout {
+  display: grid;
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.rail {
+  position: relative;
+  padding: 0.75rem 0 0;
+}
+
+.nav {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+}
+
+.nav::before,
+.nav::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.nav::before {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.18));
+}
+
+.nav::after {
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.24);
+}
+
+.step {
+  position: relative;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  text-align: left;
+  box-shadow: none;
+  transition: transform 180ms ease;
+}
+
+.step:hover {
+  transform: translateY(-2px);
+}
+
+.stepActive {
+  transform: translateY(-2px);
+}
+
+.markerWrap {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid rgba(148, 163, 184, 0.5);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease,
+    background 180ms ease;
+}
+
+.marker {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.75);
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.step:hover .markerWrap {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.stepActive .markerWrap {
+  border-color: rgba(37, 99, 235, 0.75);
+  box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.14);
+  transform: scale(1.05);
+}
+
+.stepActive .marker {
+  background: #2563eb;
+  transform: scale(1.1);
+}
+
+.stepPeriod {
+  display: block;
+  margin-top: 0.85rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stepPlace {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.stepMeta {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  padding: 1.85rem;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  background: linear-gradient(135deg, #0f172a 0%, #172554 52%, #1d4ed8 100%);
+  color: #f8fafc;
+  box-shadow: 0 26px 48px rgba(15, 23, 42, 0.24);
+  animation: stageIn 220ms ease;
+}
+
+.stageGlow {
+  position: absolute;
+  top: -3.5rem;
+  right: -2rem;
+  width: 13rem;
+  height: 13rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(147, 197, 253, 0.22) 0%, rgba(147, 197, 253, 0) 72%);
+  pointer-events: none;
+}
+
+.stageTop,
+.pills,
+.list,
+.controls,
+.stageDescription {
+  position: relative;
+  z-index: 1;
+}
+
+.stageTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.stageHeading {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.stagePeriod {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #bfdbfe;
+}
+
+.stageTitle {
+  margin: 0;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.28);
+  border: 1px solid rgba(191, 219, 254, 0.18);
+  color: #dbeafe;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.28);
+  border: 1px solid rgba(191, 219, 254, 0.18);
+  color: #dbeafe;
+  font-size: 0.85rem;
+}
+
+.pill svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.stageDescription {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.list {
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.list li {
+  position: relative;
+  padding-left: 1rem;
+  color: rgba(226, 232, 240, 0.96);
+}
+
+.list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.68rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #60a5fa;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.controlsHint {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.controlGroup {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.5rem;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(191, 219, 254, 0.22);
+  background: rgba(15, 23, 42, 0.28);
+  color: #f8fafc;
+  font-weight: 600;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.control:hover {
+  transform: translateY(-1px);
+  background: rgba(30, 41, 59, 0.48);
+  border-color: rgba(191, 219, 254, 0.3);
+}
+
+.control svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 959px) {
+  .rail {
+    padding-top: 0.15rem;
+  }
+
+  .nav {
+    gap: 0.9rem;
+    padding-left: 1.5rem;
+  }
+
+  .nav::before {
+    left: 0.54rem;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 2px;
+  }
+
+  .nav::after {
+    left: 0.54rem;
+    top: 0.4rem;
+    width: 2px;
+    height: var(--journey-progress);
+    min-height: 1.15rem;
+  }
+
+  .step {
+    padding-bottom: 0.1rem;
+  }
+
+  .markerWrap {
+    position: absolute;
+    left: -1.5rem;
+    top: 0.15rem;
+  }
+
+  .stepPeriod {
+    margin-top: 0;
+  }
+
+  .stepMeta {
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .nav::before {
+    left: 0.65rem;
+    right: 0.65rem;
+    top: 0.56rem;
+    height: 2px;
+  }
+
+  .nav::after {
+    left: 0.65rem;
+    top: 0.56rem;
+    height: 2px;
+    width: calc(var(--journey-progress) - 1.3rem + (100% / 6));
+    min-width: 1.3rem;
+  }
+
+  .step {
+    max-width: 11rem;
+  }
+
+  .stepMeta {
+    max-width: 10rem;
+    line-height: 1.45;
+  }
+
+  .stage {
+    min-height: 24rem;
+  }
+}
+
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:global(body.theme-dark) .eyebrow {
+  color: #93c5fd;
+}
+
+:global(body.theme-dark) .lead {
+  color: #94a3b8;
+}
+
+:global(body.theme-dark) .step {
+  background: transparent;
+}
+
+:global(body.theme-dark) .stepPlace {
+  color: #f8fafc;
+}
+
+:global(body.theme-dark) .stepMeta,
+:global(body.theme-dark) .stepPeriod {
+  color: #94a3b8;
+}
+
+:global(body.theme-dark) .stepActive {
+  background: transparent;
+}
+
+:global(body.theme-dark) .markerWrap {
+  background: #0f172a;
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+:global(body.theme-dark) .marker {
+  background: rgba(148, 163, 184, 0.82);
+}
+
+:global(body.theme-dark) .stepActive .markerWrap {
+  border-color: rgba(96, 165, 250, 0.72);
+  box-shadow: 0 0 0 8px rgba(96, 165, 250, 0.16);
+}
+
+:global(body.theme-dark) .stepActive .marker {
+  background: #60a5fa;
+}
+
+:global(body.theme-dark) .nav::before {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.28), rgba(148, 163, 184, 0.14));
+}
+
+:global(body.theme-dark) .nav::after {
+  background: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
