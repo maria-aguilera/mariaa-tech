@@ -7,6 +7,7 @@ export type JourneyMilestone = {
   highlights: string[];
 };
 
+// Edit this array to change the Beyond Work timeline chapters.
 export const journeyTimeline: JourneyMilestone[] = [
   {
     period: "1997",

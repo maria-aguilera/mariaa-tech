@@ -9,6 +9,7 @@ const beyondWorkAreas: Array<{
   items: string[];
   Icon: LucideIcon;
 }> = [
+  // Edit these cards to change the extra content below the timeline.
   {
     title: "Sport and Energy",
     subtitle: "Movement is a big part of how I reset, stay disciplined, and think clearly.",
