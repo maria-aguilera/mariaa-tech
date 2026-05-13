@@ -1,7 +1,7 @@
 import { Compass, Dumbbell, Sparkles, type LucideIcon } from "lucide-react";
 import BeyondWorkJourney from "@/components/BeyondWorkJourney";
 import PageHero from "@/components/PageHero";
-import { journeyTimeline } from "@/lib/journey-timeline";
+import { timelineItems } from "@/lib/journey-timeline";
 
 const beyondWorkAreas: Array<{
   title: string;
@@ -65,7 +65,7 @@ export default function BeyondWorkPage() {
               </div>
             </section>
 
-            <BeyondWorkJourney items={journeyTimeline} />
+            <BeyondWorkJourney items={timelineItems} />
 
             <div className="home-panels__grid">
               {beyondWorkAreas.map((area) => (

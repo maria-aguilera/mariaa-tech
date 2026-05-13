@@ -8,6 +8,7 @@ import {
   BookOpen,
   FileText,
   Home,
+  Map,
   Moon,
   Sun,
 } from "lucide-react";
@@ -105,6 +106,17 @@ export default function Navbar() {
           >
             <FileText size={iconSize} />
             <span>Projects</span>
+          </Link>
+        </li>
+
+        <li className={`navbar__item ${isActive("/personal-map") ? "active" : ""}`}>
+          <Link
+            className="navbar__link"
+            href="/personal-map"
+            aria-current={isActive("/personal-map") ? "page" : undefined}
+          >
+            <Map size={iconSize} />
+            <span>Personal Map</span>
           </Link>
         </li>
 

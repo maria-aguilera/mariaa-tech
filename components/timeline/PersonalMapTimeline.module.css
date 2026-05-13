@@ -1,0 +1,352 @@
+.section {
+  width: min(100%, 72rem);
+  margin: 0 auto;
+}
+
+.poster,
+.mobilePoster {
+  position: relative;
+  overflow: hidden;
+  color: #0f172a;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.88), transparent 21%),
+    radial-gradient(circle at 76% 24%, rgba(255, 255, 255, 0.56), transparent 24%),
+    radial-gradient(circle at 62% 72%, rgba(255, 255, 255, 0.46), transparent 26%),
+    repeating-linear-gradient(
+      68deg,
+      rgba(120, 113, 108, 0.03) 0 1px,
+      transparent 1px 11px
+    ),
+    linear-gradient(180deg, #fcfaf4 0%, #f5eee2 100%);
+}
+
+.poster {
+  min-height: 38.75rem;
+  padding: 2rem 1.6rem;
+  isolation: isolate;
+}
+
+.poster::before,
+.mobilePoster::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(255, 249, 239, 0.34), transparent 52%),
+    radial-gradient(circle at 16% 72%, rgba(255, 255, 255, 0.38), transparent 26%);
+  pointer-events: none;
+}
+
+.routeSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.routeGlow,
+.routeLine,
+.mobileRouteGlow,
+.mobileRouteLine,
+.mobileAccent {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.routeGlow {
+  stroke-width: 10;
+  opacity: 0.12;
+  filter: blur(2px);
+}
+
+.routeLine {
+  stroke-width: 4.5;
+  opacity: 0.94;
+}
+
+.stop {
+  position: absolute;
+  left: var(--stop-x);
+  top: var(--stop-y);
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0.95rem;
+  transform: translate(-50%, -50%);
+}
+
+.stopLabelLeft .label {
+  order: 1;
+  text-align: right;
+  justify-items: end;
+}
+
+.stopLabelLeft .marker {
+  order: 2;
+}
+
+.marker,
+.mobileMarker {
+  position: relative;
+}
+
+.marker {
+  width: 5rem;
+  height: 5rem;
+}
+
+.mobileMarker {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.markerHalo {
+  position: absolute;
+  inset: -0.45rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.78), transparent 72%);
+}
+
+.markerFrame {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0.18rem;
+  border-radius: 999px;
+  background: rgba(255, 252, 247, 0.94);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.09);
+}
+
+.markerFrame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+  pointer-events: none;
+}
+
+.markerImage,
+.markerFallback {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, 0.76);
+}
+
+.markerFallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--stop-start), var(--stop-end));
+  color: #ffffff;
+  font-family: var(--font-editorial), Georgia, serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+}
+
+.flagBadge {
+  position: absolute;
+  right: -0.22rem;
+  bottom: -0.12rem;
+  z-index: 2;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0.12rem;
+  border-radius: 999px;
+  background: rgba(255, 252, 247, 0.95);
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.1);
+}
+
+.flagGraphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.flagGraphic svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.label,
+.mobileLabel {
+  display: grid;
+  gap: 0.12rem;
+  min-width: max-content;
+}
+
+.index,
+.years {
+  font-family: var(--font-geist-mono), monospace;
+  line-height: 1.3;
+}
+
+.index {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.city {
+  font-family: var(--font-editorial), Georgia, serif;
+  font-size: clamp(1.6rem, 2vw, 2.05rem);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  color: #1f2937;
+}
+
+.years {
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.closingPhrase,
+.mobileClosingPhrase {
+  margin: 0;
+  font-family: var(--font-handwritten), cursive;
+  color: rgba(15, 23, 42, 0.78);
+}
+
+.closingPhrase {
+  position: absolute;
+  right: 5%;
+  bottom: 11%;
+  max-width: 15rem;
+  font-size: 1.52rem;
+  line-height: 1.3;
+}
+
+.mobilePoster {
+  display: none;
+}
+
+.mobilePoster {
+  min-height: 0;
+  padding: 1.4rem 1rem 1.6rem 1.1rem;
+  isolation: isolate;
+}
+
+.mobileRoute {
+  position: absolute;
+  top: 1.1rem;
+  left: 0.4rem;
+  width: 6.5rem;
+  height: calc(100% - 2.2rem);
+}
+
+.mobileRouteGlow {
+  stroke-width: 8;
+  opacity: 0.12;
+  filter: blur(2px);
+}
+
+.mobileRouteLine {
+  stroke-width: 3.75;
+  opacity: 0.92;
+}
+
+.mobileAccent {
+  stroke-width: 3;
+  opacity: 0.8;
+}
+
+.mobileStops {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.1rem;
+}
+
+.mobileStop {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.95rem;
+  align-items: center;
+}
+
+.mobileClosingPhrase {
+  position: relative;
+  z-index: 1;
+  margin-top: 1rem;
+  padding-left: 0.35rem;
+  font-size: 1.26rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 1100px) {
+  .poster {
+    padding-inline: 1.35rem;
+  }
+
+  .marker {
+    width: 4.6rem;
+    height: 4.6rem;
+  }
+
+  .city {
+    font-size: clamp(1.45rem, 1.7vw, 1.85rem);
+  }
+
+  .closingPhrase {
+    right: 4%;
+    bottom: 8%;
+  }
+}
+
+@media (max-width: 960px) {
+  .poster {
+    display: none;
+  }
+
+  .mobilePoster {
+    display: block;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobilePoster {
+    padding: 1.1rem 0.9rem 1.35rem 0.95rem;
+  }
+
+  .mobileRoute {
+    left: 0.15rem;
+    width: 5.8rem;
+  }
+
+  .mobileStop {
+    grid-template-columns: 4.15rem minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+
+  .mobileMarker {
+    width: 4.15rem;
+    height: 4.15rem;
+  }
+
+  .city {
+    font-size: 1.55rem;
+  }
+
+  .years {
+    font-size: 0.76rem;
+  }
+
+  .mobileClosingPhrase {
+    font-size: 1.12rem;
+  }
+}
