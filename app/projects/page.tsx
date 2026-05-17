@@ -4,6 +4,12 @@ import PageHero from "@/components/PageHero";
 import { blogPosts } from "@/lib/blog-posts";
 import { getAllMdxPostMeta } from "@/lib/mdx";
 
+function extractYear(value: string | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/(\d{4})/);
+  return match ? Number(match[1]) : null;
+}
+
 export default function ProjectsPage() {
   const mdxPosts = getAllMdxPostMeta();
   const blogSlugs = new Set(blogPosts.map((post) => post.slug));
@@ -14,12 +20,39 @@ export default function ProjectsPage() {
   const allPosts = [...mergedPosts, ...extraMdxPosts];
   const projectPosts = allPosts.filter((post) => post.source === "Project");
 
+  const projectYears = projectPosts
+    .map((post) => extractYear(post.date))
+    .filter((year): year is number => year !== null);
+  const sinceYear = projectYears.length ? Math.min(...projectYears) : null;
+  const topicsCount = new Set(projectPosts.flatMap((post) => post.tags)).size;
+  const latestPost = projectPosts.reduce<typeof projectPosts[number] | null>((latest, post) => {
+    const postYear = extractYear(post.updated ?? post.date) ?? -Infinity;
+    const latestYear = latest ? extractYear(latest.updated ?? latest.date) ?? -Infinity : -Infinity;
+    return postYear >= latestYear ? post : latest;
+  }, null);
+
+  const stats = [
+    { value: String(projectPosts.length), label: "Projects" },
+    { value: String(topicsCount), label: "Topics" },
+    { value: sinceYear ? String(sinceYear) : "—", label: "Since" },
+    { value: latestPost?.updated ?? latestPost?.date ?? "—", label: "Updated" },
+  ];
+
   return (
     <main className="blog-page">
       <PageHero title="Projects" subtitle="Builds, experiments, and case studies" icon="file-text" />
 
       <section className="blog-body">
         <div className="blog-body__container">
+          <div className="blog-stats">
+            {stats.map((stat) => (
+              <div key={stat.label} className="blog-stat">
+                <div className="blog-stat__value">{stat.value}</div>
+                <div className="blog-stat__label">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="page-content">
             <section className="page-section talks-section">
               <div className="talks-section__header">

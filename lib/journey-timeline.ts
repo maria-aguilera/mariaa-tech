@@ -16,6 +16,10 @@ export type JourneyMilestone = {
     x: number;
     y: number;
   };
+  geo: {
+    lat: number;
+    lng: number;
+  };
   panelPosition: {
     x: number;
     y: number;
@@ -40,13 +44,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Born in Madrid in 1997. The starting point of the story: family, movement, and the beginning of the journey.",
     summary:
       "Born in Madrid on 19 May 1997. The starting point of the story, before I was old enough to understand the story had started.",
-    memory: "The story starts with family, motion, and a beginning that already feels shared.",
+    memory:
+      "I was born in Madrid on 19 May 1997. When I was one and my brother was two, we moved to Rio — and the journey began.",
     note: "Before memory, there was already movement.",
     flagCode: "es",
     photo: "/images/timeline-sketch/spain-baby.png",
     stroke: "#c94d45",
     labelSide: "right",
-    coordinates: { x: 16, y: 22 },
+    coordinates: { x: 44, y: 24 },
+    geo: { lat: 40.4168, lng: -3.7038 },
     panelPosition: { x: 27, y: 14 },
     palette: {
       start: "#f59e0b",
@@ -66,13 +72,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Moved to Rio when I was little. It is the chapter where Portuguese came before Spanish and adaptation started very early.",
     summary:
       "Moved to Rio when I was around one. This is where I actually started speaking: Portuguese before Spanish, which is funny because I somehow forgot most of it later.",
-    memory: "Brazil made adaptation feel natural before I was old enough to name it.",
+    memory:
+      "When I was one we moved to Rio. According to my mum, I learned Portuguese before Spanish — I have no clue if that's true, but I don't know Portuguese.",
     note: "As Batutinhas came before anything that felt like real school.",
     flagCode: "br",
     photo: "/images/timeline-sketch/brazil-swim.png",
     stroke: "#dcb831",
     labelSide: "left",
-    coordinates: { x: 74, y: 23 },
+    coordinates: { x: 74, y: 29 },
+    geo: { lat: -22.9068, lng: -43.1729 },
     panelPosition: { x: 51, y: 16 },
     palette: {
       start: "#22c55e",
@@ -92,13 +100,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Lived in Athens and went to St. Catherine's International School. My sister was born during this chapter.",
     summary:
       "This is where I first properly went to school: St. Catherine’s International School. My sister was born during this chapter, and Vigo already felt like home even though I never lived there.",
-    memory: "Athens turned change from interruption into part of the way I grew up.",
+    memory:
+      "St. Catherine's was my first real school. My sister was born while we were living here — but Vigo is where I say I'm from if people ask.",
     note: "We always went back to Vigo for holidays, and it still feels like home.",
     flagCode: "gr",
     photo: "/images/timeline-sketch/athens-school.png",
     stroke: "#c94d45",
     labelSide: "right",
-    coordinates: { x: 49, y: 42 },
+    coordinates: { x: 52, y: 47 },
+    geo: { lat: 37.9838, lng: 23.7275 },
     panelPosition: { x: 56, y: 35 },
     palette: {
       start: "#60a5fa",
@@ -118,13 +128,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Attended Greengates School. This chapter added another culture, another rhythm, and another version of home.",
     summary:
       "My brother and I attended Greengates School. I remember the freedom of living in a condominio, plus golf, tennis, swimming, golf carts, scooter accidents, and Casi, our Labrador.",
-    memory: "Mexico made childhood feel wide open: school, sport, freedom, and Casi.",
+    memory:
+      "Greengates School. A new family member arrived around then… or something like that.",
     note: "Casi was my dream dog and made this chapter unforgettable.",
     flagCode: "mx",
     photo: "/images/timeline-sketch/mexico-dog.png",
     stroke: "#3652b4",
     labelSide: "right",
-    coordinates: { x: 18, y: 59 },
+    coordinates: { x: 39, y: 61 },
+    geo: { lat: 19.4326, lng: -99.1332 },
     panelPosition: { x: 16, y: 41 },
     palette: {
       start: "#ef4444",
@@ -144,13 +156,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Went to St George’s School of Switzerland. This is where skiing and the French-speaking part of my life became important.",
     summary:
       "After Mexico, life shifted into a different rhythm: more trains, more independence, and much more skiing. I even joined the school ski team, and this is also where piano started.",
-    memory: "Montreux gave the journey more independence, more mountains, and more discipline.",
+    memory:
+      "St George's, the ski team, piano lessons, a lot more trains. The rhythm got sharper, the mountains got bigger.",
     note: "Winter, trains, ski team, piano, and a much sharper rhythm.",
     flagCode: "ch",
     photo: "/images/timeline-sketch/switzerland-ski.png",
     stroke: "#3652b4",
     labelSide: "left",
-    coordinates: { x: 69, y: 63 },
+    coordinates: { x: 70, y: 66 },
+    geo: { lat: 46.4312, lng: 6.9123 },
     panelPosition: { x: 71, y: 52 },
     palette: {
       start: "#fb7185",
@@ -170,13 +184,15 @@ export const timelineItems: JourneyMilestone[] = [
       "Studied at the British School of Barcelona. This chapter brought the journey back to Spain, but with a much more international version of me.",
     summary:
       "In theory this was moving back to Spain, but after so many international moves it felt more complex than that. I finished school here and learned that good grades came from effort, not magic.",
-    memory: "Barcelona was a return to Spain, but with a much more international version of me.",
+    memory:
+      "Back to Spain, but with a more international version of me. Finished school at the British School of Barcelona — and learned that good grades come from effort, not magic.",
     note: "Back to Spain, but not back to the beginning.",
     flagCode: "es",
     photo: "/images/timeline-sketch/barcelona-family.png",
     stroke: "#3652b4",
     labelSide: "right",
-    coordinates: { x: 26, y: 81 },
+    coordinates: { x: 26, y: 82 },
+    geo: { lat: 41.3851, lng: 2.1734 },
     panelPosition: { x: 33, y: 64 },
     palette: {
       start: "#f97316",

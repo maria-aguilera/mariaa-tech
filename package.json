@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "d3-geo": "^3.1.1",
     "gray-matter": "^4.0.3",
     "katex": "^0.16.10",
     "lucide-react": "^1.7.0",
@@ -16,6 +17,7 @@
     "next-mdx-remote": "^6.0.0",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-simple-maps": "^3.0.0",
     "rehype-katex": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
