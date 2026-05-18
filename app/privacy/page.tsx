@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="blog-page">
+    <main id="main-content" className="blog-page">
       <PageHero
         title="Privacy"
         subtitle="A short, honest note about what this site does and doesn't collect"

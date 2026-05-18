@@ -1,5 +1,19 @@
+import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
 import { journeyTimeline } from "@/lib/journey-timeline";
+
+export const metadata: Metadata = {
+  title: "About",
+  description:
+    "Background, timeline, and current direction — what shaped how I work across data, analytics, and AI.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About · Maria Aguilera",
+    description:
+      "Background, timeline, and current direction — what shaped how I work across data, analytics, and AI.",
+    url: "/about",
+  },
+};
 
 const cvHighlights = [
   "MSc in Big Data with an AI focus.",
@@ -9,7 +23,7 @@ const cvHighlights = [
 
 export default function AboutPage() {
   return (
-    <main className="blog-page">
+    <main id="main-content" className="blog-page">
       <PageHero
         title="About"
         subtitle="A fuller view of my background, timeline, and current direction"

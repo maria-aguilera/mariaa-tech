@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import AIPerspectiveCards from "@/components/AIPerspectiveCards";
 import BeyondWorkJourney from "@/components/BeyondWorkJourney";
@@ -7,6 +8,19 @@ import PinterestCarousel, { type PinSlide } from "@/components/PinterestCarousel
 import { timelineItems } from "@/lib/journey-timeline";
 import { getPinsFromBoard } from "@/lib/pinterest";
 import { pinterestSlides } from "@/lib/pinterest-pins";
+
+export const metadata: Metadata = {
+  title: "Beyond Work",
+  description:
+    "The life, interests, and routines that sit outside the main portfolio — chess, design, languages, and the places that shaped me.",
+  alternates: { canonical: "/beyond-work" },
+  openGraph: {
+    title: "Beyond Work · Maria Aguilera",
+    description:
+      "The life, interests, and routines that sit outside the main portfolio — chess, design, languages, and the places that shaped me.",
+    url: "/beyond-work",
+  },
+};
 
 const CHESS_USERNAME = "marimari3399";
 
@@ -85,7 +99,7 @@ export default async function BeyondWorkPage() {
   ).size;
 
   return (
-    <main className="blog-page">
+    <main id="main-content" className="blog-page">
       <PageHero
         title="Beyond Work"
         subtitle="The life, interests, and routines that sit outside the main portfolio"

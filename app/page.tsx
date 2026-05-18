@@ -8,7 +8,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 export default function Home() {
   return (
     <>
-      <main>
+      <main id="main-content">
         <HomeHero />
         <HomeHighlights />
         <HomeFeatured />

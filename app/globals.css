@@ -3441,3 +3441,57 @@ body.theme-dark .currently-card__meta,
 body.theme-dark .bw-journey__description {
   color: #cbd5e1;
 }
+
+/* =====================================================
+   ACCESSIBILITY UTILITIES
+   ===================================================== */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -150%);
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--slate-900);
+  color: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 0 0 0.5rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 150ms ease;
+}
+
+.skip-link:focus {
+  transform: translate(-50%, 0);
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

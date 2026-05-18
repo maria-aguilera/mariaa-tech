@@ -34,9 +34,32 @@ const caveat = Caveat({
   display: "swap",
 });
 
+const siteDescription =
+  "Maria Aguilera — data and AI engineer at BMC Software. Notes, projects, and writing on building practical ML systems.";
+
 export const metadata: Metadata = {
-  title: "Maria Aguilera",
-  description: "Personal website of Maria Aguilera",
+  metadataBase: new URL("https://mariaa.tech"),
+  title: {
+    default: "Maria Aguilera",
+    template: "%s · Maria Aguilera",
+  },
+  description: siteDescription,
+  openGraph: {
+    type: "website",
+    url: "https://mariaa.tech",
+    siteName: "Maria Aguilera",
+    title: "Maria Aguilera",
+    description: siteDescription,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Maria Aguilera",
+    description: siteDescription,
+  },
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default function RootLayout({
@@ -49,6 +72,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${cormorant.variable} ${caveat.variable} antialiased`}
       >
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <Navbar />
         {children}
       </body>

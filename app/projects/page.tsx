@@ -1,8 +1,22 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import { blogPosts } from "@/lib/blog-posts";
 import { getAllMdxPostMeta } from "@/lib/mdx";
+
+export const metadata: Metadata = {
+  title: "Projects",
+  description:
+    "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
+  alternates: { canonical: "/projects" },
+  openGraph: {
+    title: "Projects · Maria Aguilera",
+    description:
+      "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
+    url: "/projects",
+  },
+};
 
 function extractYear(value: string | undefined): number | null {
   if (!value) return null;
@@ -39,7 +53,7 @@ export default function ProjectsPage() {
   ];
 
   return (
-    <main className="blog-page">
+    <main id="main-content" className="blog-page">
       <PageHero title="Projects" subtitle="Builds, experiments, and case studies" icon="file-text" />
 
       <section className="blog-body">

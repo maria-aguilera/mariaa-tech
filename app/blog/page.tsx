@@ -1,8 +1,22 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import { blogPosts } from "@/lib/blog-posts";
 import { getAllMdxPostMeta } from "@/lib/mdx";
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description:
+    "Writing on machine learning, data engineering, and the practical side of building AI systems.",
+  alternates: { canonical: "/blog" },
+  openGraph: {
+    title: "Blog · Maria Aguilera",
+    description:
+      "Writing on machine learning, data engineering, and the practical side of building AI systems.",
+    url: "/blog",
+  },
+};
 
 export default function BlogPage() {
   const mdxPosts = getAllMdxPostMeta();
@@ -31,7 +45,7 @@ export default function BlogPage() {
   ];
 
   return (
-    <main className="blog-page">
+    <main id="main-content" className="blog-page">
       <PageHero title="Technical Blog" subtitle="AI insights and customer stories" icon="book-open" />
 
       <section className="blog-body">

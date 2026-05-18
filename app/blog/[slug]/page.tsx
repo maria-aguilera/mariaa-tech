@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,6 +16,40 @@ import { extractTocFromMdx } from "@/lib/toc";
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const decodedSlug = decodeURIComponent(slug);
+  const mdxPost = getMdxPostBySlug(decodedSlug);
+  const meta = mdxPost?.meta;
+  const fallback = blogPosts.find((item) => item.slug === decodedSlug);
+  const title = meta?.title ?? fallback?.title;
+  const description = meta?.subtitle ?? fallback?.subtitle ?? fallback?.excerpt;
+  const coverImage = meta?.coverImage ?? fallback?.coverImage;
+
+  if (!title) {
+    return {};
+  }
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/blog/${decodedSlug}` },
+    openGraph: {
+      type: "article",
+      title: `${title} · Maria Aguilera`,
+      description,
+      url: `/blog/${decodedSlug}`,
+      images: coverImage ? [coverImage] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} · Maria Aguilera`,
+      description,
+      images: coverImage ? [coverImage] : undefined,
+    },
+  };
+}
 
 export function generateStaticParams() {
   const mdxPosts = getAllMdxPostMeta();
@@ -100,7 +135,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     const toc = extractTocFromMdx(content);
 
     return (
-      <main className="post-page">
+      <main id="main-content" className="post-page">
         <PageHero title={meta.title} subtitle={meta.subtitle} icon="book-open" />
 
         <article className="post">
