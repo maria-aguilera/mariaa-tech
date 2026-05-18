@@ -6,7 +6,6 @@ import PageHero from "@/components/PageHero";
 import PinterestCarousel, { type PinSlide } from "@/components/PinterestCarousel";
 import { timelineItems } from "@/lib/journey-timeline";
 import { getPinsFromBoard } from "@/lib/pinterest";
-import { getPinsViaApi, isApiConfigured } from "@/lib/pinterest-api";
 import { pinterestSlides } from "@/lib/pinterest-pins";
 
 const CHESS_USERNAME = "marimari3399";
@@ -64,27 +63,21 @@ async function getChessProfile(username: string): Promise<ChessProfile> {
 }
 
 export default async function BeyondWorkPage() {
-  const apiActive = isApiConfigured();
-
-  const [chess, apiSlides, ...boardPinLists] = await Promise.all([
+  const [chess, ...boardPinLists] = await Promise.all([
     getChessProfile(CHESS_USERNAME),
-    apiActive ? getPinsViaApi(8) : Promise.resolve([]),
     ...pinterestBoards.map((b) => getPinsFromBoard(b.url, 12)),
   ]);
 
-  // Priority: 1) Pinterest API (if env vars set), 2) hand-curated list, 3) scraped fallback.
   const slides: PinSlide[] =
-    apiSlides.length > 0
-      ? apiSlides
-      : pinterestSlides.length > 0
-        ? pinterestSlides
-        : pinterestBoards.flatMap((board, i) =>
-            boardPinLists[i].slice(0, 10).map((src) => ({
-              src,
-              boardTitle: board.title,
-              boardUrl: board.url,
-            })),
-          );
+    pinterestSlides.length > 0
+      ? pinterestSlides
+      : pinterestBoards.flatMap((board, i) =>
+          boardPinLists[i].slice(0, 10).map((src) => ({
+            src,
+            boardTitle: board.title,
+            boardUrl: board.url,
+          })),
+        );
 
   const countriesLived = new Set(timelineItems.map((m) => m.country)).size;
   const continents = new Set(
