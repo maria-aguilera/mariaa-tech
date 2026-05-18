@@ -57,19 +57,13 @@ export default function PrivacyPage() {
               <div className="talks-section__header">
                 <h2>Third-party APIs the site reads from</h2>
                 <p className="talks-section__lead">
-                  The Beyond Work page fetches a few read-only pieces of public data on each
+                  The Beyond Work page fetches one read-only piece of public data on each
                   page load (cached for up to an hour by Vercel):
                 </p>
               </div>
               <ul className="home-panel__list">
                 <li>
                   Chess.com&apos;s public REST API — to display my own chess rating.
-                </li>
-                <li>
-                  The Pinterest API — to display pins from my own boards as design
-                  inspiration. Only my own boards and pins are accessed; the integration uses a
-                  Trial-tier app-owner access token, not a user OAuth flow, so no other user
-                  ever signs in here.
                 </li>
               </ul>
             </section>
