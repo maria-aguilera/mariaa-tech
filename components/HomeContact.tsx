@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Icon from "@/components/Icon";
 
 const CONTACT_EMAIL = "mailto:mariaaguilera979797@gmail.com";
 
@@ -9,7 +10,7 @@ export default function HomeContact() {
         <article className="contact-card">
           <div className="contact-card__content">
             <h2 className="contact-card__title">
-              <i data-lucide="message-circle" aria-hidden="true" />
+              <Icon name="message-circle" aria-hidden="true" />
               <span>Get In Touch</span>
             </h2>
 
@@ -18,7 +19,7 @@ export default function HomeContact() {
             </p>
 
             <a className="contact-card__cta" href={CONTACT_EMAIL}>
-              <i data-lucide="mail" aria-hidden="true" />
+              <Icon name="mail" aria-hidden="true" />
               <span>Contact</span>
             </a>
           </div>

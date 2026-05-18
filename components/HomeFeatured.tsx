@@ -3,12 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-
-declare global {
-  interface Window {
-    lucide?: { createIcons: () => void };
-  }
-}
+import Icon from "@/components/Icon";
 
 const ROTATION_MS = 6500;
 const PAUSE_AFTER_INTERACTION_MS = 4000;
@@ -140,10 +135,6 @@ export default function HomeFeatured() {
     }
   }, [isHovered, clearTimers, startAutoplay]);
 
-  useEffect(() => {
-    window.lucide?.createIcons();
-  }, [activeIndex]);
-
   const goToSlide = (index: number) => {
     setActiveIndex(index);
     scheduleResume();
@@ -225,7 +216,7 @@ export default function HomeFeatured() {
               >
                 <div className="featured-card__content">
                   <p className="featured-card__eyebrow">
-                    <i data-lucide="star" aria-hidden="true" />
+                    <Icon name="star" aria-hidden="true" />
                     <span>Featured</span>
                   </p>
 
@@ -236,14 +227,14 @@ export default function HomeFeatured() {
                   <div className="featured-card__tags">
                     {item.tags.map((tag) => (
                       <span key={`${item.title}-${tag.label}`} className="featured-tag">
-                        <i data-lucide={tag.icon} aria-hidden="true" />
+                        <Icon name={tag.icon} aria-hidden="true" />
                         <span>{tag.label}</span>
                       </span>
                     ))}
                   </div>
 
                   <Link className="featured-card__cta" href={item.cta.href}>
-                    <i data-lucide={item.cta.icon} aria-hidden="true" />
+                    <Icon name={item.cta.icon} aria-hidden="true" />
                     <span>{item.cta.label}</span>
                   </Link>
                 </div>

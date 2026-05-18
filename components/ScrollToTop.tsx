@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-declare global {
-  interface Window {
-    lucide?: { createIcons: () => void };
-  }
-}
+import Icon from "@/components/Icon";
 
 export default function ScrollToTop() {
   const [visible, setVisible] = useState(false);
@@ -22,12 +17,6 @@ export default function ScrollToTop() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    if (visible) {
-      window.lucide?.createIcons();
-    }
-  }, [visible]);
-
   const handleClick = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -39,7 +28,7 @@ export default function ScrollToTop() {
       onClick={handleClick}
       aria-label="Scroll to top"
     >
-      <i data-lucide="arrow-up" aria-hidden="true" />
+      <Icon name="arrow-up" aria-hidden="true" />
     </button>
   );
 }

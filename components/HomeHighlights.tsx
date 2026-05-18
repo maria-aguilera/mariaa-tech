@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 const highlights = [
   {
@@ -33,7 +34,7 @@ export default function HomeHighlights() {
             <article key={panel.title} className="home-panel">
               <header className="home-panel__header">
                 <span className="home-panel__icon" aria-hidden="true">
-                  <i data-lucide={panel.icon} />
+                  <Icon name={panel.icon} />
                 </span>
                 <h2 className="home-panel__title">{panel.title}</h2>
               </header>
@@ -48,7 +49,7 @@ export default function HomeHighlights() {
 
               <Link className="home-panel__cta" href={panel.href}>
                 <span>Explore</span>
-                <i data-lucide="external-link" aria-hidden="true" />
+                <Icon name="external-link" aria-hidden="true" />
               </Link>
             </article>
           ))}

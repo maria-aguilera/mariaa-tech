@@ -1,14 +1,6 @@
-"use client";
-
 import Image from "next/image";
-import Script from "next/script";
-import { useEffect, type SVGProps } from "react";
-
-declare global {
-  interface Window {
-    lucide?: { createIcons: () => void };
-  }
-}
+import { type SVGProps } from "react";
+import Icon from "@/components/Icon";
 
 function GitHubIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -48,92 +40,80 @@ function LinkedInIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 export default function HomeHero() {
-  useEffect(() => {
-    window.lucide?.createIcons();
-  }, []);
-
   return (
-    <>
-      <Script
-        src="https://unpkg.com/lucide@1.7.0/dist/umd/lucide.min.js"
-        strategy="afterInteractive"
-        onLoad={() => window.lucide?.createIcons()}
-      />
+    <section className="hero">
+      <div className="hero__container">
+        <div className="hero__layout">
+          <div className="hero__photoCol">
+            <div className="hero__photoFrame">
+              <Image
+                className="hero__photo"
+                src="https://raw.githubusercontent.com/maria-aguilera/portfolio-assets/refs/heads/master/maria-headshot.png"
+                alt="Maria Aguilera García"
+                width={256}
+                height={256}
+                priority
+                sizes="256px"
+              />
+            </div>
+          </div>
 
-      <section className="hero">
-        <div className="hero__container">
-          <div className="hero__layout">
-            <div className="hero__photoCol">
-              <div className="hero__photoFrame">
-                <Image
-                  className="hero__photo"
-                  src="https://raw.githubusercontent.com/maria-aguilera/portfolio-assets/refs/heads/master/maria-headshot.png"
-                  alt="Maria Aguilera García"
-                  width={256}
-                  height={256}
-                  priority
-                  sizes="256px"
-                />
+          <div className="hero__content">
+            <div>
+              <h1 className="hero__title">Maria Aguilera García</h1>
+
+              <div className="hero__bullets">
+                <p className="hero__bullet">✨ Data &amp; AI focused on real-world impact</p>
+                <p className="hero__bullet">
+                  🚀 Building ML + analytics solutions that drive business value
+                </p>
+                <p className="hero__bullet">🔥 MSc Big Data (AI) • currently at BMC Software</p>
               </div>
             </div>
 
-            <div className="hero__content">
-              <div>
-                <h1 className="hero__title">Maria Aguilera García</h1>
-
-                <div className="hero__bullets">
-                  <p className="hero__bullet">✨ Data &amp; AI focused on real-world impact</p>
-                  <p className="hero__bullet">
-                    🚀 Building ML + analytics solutions that drive business value
-                  </p>
-                  <p className="hero__bullet">🔥 MSc Big Data (AI) • currently at BMC Software</p>
-                </div>
-              </div>
-
-              <div className="hero__actions">
-                <div className="hero__icons" aria-label="Social links">
-                  <a
-                    className="iconBtn"
-                    href="mailto:mariaaguilera979797@gmail.com"
-                    aria-label="Email"
-                  >
-                    <i data-lucide="mail" aria-hidden="true" />
-                  </a>
-                  <a
-                    className="iconBtn"
-                    href="https://github.com/maria-aguilera"
-                    aria-label="GitHub"
-                  >
-                    <GitHubIcon aria-hidden="true" />
-                  </a>
-                  <a
-                    className="iconBtn"
-                    href="https://www.linkedin.com/in/maria-aguilera-garcia/"
-                    aria-label="LinkedIn"
-                  >
-                    <LinkedInIcon aria-hidden="true" />
-                  </a>
-                  <a className="iconBtn" href="https://kaggle.com/maria-aguilera" aria-label="Kaggle">
-                    <i data-lucide="bar-chart-3" aria-hidden="true" />
-                  </a>
-                  <a
-                    className="iconBtn"
-                    href="https://medium.com/@mariaaguilera"
-                    aria-label="Blog"
-                  >
-                    <i data-lucide="pen-square" aria-hidden="true" />
-                  </a>
-                </div>
-
-                <a className="cvBtn" href="/resume.pdf" download>
-                  <i data-lucide="download" aria-hidden="true" />
-                  <span>Download CV</span>
+            <div className="hero__actions">
+              <div className="hero__icons" aria-label="Social links">
+                <a
+                  className="iconBtn"
+                  href="mailto:mariaaguilera979797@gmail.com"
+                  aria-label="Email"
+                >
+                  <Icon name="mail" aria-hidden="true" />
+                </a>
+                <a
+                  className="iconBtn"
+                  href="https://github.com/maria-aguilera"
+                  aria-label="GitHub"
+                >
+                  <GitHubIcon aria-hidden="true" />
+                </a>
+                <a
+                  className="iconBtn"
+                  href="https://www.linkedin.com/in/maria-aguilera-garcia/"
+                  aria-label="LinkedIn"
+                >
+                  <LinkedInIcon aria-hidden="true" />
+                </a>
+                <a className="iconBtn" href="https://kaggle.com/maria-aguilera" aria-label="Kaggle">
+                  <Icon name="bar-chart-3" aria-hidden="true" />
+                </a>
+                <a
+                  className="iconBtn"
+                  href="https://medium.com/@mariaaguilera"
+                  aria-label="Blog"
+                >
+                  <Icon name="pen-square" aria-hidden="true" />
                 </a>
               </div>
+
+              <a className="cvBtn" href="/resume.pdf" download>
+                <Icon name="download" aria-hidden="true" />
+                <span>Download CV</span>
+              </a>
             </div>
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 }
