@@ -1,0 +1,333 @@
+---
+slug: aws-deepracer-training
+title: "Training AWS DeepRacer"
+subtitle: "A 1/18-scale autonomous car, a reward function, and the gap between simulator and a real track."
+date: "October 2023"
+updated: "October 2023"
+excerpt: "Notes on building an AWS DeepRacer model: the SageMaker + RoboMaker + Gazebo + Redis architecture, every reward-function parameter, the hyperparameters that matter, PPO vs SAC, and the three strategies for moving from simulator to a real track."
+tags:
+  - Reinforcement Learning
+  - AWS DeepRacer
+  - SageMaker
+  - Hyperparameters
+  - Autonomous Driving
+source: Project
+coverImage: "/images/blog/aws-deepracer.jpg"
+style: navy
+bannerImage: "/images/blog/aws-deepracer/img_09_p03_6e90124b4c.png"
+---
+
+*Hands-on notes from training an AWS DeepRacer on the Cumulo Turnpike — the cloud architecture behind training, every parameter you can use in a reward function, the hyperparameters worth tuning, and the gap between simulator and a real track.*
+
+## What AWS DeepRacer actually is
+
+AWS DeepRacer is a 1/18-scale autonomous car you train with reinforcement learning. You write a Python *reward function*, pick a few hyperparameters, and a model trains in the cloud against a simulated track. Once it's good in the simulator, you can deploy it onto a physical car on a real track.
+
+The track I worked on is the **Cumulo Turnpike** — 60 m × 106 cm, a layout that punishes anyone who can't take corners cleanly. To make the car faster you need a better RL model, which means more iteration on the reward function and a smarter choice of hyperparameters.
+
+<Image
+  src="/images/blog/aws-deepracer/img_09_p03_6e90124b4c.png"
+  alt="Cumulo Turnpike track card showing the track shape and dimensions: 60m long, 106cm wide."
+  caption="The Cumulo Turnpike — a mix of long straightaways and tight corners, requiring both speed and accurate navigation."
+/>
+
+## The architecture behind training
+
+DeepRacer training is split across five AWS services that talk to each other in a loop. <KeyTerm>SageMaker</KeyTerm> runs the RL algorithm and updates the neural network. <KeyTerm>RoboMaker</KeyTerm> hosts the simulator and runs the agent (the car) inside it, using <KeyTerm color="green">Gazebo</KeyTerm> as the physics engine — chassis, wheels, camera, friction, collisions, accelerations. <KeyTerm color="blue">Amazon S3</KeyTerm> stores the persisted copy of the model, and <KeyTerm color="orange">Redis</KeyTerm> is the in-memory database that caches every (state, action, reward, next-state) tuple produced by the agent.
+
+<Image
+  src="/images/blog/aws-deepracer/img_08_p02_c9684101c9.png"
+  alt="AWS service architecture diagram: Amazon SageMaker connects to S3, S3 connects to AWS RoboMaker, and RoboMaker connects back to Redis, forming a training loop."
+  caption="How the services hand work to each other — SageMaker trains the model, models persist to S3, RoboMaker pulls them for simulation, and experience streams back through Redis."
+/>
+
+<Callout color="blue">
+  Each <strong>episode</strong> is a full run from the starting line to the finish line (or until the agent leaves the track). Each episode is broken into <strong>steps</strong>. For every step, the (state, action, reward, next state) tuple is stored in Redis and used to update the policy network in SageMaker.
+</Callout>
+
+<Image
+  src="/images/blog/aws-deepracer/img_05_p02_932471d92f.png"
+  alt="Episode diagram: an entire run from the starting line to an end state like the finish line, traced around a track."
+  caption="An episode — one full run of the track from start line to finish (or off-track)."
+/>
+
+<Image
+  src="/images/blog/aws-deepracer/img_07_p02_34cd119af5.png"
+  alt="Step diagram showing an episode broken into discrete steps along the track."
+  caption="Steps — discrete actions inside an episode. Each one generates an experience tuple that gets cached in Redis."
+/>
+
+## The reward function — how the car learns what "good" means
+
+In ML you have parameters (learnable weights) and hyperparameters (you set them). In RL you have a third thing: a <KeyTerm>reward function</KeyTerm>. Each step, the simulator passes the function a dictionary of state variables and the function returns a number — the reward for that step. Bigger reward = "more like this."
+
+The canonical starter reward function uses three distance markers from the centre line:
+
+```python
+def reward_function(params):
+    track_width = params['track_width']
+    distance_from_center = params['distance_from_center']
+
+    marker_1 = 0.1 * track_width
+    marker_2 = 0.25 * track_width
+    marker_3 = 0.5 * track_width
+
+    if distance_from_center <= marker_1:
+        return 1.0          # right in the middle — great
+    elif distance_from_center <= marker_2:
+        return 0.5          # off-centre but ok
+    elif distance_from_center <= marker_3:
+        return 0.1          # near the edge
+    else:
+        return 1e-3         # likely crashed or off-track
+```
+
+<Image
+  src="/images/blog/aws-deepracer/img_22_p05_24caca1524.png"
+  alt="Annotated centerline-following reward function code, with arrows pointing out the parameter being read and the reward returned for each behaviour bucket."
+  caption="The annotated centreline-following reward function — distance_from_center is the parameter, the reward varies in stepped bands."
+/>
+
+<Arrow>The reward function is the single most important thing you write.</Arrow>
+
+The model can only optimise for what you reward. Reward "stay in the centre" and you get a slow, perfectly-centred car. Reward "go fast and stay on the track" and you get something more interesting — but you also have to balance the two carefully so it doesn't learn to spin out at the first corner.
+
+## The parameters you have to work with
+
+The state dictionary passed into the reward function has more than twenty fields. They're the entire vocabulary you can use to describe "what's happening right now." The figure below is the one I came back to most often — it shows the main spatial parameters laid out on a single car-on-track illustration.
+
+<Image
+  src="/images/blog/aws-deepracer/img_20_p05_25070b4996.png"
+  alt="Diagram showing all spatial reward function parameters at once: track width, heading of the car, distance from center, steering angle, position of the car, and waypoints."
+  caption="All the spatial parameters on one figure — track width, heading, distance from centre, steering angle, position, and waypoints."
+/>
+
+The ones I reached for most:
+
+- <KeyTerm>distance_from_center</KeyTerm> + `track_width` — the "stay centred" signal.
+- <KeyTerm color="green">all_wheels_on_track</KeyTerm> — boolean; useful as a hard penalty (or a hard zero).
+- <KeyTerm color="blue">progress</KeyTerm> + `steps` — the most underrated combination. Progress / steps is a proxy for *speed*, and rewarding it directly teaches the car to finish laps faster instead of just driving carefully.
+- <KeyTerm color="orange">waypoints</KeyTerm> + `closest_waypoints` — when you want to nudge the car toward a racing line rather than the geometric centre.
+
+<Image
+  src="/images/blog/aws-deepracer/img_10_p03_775b7caf8b.png"
+  alt="Waypoints diagram showing the centerline of the track marked with numbered waypoints 1 through 30."
+  caption="waypoints — the ordered list of milestones along the centreline. closest_waypoints[0] is the one behind the car, closest_waypoints[1] the one ahead."
+/>
+
+<Image
+  src="/images/blog/aws-deepracer/img_13_p04_141cb662d3.png"
+  alt="distance_from_center diagram: a car positioned 0.23 meters from the centerline."
+  caption="distance_from_center — how far the car has drifted laterally. Always positive; pair it with is_left_of_center to know which side."
+/>
+
+<Image
+  src="/images/blog/aws-deepracer/img_11_p03_6c2091c8e3.png"
+  alt="all_wheels_on_track diagram showing a car with at least one wheel off the track border, returning False."
+  caption="all_wheels_on_track — False the moment any wheel leaves the borders. If all four go off, the car resets."
+/>
+
+<Image
+  src="/images/blog/aws-deepracer/img_17_p04_38d881d87c.png"
+  alt="Summary table of the 13 main reward function parameters with one-line descriptions of each."
+  caption="All the main parameters at a glance, with one-line descriptions."
+/>
+
+## The reward function I actually shipped
+
+After working through the parameter reference, my final reward function ended up using just three of the available signals: a hard gate on staying on the track, a measure of efficiency (progress per step), and a direct speed bonus.
+
+```python
+def reward_function(params):
+    if params['all_wheels_on_track'] and params['steps'] > 0:
+        reward = (params['progress'] / params['steps']) * 100
+        reward += params['speed'] ** 2
+    else:
+        reward = 0.01
+    return float(reward)
+```
+
+The <KeyTerm>all_wheels_on_track</KeyTerm> gate gives near-zero reward (0.01) the moment any wheel leaves the track — the agent learns to treat the borders as a wall. The <KeyTerm color="blue">progress / steps</KeyTerm> term rewards efficient lap completion — a tighter line covers more track per decision. And <KeyTerm color="orange">speed²</KeyTerm> pushes the throttle harder: the squaring means the difference between 4 m/s and 5 m/s (the action-space ceiling) is worth a lot more than the difference between 1 m/s and 2 m/s.
+
+<Callout color="green">
+  Constraining myself to <strong>three</strong> signals made the reward easy to reason about. When the agent did something weird, I could point at one of three terms — not a tangle of competing incentives.
+</Callout>
+
+## Hyperparameters that actually matter
+
+You can't learn hyperparameters from the data — you set them, then iterate. DeepRacer exposes eight of them through the console.
+
+### Batch size
+
+<Image
+  src="/images/blog/aws-deepracer/img_23_p06_8da8720492.png"
+  alt="Batch size hyperparameter card showing valid values 32, 64, 128, 256, 512 and default 32."
+  caption="Valid values: 32, 64, 128, 256, 512. Default 32."
+/>
+
+How many samples the model processes before each weight update. Bigger batches give smoother gradients but slower iteration. Defaults to 32; I had better luck with 64 once the reward function stopped changing.
+
+### Number of epochs
+
+<Image
+  src="/images/blog/aws-deepracer/img_25_p06_3732bed571.png"
+  alt="Epoch hyperparameter card showing valid values 3 to 10 and default 3."
+  caption="Valid values: 3 to 10. Default 3."
+/>
+
+How many passes the trainer makes over each batch before updating. Larger numbers help when the batch size is big. Too many and the model overfits to recent experience.
+
+### Learning rate
+
+<Image
+  src="/images/blog/aws-deepracer/img_26_p06_9de9d1b784.png"
+  alt="Learning rate hyperparameter card showing the range 1e-5 to 1e-3 and default 0.001, with loss-vs-parameter curves illustrating large and small learning rates."
+  caption="Valid range: 1e-8 to 1e-3. Default 0.001."
+/>
+
+The single biggest tuning lever. Too large and weights overshoot the optimum; too small and the model is still mediocre when your AWS credits run out.
+
+### Exploration
+
+<Image
+  src="/images/blog/aws-deepracer/img_29_p07_f23b90c06e.png"
+  alt="Exploration hyperparameter diagram showing exploitation (using known good paths) versus exploration (trying new ones) on small track illustrations."
+  caption="Exploitation uses what the agent already knows. Exploration tries new actions to find better paths."
+/>
+
+The policy either uses <KeyTerm>Categorical</KeyTerm> sampling (sample an action from the policy's probability distribution) or <KeyTerm color="orange">Epsilon-greedy</KeyTerm> (take the best action most of the time, but a random one with probability ε that decays from 1 → 0.1 over training).
+
+<Image
+  src="/images/blog/aws-deepracer/img_32_p08_b65e867e0a.png"
+  alt="Exploration decay curve showing the exploration value falling from 1 to 0.1 over a range of 10,000 to 100,000 steps."
+  caption="The exploration value decays from 1 toward 0.1 over training — the agent shifts from exploration to exploitation as it learns."
+/>
+
+<Callout color="yellow">
+  Exploration vs exploitation is the central tension. <strong>Exploitation</strong> = use what you already know works. <strong>Exploration</strong> = try things you haven't and see if they lead somewhere better. Tune this badly and the car either gets stuck in a local optimum (too much exploitation) or never converges (too much exploration).
+</Callout>
+
+### Entropy
+
+<Image
+  src="/images/blog/aws-deepracer/img_27_p07_952da73b31.png"
+  alt="Entropy hyperparameter diagram showing high entropy (more random actions) versus low entropy (less random actions)."
+  caption="Higher entropy means more random actions; lower entropy means committing to the current policy."
+/>
+
+Default 0.5. Higher entropy keeps the agent exploring within its current policy; lower entropy makes it confidently exploit what it has learned. Too high and the agent never converges; too low and it gets stuck in suboptimal patterns.
+
+### Discount factor
+
+<Image
+  src="/images/blog/aws-deepracer/img_30_p07_1be696360e.png"
+  alt="Discount factor diagram comparing a larger discount factor (longer-horizon thinking) versus a smaller one (focused on immediate rewards)."
+  caption="Larger discount factors look further ahead. Smaller ones focus on immediate rewards."
+/>
+
+Default 0.999. How much future rewards count relative to immediate ones. 0.999 is unusually high; if your reward function is per-step (like mine), a lower factor often helps because the agent doesn't need to plan as far ahead.
+
+### Loss type
+
+<Image
+  src="/images/blog/aws-deepracer/img_28_p07_d2551341a7.png"
+  alt="Loss type diagram comparing Mean squared error loss to Huber loss."
+  caption="Huber vs MSE. Huber's slower growth on large errors makes it more stable when convergence is hard."
+/>
+
+Default Huber. Huber takes smaller increments than MSE on big errors, which makes it more stable when convergence is hard. Use MSE if convergence is fine and you want to train faster.
+
+### Number of episodes
+
+<Image
+  src="/images/blog/aws-deepracer/img_31_p07_cc7156c996.png"
+  alt="Number of episodes hyperparameter card showing valid range 1 to 1000 and default 20."
+  caption="Valid range: 1 to 1000. Default 20."
+/>
+
+More episodes means more experience to learn from — and more training time and credits. Cap your budget here.
+
+## PPO vs SAC — choosing the algorithm
+
+DeepRacer lets you train with two algorithms: <KeyTerm>PPO</KeyTerm> (Proximal Policy Optimization) and <KeyTerm color="green">SAC</KeyTerm> (Soft Actor-Critic). PPO is the default and works well as a first pass.
+
+PPO works with both discrete and continuous action spaces. SAC only works with continuous ones — so if you're using the default 6-action discrete space (Straight, Shallow/Deep Left, Shallow/Deep Right, Slow), PPO is decided for you.
+
+PPO is **on-policy**: it only learns from experiences generated by its current policy. SAC is **off-policy**: it can reuse experiences from past policies, which makes it more data-efficient at the cost of stability. On-policy methods are smoother between iterations; off-policy methods can lose their grip mid-training when very different past experiences get mixed in.
+
+A policy with low entropy is very confident about its action; a high-entropy policy is unsure. SAC explicitly rewards uncertainty, which keeps the agent exploring even late in training. The <KeyTerm>SAC alpha</KeyTerm> hyperparameter controls the trade-off — at the maximum, the policy is all entropy and forgets to maximise reward; at the minimum, it collapses to standard RL with no exploration bonus. A starting point of `0.5` is reasonable; iterate from there.
+
+## Action space and calibration
+
+The action space defines every possible move the agent can make. DeepRacer's default discrete action space has six options:
+
+<Image
+  src="/images/blog/aws-deepracer/img_33_p09_d6fa3ff89b.png"
+  alt="Action space diagram showing the steering range from Max Left to Max Right with 0 (straight) at the top."
+  caption="The car's steering action space — bounded by max-left and max-right. When you calibrate the physical car, you map these bounds to the real wheel angles."
+/>
+
+Each action combines a throttle value and a steering angle: <KeyTerm>Straight</KeyTerm>, <KeyTerm color="blue">Shallow Left</KeyTerm>, <KeyTerm color="blue">Deep Left</KeyTerm>, <KeyTerm color="blue">Shallow Right</KeyTerm>, <KeyTerm color="blue">Deep Right</KeyTerm>, and <KeyTerm color="orange">Slow</KeyTerm>. When you calibrate the physical car, you set the throttle and steering bounds — and those bounds need to match the simulator's action space, otherwise sim-to-real transfer breaks.
+
+Faster speeds take longer to train. Models with higher maximum speeds take more episodes to converge than slower ones, because the agent has to learn to handle higher-momentum mistakes.
+
+## ROS — how the agent talks to the environment
+
+So SageMaker trains the model, RoboMaker simulates the environment, Gazebo runs the physics. How do these actually communicate? Through <KeyTerm>ROS</KeyTerm> — the Robot Operating System. ROS is a set of libraries and tools that lets the components of a robot pass messages to each other: the camera publishes images, the policy node subscribes to them and publishes a steering command, the motor controllers subscribe to that and turn the wheels.
+
+Once you move from simulator to a real car, the *same* ROS nodes do the inference. The only thing that changes is where the camera images and motor commands come from.
+
+## Moving from simulator to a real track
+
+This is the genuinely hard part. The simulator can't reproduce everything about the real world — gravity, variable surface friction, lighting, motor calibration. So your beautiful sim lap becomes a confused real-car that drifts and stops at random.
+
+There are three strategies to bridge that gap.
+
+### 1. Environment control
+
+<Image
+  src="/images/blog/aws-deepracer/img_34_p09_0bdb366d10.png"
+  alt="Environment control text block explaining how the simulated environment is built to be representative of the real world."
+  caption="Environment control — already built into DeepRacer."
+/>
+
+The simulator tries to be representative of what the real world looks like — sky, grass, dark road — and the physics maps simulator actions to outcomes that closely match the real car. Throttle at 40% in the simulator should mean roughly the same wheel speed at 40% throttle on the physical car.
+
+### 2. Domain randomisation
+
+<Image
+  src="/images/blog/aws-deepracer/img_35_p10_621bf79102.png"
+  alt="Domain randomization text block explaining that the car sees greyscale, and training on varied colours/textures helps the model focus on shapes."
+  caption="Domain randomisation — vary the visuals so the model focuses on shape, not specific colours."
+/>
+
+The camera images get converted to greyscale before they hit the model — so the model learns to track *the dividing line*, not "the colour white on the colour black." But if your real-world track has a yellow line instead, the model is confused. Domain randomisation deliberately randomises colours, textures and lighting in the simulator during training. The model learns to ignore those features and focus on the geometry, which transfers much better.
+
+<Image
+  src="/images/blog/aws-deepracer/img_37_p10_b4d9121d0c.png"
+  alt="Two road images stacked — one with colour, one greyscale — illustrating the input variation domain randomisation introduces."
+  caption="Same road, different colour palettes. The point is to make the model agnostic to the specific colours and focus on road structure."
+/>
+
+### 3. Modularity and abstraction
+
+<Image
+  src="/images/blog/aws-deepracer/img_36_p10_2ce2723712.png"
+  alt="Modularity and abstraction text block explaining how a pre-trained CNN can classify generic visual concepts before plugging into the RL model."
+  caption="Modularity and abstraction — pre-train a CNN classifier on generic visual concepts."
+/>
+
+Pre-train a CNN on classifying generic visual concepts — "road", "not road", "line", "car", "building" — then plug that classifier in as a feature extractor before your RL model. The reasoning is that visual understanding is reusable. A CNN that already knows what a road is can teach an RL model faster than starting from raw pixels.
+
+## What I'd do differently next time
+
+<Callout color="green">
+  The single biggest mistake on my first model was rewarding "stay in the centre" too aggressively. The car learned to drive perfectly centred — and slowly. Adding a <code>progress / steps</code> term to the reward function (basically, "how much track did you cover per step?") was what made it competitive.
+</Callout>
+
+A few other things I'd keep in mind from the start:
+
+- Start with PPO and the default hyperparameters. Get a model that finishes a lap. *Then* iterate.
+- Don't tune more than one hyperparameter at a time. You will get confused about what helped.
+- Look at the training graphs after every iteration. If the reward is going up but the lap completion rate isn't, your reward function is rewarding the wrong thing.
+- Budget at least an hour of training per non-trivial change. The car is learning a continuous policy from sparse rewards — that takes time.
