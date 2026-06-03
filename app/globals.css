@@ -1551,8 +1551,7 @@ body {
 }
 
 .home-panel:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.15);
+  border-color: rgba(96, 165, 250, 0.45);
 }
 
 .home-panel__header {
@@ -3495,3 +3494,390 @@ select:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================================
+   Navy / electric-blue post variant (style: navy in MDX front matter)
+   Scoped to .post-page--navy so other posts are unaffected.
+   ========================================================================= */
+
+.post-page--navy {
+  --navy-bg: #0F1729;
+  --navy-bg-soft: #1A2440;
+  --navy-text: #FFFFFF;
+  --navy-text-muted: #B6C2E1;
+  --navy-accent: #3B5BDB;
+  --navy-accent-soft: #4C6EF5;
+  --navy-card-bg: #FFFFFF;
+  --navy-card-border: #E5E9F2;
+  --navy-toc-bg: #F4F6FB;
+  --navy-toc-border: #E1E5F0;
+  --navy-link: #2E4DD0;
+}
+
+/* Header strip — recolor PageHero to dark navy with white text */
+.post-page--navy .page-hero {
+  background: var(--navy-bg);
+  border-bottom: none;
+  color: var(--navy-text);
+}
+.post-page--navy .page-hero__avatarLink {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+.post-page--navy .page-hero__avatarLink:hover {
+  box-shadow: 0 0 0 2px var(--navy-accent-soft);
+}
+.post-page--navy .page-hero__title {
+  color: var(--navy-text);
+}
+.post-page--navy .page-hero__subtitle {
+  color: var(--navy-text-muted);
+}
+.post-page--navy .page-hero__icon {
+  color: var(--navy-accent-soft);
+}
+
+/* Breadcrumbs — sit above the card on a light gray strip */
+.post-page--navy .post-breadcrumbs {
+  color: #6B7280;
+}
+.post-page--navy .post-breadcrumbs a {
+  color: #6B7280;
+}
+.post-page--navy .post-breadcrumbs__current {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* The card around the post content */
+.post-page--navy .post-card {
+  background: var(--navy-card-bg);
+  border: 1px solid var(--navy-card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 41, 0.04);
+}
+
+/* Hero banner image */
+.post-page--navy .post-card__media {
+  background: var(--navy-bg);
+}
+.post-page--navy .post-card__mediaOverlay {
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 41, 0.10) 100%);
+}
+
+/* Royal-blue strip carrying byline + subtitle */
+.post-page--navy .post-card__meta {
+  background: linear-gradient(135deg, var(--navy-accent) 0%, var(--navy-accent-soft) 100%);
+  color: var(--navy-text);
+  padding: 1.25rem 2rem;
+  border-bottom: none;
+}
+.post-page--navy .post-card__metaItem {
+  color: var(--navy-text);
+}
+.post-page--navy .post-card__metaItem svg {
+  color: rgba(255, 255, 255, 0.85);
+}
+.post-page--navy .post-card__metaLabel {
+  color: var(--navy-text);
+}
+.post-page--navy .post-card__summary {
+  color: var(--navy-text);
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+/* Body: TOC + content */
+.post-page--navy .post-card__body {
+  padding: 1.75rem 2rem 2.5rem;
+}
+
+/* TOC card */
+.post-page--navy .post-toc {
+  background: var(--navy-toc-bg);
+  border: 1px solid var(--navy-toc-border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+}
+.post-page--navy .post-toc h3 {
+  color: #111827;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.post-page--navy .post-toc a {
+  color: var(--navy-link);
+  font-weight: 500;
+}
+.post-page--navy .post-toc a:hover {
+  color: var(--navy-accent);
+  text-decoration: underline;
+}
+
+/* Section headings — bold sans, subtle underline beneath */
+.post-page--navy .post-content h2 {
+  font-weight: 700;
+  color: #111827;
+  border-bottom: 1px solid #E5E7EB;
+  padding-bottom: 0.5rem;
+  margin-top: 2.5rem;
+}
+.post-page--navy .post-content h3 {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Body text */
+.post-page--navy .post-content,
+.post-page--navy .post-content__paragraph {
+  color: #1F2937;
+}
+.post-page--navy .post-content a {
+  color: var(--navy-link);
+}
+
+/* Blockquote / callout — left bar in royal blue */
+.post-page--navy .post-content blockquote {
+  border-left: 4px solid var(--navy-accent);
+  background: #F4F6FB;
+  color: #1F2937;
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.25rem 0;
+}
+
+/* Code blocks — dark navy */
+.post-page--navy .post-content__code,
+.post-page--navy .post-content pre {
+  background: var(--navy-bg) !important;
+  color: #E5E9F2;
+  border-radius: 8px;
+}
+
+/* Figure captions stay clean and small */
+.post-page--navy .post-figure {
+  margin: 1.5rem 0;
+}
+.post-page--navy .post-figure__caption {
+  color: #4B5563;
+  font-size: 0.875rem;
+}
+
+/* =========================================================================
+   Notes-style components: Highlight / KeyTerm / Arrow / Callout / SubList
+   Visual vocabulary borrowed from Maria's Goodnotes pages.
+   ========================================================================= */
+
+/* Color palette — used by all notes components via .notes-{color} */
+.notes-yellow { --nc-fill: #FEF3C7; --nc-strong: #CA8A04; --nc-text: #422006; }
+.notes-pink   { --nc-fill: #FCE7F3; --nc-strong: #DB2777; --nc-text: #500724; }
+.notes-green  { --nc-fill: #D1FAE5; --nc-strong: #059669; --nc-text: #064E3B; }
+.notes-blue   { --nc-fill: #DBEAFE; --nc-strong: #2563EB; --nc-text: #1E3A8A; }
+.notes-purple { --nc-fill: #EDE9FE; --nc-strong: #6D28D9; --nc-text: #3B0764; }
+.notes-orange { --nc-fill: #FFEDD5; --nc-strong: #EA580C; --nc-text: #431407; }
+
+/* Inline highlight — marker swipe */
+.notes-highlight {
+  background: var(--nc-fill);
+  color: var(--nc-text);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Inline key term — underlined coloured label */
+.notes-keyterm {
+  color: var(--nc-strong);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+/* Arrow line — green arrow + highlighted text on its own paragraph */
+.notes-arrow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+.notes-arrow__icon {
+  color: var(--nc-strong);
+  font-weight: 700;
+  font-size: 1.15em;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+.notes-arrow__text {
+  background: var(--nc-fill);
+  color: var(--nc-text);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Block callout — coloured paragraph box */
+.notes-callout {
+  background: var(--nc-fill);
+  border-left: 3px solid var(--nc-strong);
+  color: var(--nc-text);
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.25rem 0;
+  line-height: 1.55;
+}
+.notes-callout > :first-child { margin-top: 0; }
+.notes-callout > :last-child  { margin-bottom: 0; }
+
+/* SubList — indented sub-bullets with a distinct marker */
+.notes-sublist {
+  margin: 0.5rem 0 1rem 1rem;
+}
+.notes-sublist ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.notes-sublist li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+  color: #374151;
+}
+.notes-sublist li::before {
+  content: "↳";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #6B7280;
+  font-weight: 600;
+}
+
+/* =====================================================
+   HOMEPAGE FEATURED — static, academic, minimal
+   (overrides the older carousel-card styles)
+   ===================================================== */
+.featured__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1rem;
+}
+
+.featured__heading {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+  margin: 0;
+}
+
+.featured__subheading {
+  color: #64748b;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.featured__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .featured__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.featured-item {
+  margin: 0;
+}
+
+.featured-item__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  transition: opacity 200ms ease;
+}
+
+.featured-item__link:hover {
+  opacity: 0.85;
+}
+
+.featured-item__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.featured-item__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.featured-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.featured-item__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin: 0;
+}
+
+.featured-item__eyebrow svg {
+  width: 14px;
+  height: 14px;
+}
+
+.featured-item__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.featured-item__summary {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #475569;
+  margin: 0;
+}
+
+.featured-item__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #2563eb;
+}
+
+.featured-item__cta svg {
+  width: 14px;
+  height: 14px;
+}
+

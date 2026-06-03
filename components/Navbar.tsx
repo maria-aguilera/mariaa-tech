@@ -64,7 +64,7 @@ export default function Navbar() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const iconSize = 18;
+  const iconSize = 16;
 
   return (
     <nav className="navbar">

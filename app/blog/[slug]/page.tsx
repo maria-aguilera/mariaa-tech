@@ -133,9 +133,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   if (mdxPost) {
     const { meta, content } = mdxPost;
     const toc = extractTocFromMdx(content);
+    const isNavy = meta.style === "navy";
+    const heroBanner = meta.bannerImage || meta.coverImage;
 
     return (
-      <main id="main-content" className="post-page">
+      <main
+        id="main-content"
+        className={`post-page${isNavy ? " post-page--navy" : ""}`}
+      >
         <PageHero title={meta.title} subtitle={meta.subtitle} icon="book-open" />
 
         <article className="post">
@@ -154,7 +159,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="post-card">
             <div className="post-card__media">
               <Image
-                src={meta.coverImage}
+                src={heroBanner}
                 alt={meta.title}
                 width={1400}
                 height={700}

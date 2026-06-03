@@ -2,6 +2,13 @@ import Image from "next/image";
 import React from "react";
 import { highlightCode } from "@/lib/code-highlight";
 import { cleanHeadingText, slugify } from "@/lib/toc";
+import {
+  Highlight,
+  KeyTerm,
+  Arrow,
+  Callout,
+  SubList,
+} from "@/components/mdx/NotesComponents";
 
 type PreProps = {
   children: React.ReactElement<{ className?: string; children?: string }>;
@@ -132,4 +139,9 @@ export const mdxComponents = {
   Warning,
   Image: PostImage,
   Video,
+  Highlight,
+  KeyTerm,
+  Arrow,
+  Callout,
+  SubList,
 };

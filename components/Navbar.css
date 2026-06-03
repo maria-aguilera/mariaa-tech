@@ -7,12 +7,24 @@
   justify-content: space-between;
 
   flex-wrap: nowrap;
-  padding: 16px 32px;
+  padding: 16px 24px;
 
-  background: #0b132b; /* ✅ fixed */
+  background: #0b132b;
   color: white;
 
   border-bottom: 1.5px solid rgba(255, 255, 255, 0.15);
+}
+
+/* match kozodoi.me: cap inner content width so items stay grouped on wide screens */
+.navbar > * {
+  /* no-op, just ensure the children take their natural width */
+}
+
+@media (min-width: 1200px) {
+  .navbar {
+    padding-left: max(24px, calc((100vw - 72rem) / 2));
+    padding-right: max(24px, calc((100vw - 72rem) / 2));
+  }
 }
 
 /* -----------------------------

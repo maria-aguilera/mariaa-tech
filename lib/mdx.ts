@@ -6,6 +6,8 @@ const BLOG_DIR = path.join(process.cwd(), "content/blog");
 
 export type MdxPostSource = "Blog" | "Project" | "Notes";
 
+export type MdxPostStyle = "default" | "navy";
+
 export type MdxPostMeta = {
   slug: string;
   title: string;
@@ -16,6 +18,9 @@ export type MdxPostMeta = {
   tags: string[];
   source: MdxPostSource;
   coverImage: string;
+  style?: MdxPostStyle;
+  bannerImage?: string;
+  avatarImage?: string;
 };
 
 export type MdxPost = {
@@ -59,6 +64,13 @@ const normalizeSource = (value: unknown): MdxPostSource => {
   return "Blog";
 };
 
+const normalizeStyle = (value: unknown): MdxPostStyle | undefined => {
+  const normalized = normalizeText(value).trim().toLowerCase();
+  if (normalized === "navy") return "navy";
+  if (normalized === "default") return "default";
+  return undefined;
+};
+
 export function getMdxPostSlugs(): string[] {
   if (!fs.existsSync(BLOG_DIR)) {
     return [];
@@ -85,6 +97,9 @@ export function getAllMdxPostMeta(): MdxPostMeta[] {
       tags: normalizeTags(data.tags),
       source: normalizeSource(data.source),
       coverImage: normalizeText(data.coverImage) || "/featured-media.svg",
+      style: normalizeStyle(data.style),
+      bannerImage: normalizeText(data.bannerImage) || undefined,
+      avatarImage: normalizeText(data.avatarImage) || undefined,
     };
   });
 }
@@ -110,6 +125,9 @@ export function getMdxPostBySlug(slug: string): MdxPost | null {
       tags: normalizeTags(data.tags),
       source: normalizeSource(data.source),
       coverImage: normalizeText(data.coverImage) || "/featured-media.svg",
+      style: normalizeStyle(data.style),
+      bannerImage: normalizeText(data.bannerImage) || undefined,
+      avatarImage: normalizeText(data.avatarImage) || undefined,
     },
     content,
   };

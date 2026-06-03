@@ -11,37 +11,46 @@ const SWIPE_THRESHOLD = 60;
 
 const featuredItems = [
   {
-    title: "GenAI Reflection for Amazon Bedrock",
+    title: "Training AWS DeepRacer",
     summary:
-      "Use a configurable Python library for Amazon Bedrock LLMs which enhances performance by enabling additional compute at inference time.",
+      "Designing a custom reward function to balance lap time with centerline stability — speed vs. stability in reinforcement learning.",
     tags: [
-      { label: "GitHub", icon: "github" },
-      { label: "Code", icon: "terminal" },
-    ],
-    cta: { label: "Read More", href: "/blog", icon: "book-open" },
-    image: { src: "/featured-media.svg", alt: "Conference demo on stage" },
-  },
-  {
-    title: "Intelligent Document Processing with Generative AI",
-    summary:
-      "Learn how to build an end-to-end IDP application using Amazon Bedrock to extract structured information from unstructured documents at scale.",
-    tags: [
-      { label: "AWS ML Blog", icon: "rss" },
-      { label: "Blog", icon: "book-open" },
-    ],
-    cta: { label: "Read More", href: "/blog", icon: "book-open" },
-    image: { src: "/featured-media.svg", alt: "Presentation illustration" },
-  },
-  {
-    title: "Production-Ready GenAI Pipelines",
-    summary:
-      "Design reliable, observable GenAI workflows with guardrails, evaluation loops, and scalable infrastructure patterns.",
-    tags: [
+      { label: "Reinforcement Learning", icon: "cpu" },
       { label: "Project", icon: "folder-kanban" },
-      { label: "Systems", icon: "cpu" },
     ],
-    cta: { label: "View Projects", href: "/projects", icon: "arrow-right" },
-    image: { src: "/featured-media.svg", alt: "Speaker session snapshot" },
+    cta: { label: "Read More", href: "/blog/aws-deepracer-training", icon: "book-open" },
+    image: {
+      src: "/images/blog/aws-deepracer.jpg",
+      alt: "AWS DeepRacer car training on a track",
+    },
+  },
+  {
+    title: "Lunar Landing Assignment",
+    summary:
+      "Trained a PPO agent with reward shaping to land precisely between two flags — stable, accurate landings.",
+    tags: [
+      { label: "Reinforcement Learning", icon: "cpu" },
+      { label: "PPO", icon: "folder-kanban" },
+    ],
+    cta: { label: "Read More", href: "/blog/lunar-landing-assignment", icon: "book-open" },
+    image: {
+      src: "/images/blog/lunar-landing.jpg",
+      alt: "Lunar landing assignment visualization",
+    },
+  },
+  {
+    title: "Session 1: What Machine Learning Actually Is",
+    summary:
+      "A visual walk through my Session 1 notes on Machine Learning II — representation, evaluation, optimization, and the train/validate/test workflow.",
+    tags: [
+      { label: "Course Notes", icon: "book-open" },
+      { label: "Machine Learning", icon: "file-text" },
+    ],
+    cta: { label: "Read More", href: "/blog/ml-what-is-machine-learning", icon: "book-open" },
+    image: {
+      src: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-03.jpg",
+      alt: "Page 3 of Session 1 ML notes",
+    },
   },
 ];
 
