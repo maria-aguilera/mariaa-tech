@@ -1,0 +1,213 @@
+---
+slug: mercedes-hackathon
+title: "You Don't Clean What You Don't Recognise"
+subtitle: "Cleaning a 268,000-row UK used-car dataset was easier because I'd looked at car ads before. The case for domain knowledge in data work."
+date: "January 2023"
+updated: "June 2026"
+excerpt: "A walkthrough of a messy seven-table used-car dataset where every interesting cleaning decision turned on whether I knew what the column meant. Engine sizes, electrics, fuel types, trim strings — none of these are explained in the spec, but they're obvious if you've ever looked at a car. The case for domain knowledge in data work."
+tags:
+  - Data Cleaning
+  - Domain Knowledge
+  - Feature Engineering
+  - Regression
+source: Project
+coverImage: "/images/blog/mercedes-hackathon/analizando-page-1-1.png"
+---
+
+*A TalentHighway × Mercedes-Benz hackathon project from January 2023. The brief was to predict the listing price of a used car from a seven-table UK dataset. What I noticed afterwards was that almost every important cleaning decision in the project came from recognising something in the data — not from a clever pipeline. This is a post about how much faster data cleaning gets when you understand the domain.*
+
+<Image
+  src="/images/blog/mercedes-hackathon/analizando-page-1-1.png"
+  alt="A page from the hackathon's data-dictionary PDF, annotated by hand with cross-table arrows and unit notes — g/mile vs g/km on the EPA emissions table, litres vs cc on the displacement columns, currency math worked out in the margins."
+  caption="The handwritten margin notes that turned out to drive every interesting fix in the project. The arrows are cross-table joins; the green ink flags the unit mismatches; the bottom-right works out the GBP↔USD direction."
+/>
+
+Three columns claimed to be engine size and they disagreed by a factor of 1000. The whole project hinged on that being instantly recognisable as a litres-vs-cc mismatch and not an actual modelling problem.
+
+The thing data people don't say out loud often enough: **the cleaning work goes a lot faster when you know what the columns mean in real life.** Not "what's the dtype" — what's the *thing*. What's an engine size. What's a trim. What does "1.6L" mean. What do electric cars not have. What does the trim string `"1.9 BlueTEC Sport 191ps Auto"` actually encode.
+
+If you've never looked at a car listing on Autotrader, those are all unfamiliar tokens. If you have, every one of them is a step you skip.
+
+<Image
+  src="/images/blog/mercedes-hackathon/box-plot-price-by-fuel.png"
+  alt="Box plot of used-car price grouped by fuel type — Petrol, Diesel, Electric, Hybrid — showing distinct medians and long upper tails for each."
+  caption="Used-car price by fuel type. The shape of each box (median, IQR, outliers) only makes sense once you've collapsed the 20+ raw fuel-type strings into the four buckets that actually carry signal."
+/>
+
+The Mercedes hackathon dataset is a good example. Every interesting fix in the cleaning came from recognising something, not from a `groupby`.
+
+## 1. Three columns disagree about engine size
+
+The dataset has seven linked tables. **Three** different columns claim to describe engine size, and they disagree:
+
+```
+column                  unit (per the docs)         median raw value
+Anuncios.engin_size     litres (with "L" suffix)    1.95
+Versiones.engine_size   cc                          1968.0
+Emisiones.displ         litres                      3.0
+```
+
+This is the kind of bug that ruins joins quietly. If you don't fix it, the regressor sees "engine_size = 2.0" for one row and "engine_size = 2000" for the same vehicle in a neighbouring row and learns the *cluster*, not the relationship.
+
+<Callout color="yellow">
+  <strong>Why don't the three medians match once you convert units?</strong> Because they're computed over <strong>three different populations of vehicles</strong>, not the same cars measured in three different ways. <code>Anuncios</code> is UK used-car ads (mostly Ford Fiesta / VW Polo / Vauxhall Corsa-sized cars). <code>Versiones</code> is the UK trim catalogue (every AMG and Audi RS variant gets its own row, so the catalogue median sits higher than the sales-weighted Anuncios one). <code>Emisiones</code> is the <strong>US EPA database</strong> — you can tell from <code>co2TailpipeGpm</code> (grams per <em>mile</em>) and the <code>UCity</code> / <code>UHighway</code> MPG columns. The US fleet is dominated by pickups and V6/V8 SUVs, so a 3.0 L median is what "average American car" actually looks like. The smell test catches the <em>unit mismatch</em>; the actual conversion is verified later, by joining on the same vehicle and checking the row-level ratio.
+</Callout>
+
+**The reason this is a five-second fix and not a five-hour fix:** anyone who knows cars knows the order of magnitude. A typical petrol engine is about **1.6 litres**, or **1600 cc**, or **0.000016 cubic kilometres**. The value `1.95` *has to* be litres. The value `1968` *has to* be cc. There's no third option. The "what unit is this" question is answered before you've finished reading the column.
+
+```python
+emissions['engine_size_cc'] = emissions['displ'] * 1000  # litres → cc
+```
+
+That's it. The hard part wasn't writing the line. The hard part — for someone who didn't know cars — would be working out which way to multiply.
+
+To confirm the conversion is actually correct, the notebook checks per-row ratios after joining on `(genmodel_id, year, fuel_type)` — same vehicle, three sources, three numbers that should all agree:
+
+```python
+# §6.1 sanity check — filter to rows where all three columns are present
+sub = ads_full[['engin_size', 'engine_size_cc_v', 'engine_size_cc_e']].dropna()
+ratios = pd.DataFrame({
+    'cc_v / (engin_size × 1000)': sub['engine_size_cc_v'] / (sub['engin_size'] * 1000),
+    'cc_e / (engin_size × 1000)': sub['engine_size_cc_e'] / (sub['engin_size'] * 1000),
+})
+print(ratios.median())  # should be ≈ 1.0 if the unit fix is right
+```
+
+The medians collapse to ~1.0 once you compare the *same vehicles* — that's the actual test.
+
+## 2. Electric cars don't have engine size
+
+The raw `engin_size` column carries a numeric value for almost every row. For electric Mercedes models (the EQ family, etc.) the value is either NaN or a scraping artefact — sometimes the kWh figure has snuck into the field, sometimes it's just blank.
+
+If you don't know what an electric car is, you treat those rows the same way as any other missing-value case: impute the column median (about 2.0L), shrug, move on. Now the model sees a "2.0 litre electric Mercedes" — which is a complete physical impossibility — and learns nothing useful from those rows.
+
+If you know that electric cars don't have an internal combustion engine and therefore have **zero displacement**, the fix is one line:
+
+```python
+mask = ads['fuel_type'].str.lower().str.contains('electric', na=False)
+ads.loc[mask, 'engin_size'] = 0
+```
+
+<Callout color="green">
+  The model still gets a clean split on "is this electric?" — but instead of routing through a misleading imputed value, it routes through a schema-truthful one. A regressor can learn "low displacement = often electric"; it can't learn anything from "2.0L electric".
+</Callout>
+
+## 3. The trim string is a goldmine if you can read it
+
+The Versions table has a column called `trim`. The contents look like:
+
+```
+1.9 BlueTEC Sport 191ps Auto
+3.0d xDrive 4WD 270ps Automatic
+2.0 TFSI S-Line Quattro 220ps DSG
+EQ Power+ Electric 218ps Auto
+```
+
+If you're not a car person, this is gibberish. If you are, it carries **four** features that don't exist in any structured column:
+
+- **Gearbox.** `Auto`, `Automatic`, `DSG`, `PDK`, `Manual`, `MT`. Different makers use different abbreviations for the same thing.
+- **Drive train.** `AWD`, `4WD`, `FWD`, `RWD`, `Quattro`, `xDrive`, `4x4`. Quattro is Audi's branding for AWD; xDrive is BMW's. (`Quattro` doesn't catch in the regex below — that's an oversight you'd only notice if you knew it was AWD.)
+- **Horsepower.** `191ps`, `270ps` — PS is "Pferdestärke", the European-spec measure of horsepower.
+- **A backup engine size.** `1.9`, `3.0d`, `2.0` — the leading number is the engine displacement in litres.
+
+The whole point of mining these is that they're more reliably present than the structured fields, especially for older trims where the spec rows are messier:
+
+```python
+AUTO_TOKENS = r'\b(Automatic|Auto|AG|AT|DSG|PDK|DCT|CVT)\b'
+SEMI_TOKENS = r'\b(ASG|WSK|Semi-Automatic)\b'
+MAN_TOKENS  = r'\b(Manual|MG|MT|USG)\b'
+
+def parse_gearbox(t):
+    if re.search(SEMI_TOKENS, t, flags=re.IGNORECASE): return 'Semi-Automatic'
+    if re.search(AUTO_TOKENS, t, flags=re.IGNORECASE): return 'Automatic'
+    if re.search(MAN_TOKENS,  t, flags=re.IGNORECASE): return 'Manual'
+    return np.nan
+```
+
+This is a `re.search` script. There's nothing clever in the code. **What's clever is the list of tokens** — and that list comes from spending enough time looking at car ads to know what counts as an automatic gearbox abbreviation.
+
+<Callout color="yellow">
+  A non-car-person would do an honest job here: read the docs, find the structured <code>gearbox</code> column, one-hot encode it, move on. A car person reads the docs, looks at the trim string, says "wait, this column is full of things you'd usually see <em>after</em> the trim is parsed", and writes the parser. Same dataset, very different feature space.
+</Callout>
+
+## 4. `co2TailpipeGpm` is grams per *mile*
+
+The Emissions table is sourced from the [US EPA](https://www.epa.gov). The Versions table is European. Per the docs:
+
+- `Gas_emission` (Versions) is **g/km**.
+- `co2TailpipeGpm` (Emissions) is **g/mile** — the `Gpm` literally stands for "grams per mile".
+
+These columns describe the same physical quantity, scaled by a factor of `1.609344` km/mile. If you don't notice the units mismatch, you join them, the EPA column reads as ~60% higher than the Versions column for the same vehicle, and the model fits two scale clusters that have nothing to do with the relationship.
+
+```python
+emissions['co2_gpkm'] = emissions['co2TailpipeGpm'] / 1.609344
+```
+
+This is the unit conversion you do every time you read a US car review with a European brain. It's *not* a fact about the dataset — it's a fact about American car magazines.
+
+## 5. The exchange-rate file thinks it's a webpage
+
+`Tipo_de_cambio.csv` is a [Macrotrends](https://www.macrotrends.net) export. The first eleven lines are:
+
+```
+Macrotrends Data Download
+
+Pound Dollar Exchange Rate (GBP USD) - Historical Chart
+
+DISCLAIMER AND TERMS OF USE: HISTORICAL DATA IS PROVIDED "AS IS" AND SOLELY...
+
+ATTRIBUTION: ...
+
+date, value
+1971-01-04,2.3900
+...
+```
+
+A naive `pd.read_csv` blows up with a `ParserError` because lines 1–11 aren't CSV. You can fix it with a one-liner that scans for the real header line:
+
+```python
+import io
+lines = path.read_text().splitlines()
+hdr = next(i for i, l in enumerate(lines) if l.lstrip().startswith('date'))
+fx = pd.read_csv(io.StringIO('\n'.join(lines[hdr:])), skipinitialspace=True)
+```
+
+The other surprise is that the `value` column reads **2.39 in 1971** and **1.16 in 2022**. That's **USD per GBP** (1 GBP = `value` USD). It's not the inverse, and it's not in some weird basis-point convention. If you've ever travelled between the UK and US, the order of magnitude is familiar.
+
+So the conversion is `Price_USD = Price_GBP × value`. Not divide. The first iteration of this work had it the wrong way round; the second one figured it out by reconstructing the recorded `Price_USD` both ways and seeing which one matched. That's a fine fallback, but it's the kind of bug that doesn't happen if "1 GBP ≈ 1.3 USD" is something you already know.
+
+## 6. The cleaning ends up being short
+
+Once you've collapsed the body types (Vans, Minibuses, Limousines, Campers all collapse to MPV — they're all minivan-shape vehicles), fixed Burgundy and Maroon to Brown, mined the trim string, set electrics to 0 displacement, and applied the four PDF unit fixes, the rest of the project is small. A time-aware split (train on ads ≤ 2020, test on 2021), a five-model bake-off (Ridge, RandomForest, XGBoost, LightGBM, CatBoost), residual diagnostics by car age and price decile, and a permutation-importance pass for honest feature attribution.
+
+<Image
+  src="/images/blog/mercedes-hackathon/correlation-matrix.png"
+  alt="Correlation matrix across the engineered features — price, age, mileage, engine power, MPG, gas emissions — with the strongest negative correlations between price and age/mileage, and a tight positive block around the power/displacement/CO₂ cluster."
+  caption="Correlation matrix after the cleaning + feature engineering. Price has the expected strong negative correlations with age and mileage; the engine-physics block (power, displacement, CO₂) clusters tightly together — which is what tells you the unit fixes in §1–4 actually worked."
+/>
+
+The full consolidated notebook is in Colab — see the link at the bottom — and it runs end-to-end in under 10 minutes on the standard runtime.
+
+## 7. The thing I'd take away
+
+<Callout color="green">
+  <strong>Domain knowledge is a data-cleaning speedup multiplier.</strong> The same dataset, handed to two equally skilled data scientists, gets cleaned at very different speeds depending on whether they recognise what the columns describe. The non-domain version isn't worse, just slower — every fix that took five seconds now needs Google, a Wikipedia tab, and a sanity check.
+</Callout>
+
+A few specific takeaways that generalise beyond cars:
+
+- **Read the columns out loud, in the units they live in.** "Median engine size 1968." Does that sound right? For cc it does; for litres it's three orders of magnitude wrong. Order-of-magnitude sanity checks catch unit bugs in seconds — but only if you know the orders of magnitude.
+- **Look at the free-text columns before you ignore them.** The `trim` field in this dataset was richer than every structured column it sat next to. The richness was only obvious if you'd seen the format before.
+- **Knowing the *source* of a column matters as much as the value.** The EPA reads in miles; European specs read in km. Macrotrends ships exports with preambles. UK exchange-rate convention is USD-per-GBP. None of this is in the spec sheet; all of it is in the world.
+- **The cleaning is the model.** Once the data is honestly aligned to its real-world meaning, the model is mostly a bake-off. Most of the project's wins came from §§1–5 of this post, not from the bake-off in §6.
+
+I went into this hackathon project thinking the modelling would be the interesting part. By the end of it the modelling was the easy part — every interesting choice had been made by the time I had a single clean row.
+
+The handwritten PDF was the real input. The notebook just typed it up.
+
+## Resources
+
+<div className="post-links">
+  <a href="https://colab.research.google.com/drive/1JYGDjrF0I8mc9jUb3KAYll2lhMwKV2Y9" target="_blank" rel="noreferrer">Run the consolidated notebook on Colab</a>
+  <a href="https://github.com/maria-aguilera" target="_blank" rel="noreferrer">GitHub</a>
+</div>
