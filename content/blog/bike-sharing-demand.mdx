@@ -1,0 +1,239 @@
+---
+slug: bike-sharing-demand
+title: "Three Ways to Encode an Hour of the Day"
+subtitle: "Forecasting hourly bike-share demand in Washington, D.C. — and which time encoding wins."
+date: "January 2024"
+updated: "January 2024"
+excerpt: "Predicting hourly bike-share demand in Washington, D.C., with three different ways of encoding time (numerical, one-hot, and cyclic sin/cos), three models, time-aware cross-validation, and a finding from October 2012 that broke the dataset."
+tags:
+  - Forecasting
+  - Time Series
+  - Feature Engineering
+  - Cyclic Features
+  - scikit-learn
+source: Project
+coverImage: "/images/blog/bike-sharing/average-hourly-bike-demand-during-week.png"
+---
+
+*A team project (Group A, IE MBD, January 2024) forecasting hourly bicycle demand for the Washington, D.C. bike-share system. The interesting part isn't the model — it's how you encode time. Hour-of-day, day-of-week, and month-of-year are all <strong>cyclic</strong>, and treating them as plain integers wastes the structure.*
+
+## 1. The dataset
+
+The dataset is a row per hour of operation between 2011 and 2012, with weather, calendar, and rider counts. The target is `cnt` — total rentals that hour.
+
+| Field | Meaning |
+|---|---|
+| `instant` | Row index. |
+| `dteday` | Date. |
+| `hr` | Hour (0–23). |
+| `weathersit` | Categorical weather: clear, mist, light rain, heavy rain. |
+| `temp` | Normalised temperature (°C / 41). |
+| `atemp` | Normalised "feels-like" temperature (°C / 50). |
+| `hum` | Normalised humidity (% / 100). |
+| `windspeed` | Normalised wind speed (km/h / 67). |
+| `casual`, `registered` | Casual + registered rider counts. |
+| `cnt` | **Target** — total rentals that hour. |
+
+## 2. EDA — the things you only see if you look
+
+### 2.1 An October 2012 outage hiding in plain sight
+
+A simple plot of hourly demand over time revealed something weird: a 23-hour gap in October 2012 where the system reported essentially zero rentals. Not noise — a real outage. Worth catching before treating the data as a clean time series.
+
+<Image
+  src="/images/blog/bike-sharing/inconsistency-of-data.png"
+  alt="Time series chart of hourly rentals showing a deep, narrow drop in October 2012 — a 23-hour outage where the business effectively stopped operating."
+  caption="A 23-hour outage in October 2012 — the kind of artefact that quietly ruins a model if you don't catch it before training."
+/>
+
+### 2.2 Skewness in `windspeed`
+
+Most numerical features had reasonable distributions, but <KeyTerm>windspeed</KeyTerm> was strongly right-skewed — long tail of high values. Applying a `log1p` transform pulled it into a much more usable shape and reduced its outlier influence.
+
+<Image
+  src="/images/blog/bike-sharing/numerical-skewness.png"
+  alt="Skewness chart across the numerical features showing windspeed with the highest skew, well above the others."
+  caption="windspeed sits well above the rest on skewness. Log transform is the lightest fix that buys back symmetry."
+/>
+
+<Image
+  src="/images/blog/bike-sharing/boxplot.png"
+  alt="Boxplots of the numerical features after preliminary cleaning, showing remaining outliers in humidity and windspeed."
+  caption="Boxplots of the numerical features — most are well-behaved; windspeed and humidity carry some outliers worth treating."
+/>
+
+### 2.3 The shape of the day
+
+The hourly demand pattern is bimodal on working days — a tall morning rush around 8 AM and an even taller evening rush around 5 PM. Weekends are completely different: a single afternoon hump and no rush hours at all.
+
+<Image
+  src="/images/blog/bike-sharing/average-hourly-bike-demand-during-week.png"
+  alt="Line chart of average hourly bike demand split by day of week, showing twin rush-hour peaks on weekdays and a flat afternoon arc on weekends."
+  caption="Weekdays have twin rush-hour peaks. Weekends collapse to a single afternoon hump. Working day is one of the most predictive signals you have."
+/>
+
+<Image
+  src="/images/blog/bike-sharing/work_not_working.png"
+  alt="Side-by-side hourly demand chart contrasting working days (two peaks) vs non-working days (one mid-day peak)."
+  caption="Working day vs not — two completely different daily shapes. Any encoding of hour has to coexist with this."
+/>
+
+### 2.4 Season and weather
+
+Seasonal pattern is exactly what you'd expect: highest demand in summer and fall, lowest in winter. Bad weather flattens the day.
+
+<Image
+  src="/images/blog/bike-sharing/seasons.png"
+  alt="Bar chart of total rentals by season showing fall and summer dominating winter and spring."
+  caption="Demand peaks in fall and summer. Winter falls off a cliff — riders aren't masochists."
+/>
+
+<Image
+  src="/images/blog/bike-sharing/weather_distribution.png"
+  alt="Boxplot of rentals grouped by weather situation showing clear weather producing the highest variance and the highest peaks."
+  caption="Clear weather days carry both the highest medians and the widest spread. Heavy rain caps the upside hard."
+/>
+
+## 3. Time-based cross-validation — no random splits
+
+The single biggest mistake in time series forecasting is using a random train/test split. It leaks the future into the past — the model "sees" tomorrow when it shouldn't.
+
+For this dataset, the train/test boundary was September 30, 2012, with the test set being the last quarter of 2012. Inside training, we used `TimeSeriesSplit` with a 2-day gap between train and test segments and a fixed 1000-point test window per fold (roughly 6 weeks — enough to span weekly cycles).
+
+```python
+train = df.loc[df['dteday'].isin(pd.date_range(start='01/01/2011', end='30/09/2012'))]
+test  = df.loc[~df['dteday'].isin(pd.date_range(start='01/01/2011', end='30/09/2012'))]
+```
+
+<Callout color="yellow">
+  <strong>Why a gap?</strong> Without one, the last hour of the training fold and the first hour of the test fold are basically the same observation. The gap forces the model to extrapolate, not interpolate — which is the actual task at deployment.
+</Callout>
+
+## 4. The three ways to encode time
+
+Hour-of-day, day-of-week, and month-of-year are *cyclic*: hour 23 is closer to hour 0 than to hour 12, but a plain integer encoding can't express that. So we built three different `ColumnTransformer` pipelines and let them race.
+
+### 4.1 Transformer 1 — time as raw numerical features
+
+The simplest. Treat `hr`, `weekday`, `month`, etc. as continuous variables and scale them with MinMax. Cheap, but the model has to learn the cyclical structure from scratch.
+
+```python
+transformer = make_column_transformer(
+    ('drop', ['atemp', 'dteday', 'casual', 'registered']),
+    (KNNImputer(n_neighbors=2), ['temp']),
+    (SimpleImputer(strategy='median'), ['hum']),
+    (SimpleImputer(strategy='median'), ['windspeed']),
+    (make_pipeline(SimpleImputer(strategy='most_frequent'),
+                   OneHotEncoder(handle_unknown='ignore')), ['weathersit']),
+    remainder=MinMaxScaler(),
+)
+```
+
+### 4.2 Transformer 2 — one-hot encode every time feature
+
+Treat `hr`, `weekday`, `month`, `season`, etc. as categorical and one-hot encode all of them. The model gets a separate degree of freedom for every hour-of-day, every weekday, every month. Very flexible, but explodes the feature count and ignores the *ordering* of the values.
+
+```python
+time_related_features = [
+    'season', 'month', 'year', 'weekday', 'working_day',
+    'office_hour', 'daytime', 'rushhour_morning', 'rushhour_evening',
+    'highseason', 'holiday', 'hr',
+]
+
+one_hot_transformer = make_column_transformer(
+    ('drop', ['atemp', 'dteday', 'casual', 'registered']),
+    (KNNImputer(n_neighbors=2), ['temp']),
+    (SimpleImputer(strategy='median'), ['hum']),
+    (SimpleImputer(strategy='median'), ['windspeed']),
+    (make_pipeline(SimpleImputer(strategy='most_frequent'),
+                   OneHotEncoder(handle_unknown='ignore')), ['weathersit']),
+    (OneHotEncoder(handle_unknown='ignore'), time_related_features),
+    remainder=MinMaxScaler(),
+)
+```
+
+### 4.3 Transformer 3 — cyclic features via sin/cos
+
+This is the interesting one. Replace each cyclic integer with a `(sin, cos)` pair on a circle:
+
+```python
+def sin_transformer(period):
+    return FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi))
+
+def cos_transformer(period):
+    return FunctionTransformer(lambda x: np.cos(x / period * 2 * np.pi))
+
+cyclic_transformer = make_column_transformer(
+    ('drop', ['atemp', 'dteday', 'casual', 'registered']),
+    (KNNImputer(n_neighbors=2), ['temp']),
+    (SimpleImputer(strategy='median'), ['hum']),
+    (SimpleImputer(strategy='median'), ['windspeed']),
+    (make_pipeline(SimpleImputer(strategy='most_frequent'),
+                   OneHotEncoder(handle_unknown='ignore')), ['weathersit']),
+    (sin_transformer(12), ['month']),  (cos_transformer(12), ['month']),
+    (sin_transformer(7),  ['weekday']),(cos_transformer(7),  ['weekday']),
+    (sin_transformer(24), ['hr']),    (cos_transformer(24), ['hr']),
+    remainder=MinMaxScaler(),
+)
+```
+
+<Callout color="green">
+  The key property: <code>hr=23</code> and <code>hr=0</code> are now <strong>close together</strong> in (sin, cos) space, because the sine and cosine values are almost identical. The model gets the cyclic structure for free — no need to learn it from scratch.
+</Callout>
+
+The sin/cos pair encodes the angle of the hour on a 24-hour clock. Same trick works for weekday (period 7) and month (period 12). It costs 2 features per cyclic variable — much less than the one-hot blow-up.
+
+## 5. The three models
+
+For each transformer, we tried three models:
+
+```python
+pipelines = {
+    'Linear Regression':  Pipeline([('t', transformer), ('m', LinearRegression())]),
+    'Random Forest':      Pipeline([('t', transformer), ('m', RandomForestRegressor())]),
+    'Decision Tree':      Pipeline([('t', transformer), ('m', DecisionTreeRegressor())]),
+}
+```
+
+That's 3 transformers × 3 models = 9 configurations to evaluate.
+
+## 6. Grid search + time-aware CV
+
+Each pipeline went through a grid search over its hyperparameters, evaluated with `TimeSeriesSplit` cross-validation. The 1000-point window with a 2-day gap kept the validation realistic: the model only ever saw the past at training time.
+
+The winning configuration ended up being **Transformer 1** (numerical time features) paired with the best-tuned Random Forest from grid search. The intuition: tree-based models can find non-linear splits on `hr` directly, so they don't need the cyclic structure encoded explicitly — and they avoid the dimensionality blow-up of the one-hot variant.
+
+For linear models the ranking was different: the cyclic transformer was a clear win over numerical, since linear regression really cannot express "hour 0 is close to hour 23" without help.
+
+<Image
+  src="/images/blog/bike-sharing/regplot.png"
+  alt="Scatter plot of predicted vs actual hourly rentals from the final model, with most points hugging the y = x line and dispersion increasing at higher counts."
+  caption="Predicted vs actual hourly rentals on the held-out Q4 2012 test set. Tight at low and mid demand, more scatter at peak rush-hour counts — where small offsets in timing hurt the most."
+/>
+
+<Image
+  src="/images/blog/bike-sharing/over_time.png"
+  alt="Time series chart overlaying predictions and actual rentals over a sample stretch of Q4 2012, showing the model tracking daily and weekly cycles closely."
+  caption="Predictions over time. The model picks up both the daily double-peak and the weekly weekday/weekend contrast."
+/>
+
+## 7. What I'd take into the next time series
+
+<Callout color="green">
+  Cyclic encoding (sin/cos) is the right default for any periodic integer feature — hour-of-day, day-of-week, month-of-year, day-of-year. It's two features instead of one, but it gives linear models the structure they cannot derive themselves and never hurts tree-based models.
+</Callout>
+
+A few other things worth repeating:
+
+- **Plot demand over time before doing anything else.** The October 2012 outage was invisible in aggregate statistics — only the time-of-day chart caught it.
+- **Use `TimeSeriesSplit` with a gap.** Random `KFold` on time-ordered data leaks the future into the validation score and you get a model that looks great in development and fails on day one.
+- **Tree-based models are happy with numerical time features.** Save the one-hot/cyclic encodings for linear models, where the encoding is doing real work.
+- **Always look at predicted-vs-actual on the held-out period.** A model that does well on cross-validation but visibly misses rush hour is hiding something the score isn't telling you.
+
+## Resources
+
+<div className="post-links">
+  <a href="https://maria-aguilera.github.io/projects/bike-sharing.html" target="_blank" rel="noreferrer">Notebook on GitHub Pages</a>
+  <a href="https://github.com/maria-aguilera/bike-sharing" target="_blank" rel="noreferrer">GitHub repository</a>
+  <a href="https://colab.research.google.com/drive/1ryydAJtLAJnjCMqVtIGNvLQh4qfEnSXc" target="_blank" rel="noreferrer">Run on Colab</a>
+</div>
