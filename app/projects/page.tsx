@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import PageHero from "@/components/PageHero";
+import BlogIndex, { type BlogIndexPost } from "@/components/BlogIndex";
 import { blogPosts } from "@/lib/blog-posts";
 import { getAllMdxPostMeta } from "@/lib/mdx";
 
@@ -18,13 +17,7 @@ export const metadata: Metadata = {
   },
 };
 
-function extractYear(value: string | undefined): number | null {
-  if (!value) return null;
-  const match = value.match(/(\d{4})/);
-  return match ? Number(match[1]) : null;
-}
-
-export default function ProjectsPage() {
+export default function BlogIndexPage() {
   const mdxPosts = getAllMdxPostMeta();
   const blogSlugs = new Set(blogPosts.map((post) => post.slug));
   const mdxBySlug = new Map(mdxPosts.map((post) => [post.slug, post]));
@@ -32,25 +25,16 @@ export default function ProjectsPage() {
   const mergedPosts = blogPosts.map((post) => mdxBySlug.get(post.slug) ?? post);
   const extraMdxPosts = mdxPosts.filter((post) => !blogSlugs.has(post.slug));
   const allPosts = [...mergedPosts, ...extraMdxPosts];
-  const projectPosts = allPosts.filter((post) => post.source === "Project");
 
-  const projectYears = projectPosts
-    .map((post) => extractYear(post.date))
-    .filter((year): year is number => year !== null);
-  const sinceYear = projectYears.length ? Math.min(...projectYears) : null;
-  const topicsCount = new Set(projectPosts.flatMap((post) => post.tags)).size;
-  const latestPost = projectPosts.reduce<typeof projectPosts[number] | null>((latest, post) => {
-    const postYear = extractYear(post.updated ?? post.date) ?? -Infinity;
-    const latestYear = latest ? extractYear(latest.updated ?? latest.date) ?? -Infinity : -Infinity;
-    return postYear >= latestYear ? post : latest;
-  }, null);
-
-  const stats = [
-    { value: String(projectPosts.length), label: "Projects" },
-    { value: String(topicsCount), label: "Topics" },
-    { value: sinceYear ? String(sinceYear) : "—", label: "Since" },
-    { value: latestPost?.updated ?? latestPost?.date ?? "—", label: "Updated" },
-  ];
+  const indexPosts: BlogIndexPost[] = allPosts.map((post) => ({
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    date: post.date,
+    tags: post.tags,
+    coverImage: post.coverImage,
+    source: post.source,
+  }));
 
   return (
     <main id="main-content" className="blog-page">
@@ -58,68 +42,7 @@ export default function ProjectsPage() {
 
       <section className="blog-body">
         <div className="blog-body__container">
-          <div className="blog-stats">
-            {stats.map((stat) => (
-              <div key={stat.label} className="blog-stat">
-                <div className="blog-stat__value">{stat.value}</div>
-                <div className="blog-stat__label">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="page-content">
-            <section className="page-section talks-section">
-              <div className="talks-section__header">
-                <h2>What belongs here</h2>
-                <p className="talks-section__lead">
-                  Projects are the work samples behind the portfolio: the things I built, tested,
-                  or explored deeply enough to turn into a proper write-up.
-                </p>
-              </div>
-            </section>
-
-            <div className="blog-grid">
-              {projectPosts.map((post) => (
-                <Link key={post.slug} href={`/blog/${post.slug}`} className="blog-card">
-                  <div className="blog-card__image">
-                    <Image
-                      src={post.coverImage}
-                      alt={post.title}
-                      width={720}
-                      height={420}
-                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-                    />
-                    <span className="blog-card__corner" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M7 17L17 7" stroke="currentColor" strokeWidth="2" />
-                        <path d="M10 7H17V14" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </span>
-                  </div>
-                  <div className="blog-card__body">
-                    <h3 className="blog-card__title">{post.title}</h3>
-                    <div className="blog-card__meta">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-                        <path d="M8 3V7" stroke="currentColor" strokeWidth="2" />
-                        <path d="M16 3V7" stroke="currentColor" strokeWidth="2" />
-                        <path d="M3 11H21" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                      <span>{post.date}</span>
-                    </div>
-                    <p className="blog-card__excerpt">{post.excerpt}</p>
-                    <div className="blog-card__tags">
-                      {post.tags.map((tag) => (
-                        <span key={`${post.slug}-${tag}`} className="blog-card__tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
+          <BlogIndex posts={indexPosts} minTagCount={2} defaultSource="Blog" />
         </div>
       </section>
     </main>

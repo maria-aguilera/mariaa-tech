@@ -20,6 +20,8 @@ type Props = {
   posts: BlogIndexPost[];
   /** Hide tags appearing in fewer than this many posts (still accessible via "More"). */
   minTagCount?: number;
+  /** Pre-select a source filter when the page loads. */
+  defaultSource?: SourceFilter;
 };
 
 const ALL_TAGS = "All";
@@ -34,10 +36,10 @@ const STATS: { key: SourceFilter; label: string }[] = [
   { key: "Notes", label: "Notes" },
 ];
 
-export default function BlogIndex({ posts, minTagCount = 2 }: Props) {
+export default function BlogIndex({ posts, minTagCount = 2, defaultSource = ALL_SOURCES }: Props) {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState(ALL_TAGS);
-  const [source, setSource] = useState<SourceFilter>(ALL_SOURCES);
+  const [source, setSource] = useState<SourceFilter>(defaultSource);
   const [sortDesc, setSortDesc] = useState(true);
   const [showAllTags, setShowAllTags] = useState(false);
 

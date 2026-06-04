@@ -126,32 +126,18 @@ export default function Navbar() {
 
           {blogMenuOpen && (
             <div className="navbar__menu-popover" role="menu">
-              {series.map((s) => (
-                <div key={s.id} className="navbar__series">
-                  <div className="navbar__series-header">
-                    <div className="navbar__series-title">{s.title}</div>
-                    <div className="navbar__series-desc">{s.description}</div>
-                  </div>
-                  <ul className="navbar__series-list">
-                    {s.posts.map((p) =>
-                      p.published ? (
-                        <li key={p.slug}>
-                          <Link href={`/blog/${p.slug}`} className="navbar__series-link" role="menuitem">
-                            <span className="navbar__series-num">{String(p.part).padStart(2, "0")}</span>
-                            <span>{p.title}</span>
-                          </Link>
-                        </li>
-                      ) : (
-                        <li key={p.slug} className="navbar__series-item navbar__series-item--soon">
-                          <span className="navbar__series-num">{String(p.part).padStart(2, "0")}</span>
-                          <span>{p.title}</span>
-                          <span className="navbar__series-soon">Soon</span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              ))}
+              <ul className="navbar__series-list">
+                {series.map((s) => (
+                  <li key={s.id}>
+                    <Link href={`/series/${s.id}`} className="navbar__series-link" role="menuitem">
+                      <div>
+                        <div className="navbar__series-title">{s.title}</div>
+                        <div className="navbar__series-desc">{s.description}</div>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </li>
