@@ -1,0 +1,245 @@
+---
+slug: spaceship-titanic
+title: "When Missing Values Aren't Random"
+subtitle: "Filling in missing values not by averaging — by asking who travelled together."
+date: "February 2024"
+updated: "February 2024"
+excerpt: "A walkthrough of my Spaceship Titanic Kaggle submission — the feature engineering moves that come from reading the PassengerID and Cabin schemas, the relational imputation strategy for missing values, and a 10-model bake-off."
+tags:
+  - Kaggle
+  - Classification
+  - Feature Engineering
+  - Missing Values
+  - Pipelines
+source: Project
+coverImage: "/images/blog/spaceship-titanic/homeplanet-and-deck-relationship.png"
+---
+
+*A binary classification competition from Kaggle: predict whether a passenger aboard the Spaceship Titanic was transported to another dimension after the ship collided with a spacetime anomaly. Submissions are graded on classification accuracy.*
+
+The interesting part of this dataset isn't the model. It's the **schema**: PassengerIDs encode travel groups, Cabins encode physical location on the ship, and large chunks of the data are missing. The trick is realising that most of the missing values can be recovered by reading the structure of the data itself — not by filling with means.
+
+## 1. The fields you start with
+
+| Field | What it means |
+|---|---|
+| `PassengerId` | `gggg_pp` — a group ID and a position within the group. People in a group are often (not always) family. |
+| `HomePlanet` | Where the passenger departed from. |
+| `CryoSleep` | Whether they were in suspended animation for the voyage. CryoSleep passengers are confined to their cabins. |
+| `Cabin` | `deck/num/side`, where side is Port (P) or Starboard (S). |
+| `Destination` | Where they were heading. |
+| `Age` | Self-explanatory. |
+| `VIP` | Paid VIP service. |
+| `RoomService`, `FoodCourt`, `ShoppingMall`, `Spa`, `VRDeck` | Spending at each amenity. |
+| `Name` | First + last. |
+| `Transported` | **Target.** Did the passenger get transported to another dimension? |
+
+## 2. What the missing values look like
+
+Almost every column has some missing data, but the missingness isn't random — it clusters around groups and cabins. That's important, because it means the right imputation strategy is *relational*, not statistical.
+
+<Image
+  src="/images/blog/spaceship-titanic/heatmapmissingvalues.png"
+  alt="Heatmap of missing values across the Spaceship Titanic training set, showing scattered missingness across most fields."
+  caption="Missing-value heatmap. The pattern isn't random — group and cabin information leaks across rows, which is the leverage point for imputation."
+/>
+
+## 3. Decoding the schema before modelling
+
+Three of the fields are *composite* — they're really multiple features glued together. Splitting them is the single biggest source of signal.
+
+### 3.1 PassengerID → group + position
+
+```python
+df['PassengerGroup']   = df.index.str.split('_').str[0]
+df['PassengerNumber']  = df.index.str.split('_').str[1].astype(int)
+df['GroupSize']        = df.groupby('PassengerGroup')['PassengerGroup'].transform('count')
+df['Solo']             = (df['GroupSize'] == 1).astype(int)
+```
+
+From `PassengerId` alone you can derive: the group, the size of the group, and whether the passenger is travelling alone. <KeyTerm>Solo</KeyTerm> ends up being a useful signal — solo travellers behave differently from family groups.
+
+<Image
+  src="/images/blog/spaceship-titanic/solo.png"
+  alt="Bar chart showing the Solo feature distribution and its relationship with the target variable Transported."
+  caption="Solo passengers (GroupSize == 1) — extracted purely from PassengerId, useful as a feature."
+/>
+
+### 3.2 Cabin → deck + number + side
+
+```python
+df[['CabinDeck', 'CabinNumber', 'CabinSide']] = df['Cabin'].str.split('/', expand=True)
+df['CabinNumber'] = pd.to_numeric(df['CabinNumber'])
+df['cabin_region'] = pd.cut(df['CabinNumber'], bins=6, labels=range(6))
+```
+
+`Cabin` looks like `B/12/P` — a deck letter, a number along the deck, and a side. Each piece carries its own signal: deck correlates with HomePlanet, side correlates with travel group, and `cabin_region` (the cabin number binned) helps because adjacent passengers tend to share characteristics.
+
+### 3.3 Name → surname → family
+
+```python
+df['Surname'] = df['Name'].str.split(' ').str[-1]
+df['FamilySize'] = df.groupby('Surname')['Surname'].transform('count')
+```
+
+Same idea as Group, but using surname. Where multiple groups share a surname, you have a family travelling together — useful both as a feature and for imputing missing values inside the family.
+
+<Image
+  src="/images/blog/spaceship-titanic/familysize.png"
+  alt="Distribution of FamilySize feature derived from passenger surnames."
+  caption="FamilySize — derived from the last word of the Name field. Big families look different from solo passengers and small groups."
+/>
+
+### 3.4 Expenditure → total, none, luxury, basic
+
+The five amenity-spending columns roll up nicely:
+
+- `TotalExpenditure` = sum of all spending.
+- `NoExpenditure` = boolean: did they spend anything at all?
+- `LuxuryExpenditure` = `RoomService + Spa + VRDeck`.
+- `BasicExpenditure` = `FoodCourt + ShoppingMall`.
+
+`NoExpenditure` is the most important of these — and it's the bridge to imputing CryoSleep, which we'll see in a moment.
+
+## 4. Imputing missing values by reading the data
+
+This is where the project gets interesting. Instead of filling missing values with means or modes, I imputed using inter-feature relationships that the schema implies. Almost every relationship is something a human would notice if they looked at the data carefully.
+
+### 4.1 HomePlanet — fill from travel companions
+
+Travel groups almost always share a HomePlanet. If anyone in a group has a known HomePlanet, propagate it to the rows in that group with missing HomePlanet. Same with families (surname).
+
+```python
+df['HomePlanet'] = df.groupby('PassengerGroup')['HomePlanet'].transform(
+    lambda x: x.fillna(x.mode().iloc[0]) if not x.mode().empty else x
+)
+```
+
+Then fall back to the **CabinDeck → HomePlanet** relationship. Most decks are dominated by one HomePlanet:
+
+<Image
+  src="/images/blog/spaceship-titanic/homeplanet-and-deck-relationship.png"
+  alt="Stacked bar chart showing which decks each HomePlanet's passengers occupy — most decks are dominated by one or two planets."
+  caption="HomePlanet × CabinDeck. Most decks are dominated by one or two HomePlanets, so deck is a strong fallback signal."
+/>
+
+### 4.2 Cabin — fill from group and surname
+
+CabinSide (P/S) is almost perfectly preserved within travel groups — if any group member has a known side, the others share it. Same for surname.
+
+<Image
+  src="/images/blog/spaceship-titanic/cabin-and-passenger-group.png"
+  alt="Plot showing how CabinSide is highly consistent within passenger groups."
+  caption="Cabin × PassengerGroup. The same group almost always sits on the same side of the ship — propagating side from one member to the rest fills most of the gaps."
+/>
+
+For missing CabinNumber, the cabin numbers within a deck are mostly contiguous. So I fitted a small linear regression on cabin number vs passenger index (per deck) to fill the rest:
+
+<Image
+  src="/images/blog/spaceship-titanic/passengerlinearregressioncabin.png"
+  alt="Scatter plot of cabin number vs passenger index per deck, with linear regression fits used to impute missing cabin numbers."
+  caption="Cabin number vs passenger index, fitted per deck. The relationship is close enough to linear that regression-based imputation works much better than a mode fill."
+/>
+
+### 4.3 CryoSleep — derive from spending
+
+The dataset description says CryoSleep passengers are *confined to their cabins*. They cannot spend anything. So:
+
+<Callout color="green">
+  If `NoExpenditure == True` and `CryoSleep` is missing → almost certainly `CryoSleep = True`. The schema rules give you the answer for free.
+</Callout>
+
+Conversely, if `CryoSleep == True` and any spending column is missing, the missing values should be filled with 0, not the column mean. This single rule cleans up a chunk of the dataset.
+
+### 4.4 VIP, Age, Surname, Destination
+
+Each of these gets a similar relational treatment:
+
+- **VIP** → mostly correlated with HomePlanet (one planet has disproportionately more VIPs), then refined by age class.
+- **Age** → median age within group, then within deck.
+- **Surname** → fill within group (same group → same family → same surname).
+- **Destination** → mode within group, then by HomePlanet.
+
+## 5. What the data looks like once cleaned
+
+Before modelling, a quick sanity check on correlations:
+
+<Image
+  src="/images/blog/spaceship-titanic/correlation-matrix.png"
+  alt="Correlation matrix showing strong relationships between expenditure columns, between Group features, and between cabin-related features."
+  caption="Correlation matrix after feature engineering. Strong clusters around expenditure (Total/Luxury/Basic), group features (PassengerGroup/GroupSize/Solo), and cabin (Deck/Region/Side)."
+/>
+
+<Image
+  src="/images/blog/spaceship-titanic/target-distribution.png"
+  alt="Bar chart of target variable distribution — Transported is roughly balanced between True and False."
+  caption="Target distribution. The classes are roughly balanced, so accuracy is a reasonable evaluation metric."
+/>
+
+## 6. Modelling — 10 classifiers, one preprocessing pipeline
+
+With the data cleaned and engineered, the modelling part was almost mechanical: build a single preprocessing pipeline, plug it into a column transformer, then fit ten classifiers on the same train/validation split and compare cross-validation scores.
+
+```python
+classifiers = {
+    'Naive Bayes':         GaussianNB(),
+    'Logistic Regression': LogisticRegression(C=0.2, solver='liblinear'),
+    'SGD Classifier':      SGDClassifier(loss='log'),
+    'Decision Tree':       DecisionTreeClassifier(max_depth=7),
+    'SVC':                 SVC(random_state=0, probability=True),
+    'Random Forest':       RandomForestClassifier(max_depth=7, n_estimators=100),
+    'AdaBoost':            AdaBoostClassifier(n_estimators=100),
+    'CatBoost':            CatBoostClassifier(iterations=10, learning_rate=0.1, verbose=False),
+    'LightGBM':            lgb.LGBMClassifier(learning_rate=0.05, n_estimators=500, reg_lambda=1),
+    'XGBoost':             XGBClassifier(),
+}
+```
+
+The preprocessing pipeline was identical for every model — standardise the continuous columns, one-hot encode the categorical ones, leave the booleans alone:
+
+```python
+preprocessor = ColumnTransformer(transformers=[
+    ('num', Pipeline([('scaler', StandardScaler())]),
+            make_column_selector(dtype_include=np.number)),
+    ('cat', Pipeline([('onehot', OneHotEncoder(handle_unknown='ignore', sparse=False))]),
+            make_column_selector(dtype_include=['category', 'object'])),
+])
+```
+
+After cross-validation:
+
+<Image
+  src="/images/blog/spaceship-titanic/model-results.png"
+  alt="Boxplot of cross-validation accuracy scores across the 10 classifiers, showing the gradient-boosted models on top."
+  caption="Cross-validation accuracy across the 10 classifiers. Gradient boosting (LightGBM, XGBoost, CatBoost) lands on top; Naive Bayes and SGD trail behind."
+/>
+
+The boosted models (LightGBM, XGBoost, CatBoost) and Random Forest sit at the top. Linear models perform respectably but are clearly outclassed once the dataset has 30+ engineered features.
+
+<Image
+  src="/images/blog/spaceship-titanic/feature_importance.png"
+  alt="Feature importance plot showing which features the gradient boosting model relied on most."
+  caption="Feature importance from the best gradient-boosting model. CryoSleep, Total/No-Expenditure, and the engineered Cabin features dominate."
+/>
+
+The top features are almost all engineered. <KeyTerm>CryoSleep</KeyTerm>, <KeyTerm>TotalExpenditure</KeyTerm> / <KeyTerm>NoExpenditure</KeyTerm>, and the <KeyTerm>Cabin</KeyTerm> splits do most of the work. The raw columns barely appear in the top of the chart — which validates the upfront investment in unpacking the schema.
+
+## 7. What I'd take into the next dataset
+
+<Callout color="yellow">
+  When a feature looks composite, <strong>split it before you do anything else</strong>. PassengerId, Cabin, and Name were the single biggest sources of signal in this dataset, and they were hiding behind delimiters.
+</Callout>
+
+A few other things I'd repeat:
+
+- **Read the field descriptions.** "CryoSleep passengers are confined to their cabins" is a single sentence that gives you a free imputation rule for hundreds of rows.
+- **Don't fill missing values with statistics if you can fill them with relationships.** Group, family, deck, and side are all schema-level hints that beat a column-wise mean fill.
+- **Build one preprocessing pipeline, then race models.** Once the data is clean, a 10-model bake-off is almost free. The model that wins is rarely the one you'd have picked first.
+
+## Resources
+
+<div className="post-links">
+  <a href="https://maria-aguilera.github.io/projects/spaceship-titanic.html" target="_blank" rel="noreferrer">Notebook on GitHub Pages</a>
+  <a href="https://github.com/maria-aguilera/spaceship-titanic" target="_blank" rel="noreferrer">GitHub repository</a>
+  <a href="https://colab.research.google.com/drive/1GgTDc8bqNdoxLfQ9bRVZQ1OFKEhcYz4x" target="_blank" rel="noreferrer">Run on Colab</a>
+</div>
