@@ -5,14 +5,14 @@ import { blogPosts } from "@/lib/blog-posts";
 import { getAllMdxPostMeta } from "@/lib/mdx";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Projects",
   description:
-    "Writing on machine learning, data engineering, and the practical side of building AI systems.",
+    "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Blog · Maria Aguilera",
+    title: "Projects · Maria Aguilera",
     description:
-      "Writing on machine learning, data engineering, and the practical side of building AI systems.",
+      "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
     url: "/blog",
   },
 };
@@ -38,7 +38,7 @@ export default function BlogPage() {
 
   return (
     <main id="main-content" className="blog-page">
-      <PageHero title="Technical Blog" subtitle="AI insights and customer stories" icon="book-open" />
+      <PageHero title="Projects" subtitle="Builds, experiments, and case studies" icon="file-text" />
 
       <section className="blog-body">
         <div className="blog-body__container">

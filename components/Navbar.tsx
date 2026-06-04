@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   Award,
   BookOpen,
@@ -11,6 +11,7 @@ import {
   Moon,
   Sun,
 } from "lucide-react";
+import { series } from "@/lib/series";
 
 const THEME_STORAGE_KEY = "site-theme";
 const THEME_CHANGE_EVENT = "site-theme-change";
@@ -47,6 +48,7 @@ function subscribeToTheme(onStoreChange: () => void) {
 export default function Navbar() {
   const theme = useSyncExternalStore(subscribeToTheme, getStoredTheme, () => "light");
   const pathname = usePathname();
+  const [blogMenuOpen, setBlogMenuOpen] = useState(false);
 
   useEffect(() => {
     document.body.classList.toggle("theme-dark", theme === "dark");
@@ -86,26 +88,72 @@ export default function Navbar() {
           </Link>
         </li>
 
+        {/* Renamed Blog→Projects: this is the /blog page (the filterable index of everything). */}
         <li className={`navbar__item ${isActive("/blog") ? "active" : ""}`}>
           <Link
             className="navbar__link"
             href="/blog"
             aria-current={isActive("/blog") ? "page" : undefined}
           >
-            <BookOpen size={iconSize} />
-            <span>Blog</span>
+            <FileText size={iconSize} />
+            <span>Projects</span>
           </Link>
         </li>
 
-        <li className={`navbar__item ${isActive("/projects") ? "active" : ""}`}>
+        {/* Renamed Projects→Blog: this hosts the curated writing + series dropdown on hover. */}
+        <li
+          className={`navbar__item navbar__item--has-menu ${isActive("/projects") ? "active" : ""}`}
+          onMouseEnter={() => setBlogMenuOpen(true)}
+          onMouseLeave={() => setBlogMenuOpen(false)}
+          onFocus={() => setBlogMenuOpen(true)}
+          onBlur={(e) => {
+            // Only close if focus actually leaves the <li>
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setBlogMenuOpen(false);
+            }
+          }}
+        >
           <Link
             className="navbar__link"
             href="/projects"
             aria-current={isActive("/projects") ? "page" : undefined}
+            aria-haspopup="menu"
+            aria-expanded={blogMenuOpen}
           >
-            <FileText size={iconSize} />
-            <span>Projects</span>
+            <BookOpen size={iconSize} />
+            <span>Blog</span>
           </Link>
+
+          {blogMenuOpen && (
+            <div className="navbar__menu-popover" role="menu">
+              {series.map((s) => (
+                <div key={s.id} className="navbar__series">
+                  <div className="navbar__series-header">
+                    <div className="navbar__series-title">{s.title}</div>
+                    <div className="navbar__series-desc">{s.description}</div>
+                  </div>
+                  <ul className="navbar__series-list">
+                    {s.posts.map((p) =>
+                      p.published ? (
+                        <li key={p.slug}>
+                          <Link href={`/blog/${p.slug}`} className="navbar__series-link" role="menuitem">
+                            <span className="navbar__series-num">{String(p.part).padStart(2, "0")}</span>
+                            <span>{p.title}</span>
+                          </Link>
+                        </li>
+                      ) : (
+                        <li key={p.slug} className="navbar__series-item navbar__series-item--soon">
+                          <span className="navbar__series-num">{String(p.part).padStart(2, "0")}</span>
+                          <span>{p.title}</span>
+                          <span className="navbar__series-soon">Soon</span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
         </li>
 
         <li className={`navbar__item ${isActive("/beyond-work") ? "active" : ""}`}>
