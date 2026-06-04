@@ -650,6 +650,31 @@ body {
   text-transform: none;
 }
 
+.blog-stat--button {
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+  width: 100%;
+  display: block;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.blog-stat--button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.blog-stat--active {
+  border-color: #2563eb;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+
+.blog-stat--active .blog-stat__label {
+  color: #2563eb;
+  font-weight: 600;
+}
+
 .blog-search {
   margin-top: 1.75rem;
   display: flex;

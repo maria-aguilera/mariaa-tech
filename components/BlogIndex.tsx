@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+export type PostSource = "Blog" | "Project" | "Notes";
+
 export type BlogIndexPost = {
   slug: string;
   title: string;
@@ -11,37 +13,65 @@ export type BlogIndexPost = {
   date: string;
   tags: string[];
   coverImage: string;
+  source: PostSource;
 };
 
 type Props = {
   posts: BlogIndexPost[];
-  /** Number of tag chips shown by default. Remaining tags accessible via "More". */
-  topTagCount?: number;
+  /** Hide tags appearing in fewer than this many posts (still accessible via "More"). */
+  minTagCount?: number;
 };
 
-const ALL = "All";
+const ALL_TAGS = "All";
+const ALL_SOURCES = "All" as const;
 
-export default function BlogIndex({ posts, topTagCount = 12 }: Props) {
+type SourceFilter = typeof ALL_SOURCES | PostSource;
+
+const STATS: { key: SourceFilter; label: string }[] = [
+  { key: ALL_SOURCES, label: "Everything" },
+  { key: "Blog", label: "Blog Posts" },
+  { key: "Project", label: "Projects" },
+  { key: "Notes", label: "Notes" },
+];
+
+export default function BlogIndex({ posts, minTagCount = 2 }: Props) {
   const [query, setQuery] = useState("");
-  const [tag, setTag] = useState(ALL);
+  const [tag, setTag] = useState(ALL_TAGS);
+  const [source, setSource] = useState<SourceFilter>(ALL_SOURCES);
   const [sortDesc, setSortDesc] = useState(true);
   const [showAllTags, setShowAllTags] = useState(false);
 
-  const { topTags, restTags } = useMemo(() => {
-    const counts = new Map<string, number>();
+  const tagCounts = useMemo(() => {
+    const c = new Map<string, number>();
     for (const post of posts) {
-      for (const t of post.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+      for (const t of post.tags) c.set(t, (c.get(t) ?? 0) + 1);
     }
-    const sorted = Array.from(counts.entries()).sort((a, b) =>
+    return c;
+  }, [posts]);
+
+  const { topTags, restTags } = useMemo(() => {
+    const sorted = Array.from(tagCounts.entries()).sort((a, b) =>
       b[1] - a[1] || a[0].localeCompare(b[0])
     );
-    const names = sorted.map(([name]) => name);
-    return { topTags: names.slice(0, topTagCount), restTags: names.slice(topTagCount) };
-  }, [posts, topTagCount]);
+    const top: string[] = [];
+    const rest: string[] = [];
+    for (const [name, n] of sorted) {
+      (n >= minTagCount ? top : rest).push(name);
+    }
+    return { topTags: top, restTags: rest };
+  }, [tagCounts, minTagCount]);
 
-  const visibleTags = [ALL, ...topTags, ...(showAllTags ? restTags : [])];
+  const visibleTags = [ALL_TAGS, ...topTags, ...(showAllTags ? restTags : [])];
 
-  // Parse a string like "June 2026" / "2020" / "January 2024" into a sortable number.
+  const sourceCounts = useMemo(() => {
+    const c: Record<SourceFilter, number> = { All: posts.length, Blog: 0, Project: 0, Notes: 0 };
+    for (const p of posts) c[p.source]++;
+    return c;
+  }, [posts]);
+
+  const topicsCount = tagCounts.size;
+
+  // Parse a date string like "June 2026" / "2020" / "January 2024" into a sortable number.
   const dateSortKey = (s: string) => {
     if (!s) return 0;
     const m = s.match(/(\w+)?\s*(\d{4})/);
@@ -57,19 +87,42 @@ export default function BlogIndex({ posts, topTagCount = 12 }: Props) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matchesQuery = (p: BlogIndexPost) =>
-      !q || p.title.toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q);
-    const matchesTag = (p: BlogIndexPost) => tag === ALL || p.tags.includes(tag);
-    const list = posts.filter((p) => matchesQuery(p) && matchesTag(p));
+    const list = posts.filter((p) => {
+      if (source !== ALL_SOURCES && p.source !== source) return false;
+      if (tag !== ALL_TAGS && !p.tags.includes(tag)) return false;
+      if (q && !p.title.toLowerCase().includes(q) && !p.excerpt.toLowerCase().includes(q)) return false;
+      return true;
+    });
     list.sort((a, b) => {
       const cmp = dateSortKey(b.date) - dateSortKey(a.date);
       return sortDesc ? cmp : -cmp;
     });
     return list;
-  }, [posts, query, tag, sortDesc]);
+  }, [posts, query, tag, source, sortDesc]);
 
   return (
     <>
+      <div className="blog-stats">
+        {STATS.map((s) => {
+          const value =
+            s.key === ALL_SOURCES ? topicsCount : sourceCounts[s.key];
+          const labelForCount =
+            s.key === ALL_SOURCES ? "Topics" : s.label;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              className={`blog-stat blog-stat--button${source === s.key ? " blog-stat--active" : ""}`}
+              onClick={() => setSource(s.key)}
+              aria-pressed={source === s.key}
+            >
+              <div className="blog-stat__value">{s.key === ALL_SOURCES ? sourceCounts.All : sourceCounts[s.key]}</div>
+              <div className="blog-stat__label">{s.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="blog-search">
         <span className="blog-search__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
