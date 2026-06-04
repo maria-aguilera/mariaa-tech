@@ -656,24 +656,37 @@ body {
   appearance: none;
   width: 100%;
   display: block;
+  position: relative;
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
-.blog-stat--button:hover,
-.blog-stat--button:focus-visible {
+.blog-stat--button:hover {
   transform: translateY(-3px);
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.16);
   border-color: rgba(37, 99, 235, 0.55);
-  outline: none;
 }
 
-.blog-stat--active {
-  border-color: #2563eb;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+.blog-stat--button:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.6);
+  outline-offset: 2px;
 }
 
-.blog-stat--active .blog-stat__value {
+/* Active state: thin accent bar at the bottom + bolder label. No full ring,
+   so all four boxes still look flat at rest. */
+.blog-stat--active::after {
+  content: "";
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 0.55rem;
+  height: 3px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.blog-stat--active .blog-stat__label {
   color: #1d4ed8;
+  font-weight: 600;
 }
 
 .blog-stat--active .blog-stat__label {
