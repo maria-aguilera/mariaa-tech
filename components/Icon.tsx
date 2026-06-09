@@ -22,6 +22,7 @@ import {
   PenSquare,
   Rss,
   Shield,
+  Sparkles,
   Star,
   Terminal,
 } from "lucide-react";
@@ -72,6 +73,7 @@ const ICON_MAP = {
   "pen-square": PenSquare,
   rss: Rss,
   shield: Shield,
+  sparkles: Sparkles,
   star: Star,
   terminal: Terminal,
 } as const;

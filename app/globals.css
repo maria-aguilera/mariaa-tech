@@ -3042,6 +3042,46 @@ body.theme-dark .post-links a:hover {
 
 
 /* =====================================================
+   BEYOND WORK · SHARED SECTION HEADER (v2)
+   Same pattern as .ai-perspectives__header — small uppercase eyebrow
+   above a regular-weight title. Used by StatStrip + IdentityStrip.
+   ===================================================== */
+.bw-block {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.bw-block__header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bw-block__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.bw-block__title {
+  margin: 0;
+  font-size: 1.45rem;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.theme-dark .bw-block__title {
+  color: #f8fafc;
+}
+
+body.theme-dark .bw-block__eyebrow {
+  color: #94a3b8;
+}
+
+/* =====================================================
    BEYOND WORK · STAT STRIP (3 at-a-glance cards)
    Matches .home-panel style: bare blue icon + h3 inline,
    big stat number, small caption.
@@ -4480,6 +4520,7 @@ body.theme-dark .sketch-pin--active .sketch-pin__year {
   gap: 0.7rem;
 }
 
+/* Legacy avatar styles — kept for backwards compat */
 .ai-card__avatar {
   display: inline-flex;
   align-items: center;
@@ -4495,6 +4536,33 @@ body.theme-dark .sketch-pin--active .sketch-pin__year {
 .ai-card--warm .ai-card__avatar { background: #b45309; }
 .ai-card--cool .ai-card__avatar { background: #0e7490; }
 .ai-card--claude .ai-card__avatar { background: #6d28d9; }
+
+/* New icon style — matches the .home-panel bare-icon pattern */
+.ai-card__icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ai-card__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Per-source accent colour kept (the section's whole point is "different
+   sources speak with different voices"), but only on the icon stroke, not
+   the background. Matches the home-panel "bare blue icon" pattern, just
+   with per-card colour instead of always-blue. */
+.ai-card--warm .ai-card__icon { color: #b45309; }
+.ai-card--cool .ai-card__icon { color: #0e7490; }
+.ai-card--claude .ai-card__icon { color: #6d28d9; }
+
+body.theme-dark .ai-card--warm .ai-card__icon { color: #fbbf24; }
+body.theme-dark .ai-card--cool .ai-card__icon { color: #22d3ee; }
+body.theme-dark .ai-card--claude .ai-card__icon { color: #a78bfa; }
 
 .ai-card__meta {
   display: grid;
