@@ -11,7 +11,13 @@ const LANGUAGES = ["Spanish (Native)", "English (Bilingual)", "French (Advanced)
 
 export default function StatStrip({ continents, countries }: StatStripProps) {
   return (
-    <section className="stat-strip stat-strip--three" aria-label="At a glance">
+    <section className="bw-block" aria-label="At a glance">
+      <h2 className="topic-section__title">
+        <span className="topic-section__label">At a glance</span>
+        <span className="topic-section__rule" aria-hidden="true" />
+      </h2>
+
+      <div className="stat-strip stat-strip--three">
       <div className="stat-card stat-card--hover" tabIndex={0}>
         <header className="stat-card__header">
           <span className="stat-card__icon" aria-hidden="true">
@@ -55,6 +61,7 @@ export default function StatStrip({ continents, countries }: StatStripProps) {
             <li key={l}>{l}</li>
           ))}
         </ul>
+      </div>
       </div>
     </section>
   );

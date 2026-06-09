@@ -124,9 +124,9 @@ export default async function BeyondWorkPage() {
 
             <PinterestCarousel slides={slides} />
 
-            <BeyondWorkJourney items={timelineItems} />
-
             <AIPerspectiveCards />
+
+            <BeyondWorkJourney items={timelineItems} />
 
             <section className="bw-closing" aria-label="Closing note">
               <p>

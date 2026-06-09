@@ -26,7 +26,13 @@ export default function IdentityStrip({
   languages,
 }: IdentityStripProps) {
   return (
-    <section className="identity-strip" aria-label="A few things about me">
+    <section className="bw-block" aria-label="A few constants">
+      <h2 className="topic-section__title">
+        <span className="topic-section__label">A few constants</span>
+        <span className="topic-section__rule" aria-hidden="true" />
+      </h2>
+
+      <div className="identity-strip">
       <article className="identity-card identity-card--chess">
         <header className="identity-card__header">
           <span className="identity-card__icon" aria-hidden="true">
@@ -108,6 +114,7 @@ export default function IdentityStrip({
           <Icon name="arrow-right" aria-hidden="true" />
         </a>
       </article>
+      </div>
     </section>
   );
 }

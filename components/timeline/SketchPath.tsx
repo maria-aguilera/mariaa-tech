@@ -27,16 +27,12 @@ export default function SketchPath({ items, photoSets }: SketchPathProps) {
 
   return (
     <div className="journey-timeline" aria-label="Personal journey timeline">
-      <header className="journey-timeline__header">
-        <p className="journey-timeline__eyebrow">Personal timeline</p>
-        <h2 className="journey-timeline__title">
+      <h2 className="topic-section__title">
+        <span className="topic-section__label">
           {items.length === 7 ? "Six countries, two Madrids, one me" : `${items.length} chapters, one me`}
-        </h2>
-        <p className="journey-timeline__lead">
-          A quick run through where I&apos;ve lived — from where I was born, through six international
-          moves, back to where I started.
-        </p>
-      </header>
+        </span>
+        <span className="topic-section__rule" aria-hidden="true" />
+      </h2>
 
       <ol className="journey-timeline__list">
         {items.map((item, i) => {

@@ -50,10 +50,10 @@ const perspectives: Perspective[] = [
 export default function AIPerspectiveCards() {
   return (
     <section className="ai-perspectives" aria-label="Three perspectives">
-      <header className="ai-perspectives__header">
-        <p className="ai-perspectives__eyebrow">Three readings</p>
-        <h2 className="ai-perspectives__title">What people (and machines) say about me</h2>
-      </header>
+      <h2 className="topic-section__title">
+        <span className="topic-section__label">What people (and machines) say about me</span>
+        <span className="topic-section__rule" aria-hidden="true" />
+      </h2>
 
       <div className="ai-perspectives__grid">
         {perspectives.map((p) => (

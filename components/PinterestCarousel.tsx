@@ -31,11 +31,9 @@ export default function PinterestCarousel({ slides }: PinterestCarouselProps) {
 
   return (
     <section className="pin-board" aria-label="Pinterest design taste">
-      <header className="pin-board__header">
-        <div className="pin-board__meta">
-          <p className="pin-board__eyebrow">My design taste</p>
-          <h2 className="pin-board__title">Modern, warm, calm</h2>
-        </div>
+      <h2 className="topic-section__title">
+        <span className="topic-section__label">My design taste</span>
+        <span className="topic-section__rule" aria-hidden="true" />
         <a
           href={featured.url}
           target="_blank"
@@ -44,7 +42,7 @@ export default function PinterestCarousel({ slides }: PinterestCarouselProps) {
         >
           See more
         </a>
-      </header>
+      </h2>
 
       <div className="pin-board__row">
         {slides.map((slide, i) => (
