@@ -213,8 +213,8 @@ export const timelineItems: JourneyMilestone[] = [
     summary:
       "Back to Madrid for the long haul this time. BBA at Carlos III, MSc in Big Data with AI focus at IE, and software consulting at BMC since 2023 — plus internships in Warsaw, Vigo and Madrid in between.",
     memory:
-      "Back to Madrid for the long haul. Carlos III for the BBA (2016–2021), then IE for the MSc in Big Data + AI (2021–2022). Three summer internships along the way — Santander Polska in Warsaw (M&A, 2018), CEAMSA in Vigo (Tech & Finance, 2019), and EY in Madrid (Audit, 2020). At BMC Software since 2023 as a software consultant. The international childhood finally turned into a working career, anchored back in Madrid but still reaching outward.",
-    note: "Madrid is no longer just where the story started. It's where I live now — but Warsaw, Vigo, and a dozen client trips later, the international thread is still there.",
+      "Back to Madrid, the same city the story started in — but Madrid at one and Madrid at eighteen are very different cities. Carlos III for the BBA, then IE for the MSc in Big Data + AI. The summers kept me moving: Warsaw with Santander, Vigo with CEAMSA, Madrid with EY. At BMC Software since 2023.",
+    note: "The international thread is still there — just measured in client trips now instead of school moves.",
     flagCode: "es",
     photo: "/images/timeline-sketch/spain-baby.png",
     stroke: "#2563eb",
