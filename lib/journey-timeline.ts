@@ -157,8 +157,8 @@ export const timelineItems: JourneyMilestone[] = [
     summary:
       "After Mexico, life shifted into a different rhythm: more trains, more independence, and much more skiing. I even joined the school ski team, and this is also where piano started.",
     memory:
-      "St George's, the ski team, piano lessons, a lot more trains. The rhythm got sharper, the mountains got bigger.",
-    note: "Winter, trains, ski team, piano, and a much sharper rhythm.",
+      "St George's, the ski team, and piano lessons at school — there was a piano there, which is why it stuck. A lot more trains. The rhythm got sharper, the mountains got bigger, and the love for piano started here even though I haven't owned one since.",
+    note: "Winter, trains, ski team, piano lessons at school, and a much sharper rhythm.",
     flagCode: "ch",
     photo: "/images/timeline-sketch/switzerland-ski.png",
     stroke: "#3652b4",
@@ -200,6 +200,34 @@ export const timelineItems: JourneyMilestone[] = [
       accent: "#fed7aa",
       glow: "#fff7ed",
       surface: "#fff8ef",
+    },
+  },
+  {
+    period: "2015 — Present",
+    place: "Spain",
+    city: "Madrid",
+    country: "Spain",
+    location: "Madrid, Spain",
+    description:
+      "Back to Madrid for university and work — with international internships (Warsaw, Vigo, Madrid) along the way.",
+    summary:
+      "Back to Madrid for the long haul this time. BBA at Carlos III, MSc in Big Data with AI focus at IE, and software consulting at BMC since 2023 — plus internships in Warsaw, Vigo and Madrid in between.",
+    memory:
+      "Back to Madrid for the long haul. Carlos III for the BBA (2016–2021), then IE for the MSc in Big Data + AI (2021–2022). Three summer internships along the way — Santander Polska in Warsaw (M&A, 2018), CEAMSA in Vigo (Tech & Finance, 2019), and EY in Madrid (Audit, 2020). At BMC Software since 2023 as a software consultant. The international childhood finally turned into a working career, anchored back in Madrid but still reaching outward.",
+    note: "Madrid is no longer just where the story started. It's where I live now — but Warsaw, Vigo, and a dozen client trips later, the international thread is still there.",
+    flagCode: "es",
+    photo: "/images/timeline-sketch/spain-baby.png",
+    stroke: "#2563eb",
+    labelSide: "left",
+    coordinates: { x: 44, y: 24 },
+    geo: { lat: 40.4168, lng: -3.7038 },
+    panelPosition: { x: 27, y: 14 },
+    palette: {
+      start: "#2563eb",
+      end: "#1e3a8a",
+      accent: "#dbeafe",
+      glow: "#eff6ff",
+      surface: "#f5f9ff",
     },
   },
 ];

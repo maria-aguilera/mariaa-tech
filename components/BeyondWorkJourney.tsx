@@ -8,7 +8,11 @@ type BeyondWorkJourneyProps = {
 
 export default function BeyondWorkJourney({ items }: BeyondWorkJourneyProps) {
   return (
-    <section className="page-section talks-section bw-journey" aria-label="Personal timeline">
+    <section
+      id="personal-timeline"
+      className="page-section talks-section bw-journey"
+      aria-label="Personal timeline"
+    >
       <SketchPath items={items} photoSets={chapterPhotos} />
     </section>
   );

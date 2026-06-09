@@ -5,6 +5,7 @@ import BeyondWorkJourney from "@/components/BeyondWorkJourney";
 import IdentityStrip from "@/components/IdentityStrip";
 import PageHero from "@/components/PageHero";
 import PinterestCarousel, { type PinSlide } from "@/components/PinterestCarousel";
+import StatStrip from "@/components/StatStrip";
 import { timelineItems } from "@/lib/journey-timeline";
 import { getPinsFromBoard } from "@/lib/pinterest";
 import { pinterestSlides } from "@/lib/pinterest-pins";
@@ -109,6 +110,8 @@ export default async function BeyondWorkPage() {
       <section className="blog-body">
         <div className="blog-body__container">
           <div className="page-content">
+            <StatStrip continents={continents} countries={countriesLived} />
+
             <IdentityStrip
               chessUsername={CHESS_USERNAME}
               chessRapid={chess.rapidRating}

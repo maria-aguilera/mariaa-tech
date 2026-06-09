@@ -1,3 +1,5 @@
+import Icon from "@/components/Icon";
+
 type IdentityStripProps = {
   chessUsername: string;
   chessRapid: number | null;
@@ -25,73 +27,87 @@ export default function IdentityStrip({
 }: IdentityStripProps) {
   return (
     <section className="identity-strip" aria-label="A few things about me">
-      <a
-        href={`https://www.chess.com/member/${chessUsername}`}
-        className="identity-card identity-card--chess"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <span className="identity-card__icon" aria-hidden="true">♟</span>
-        <span className="identity-card__eyebrow">
-          Chess.com
-          {chessCountryCode ? (
-            <span aria-hidden="true"> {flagEmoji(chessCountryCode)}</span>
-          ) : null}
-        </span>
-        <h3 className="identity-card__title">I play chess.</h3>
-        <p className="identity-card__copy">
-          Bronze-league pawn-pusher under @{chessUsername}. Rapid is the main format I&apos;m climbing.
-        </p>
-        <span className="identity-card__stats" aria-label="Chess ratings">
-          <span>
-            <span className="identity-card__stat-label">Rapid</span>
-            <strong>{chessRapid ?? "—"}</strong>
+      <article className="identity-card identity-card--chess">
+        <header className="identity-card__header">
+          <span className="identity-card__icon" aria-hidden="true">
+            <Icon name="crown" />
           </span>
-          <span>
-            <span className="identity-card__stat-label">Daily</span>
-            <strong>{chessDaily ?? "—"}</strong>
-          </span>
-        </span>
-      </a>
+          <h3 className="identity-card__title">
+            I play chess.
+            {chessCountryCode ? (
+              <span aria-hidden="true"> {flagEmoji(chessCountryCode)}</span>
+            ) : null}
+          </h3>
+        </header>
 
-      <div className="identity-card identity-card--nomad">
-        <span className="identity-card__icon" aria-hidden="true">🌍</span>
-        <span className="identity-card__eyebrow">Nómada del mundo</span>
-        <h3 className="identity-card__title">I&apos;ve lived in five countries.</h3>
-        <p className="identity-card__copy">
-          Spain, Brazil, Greece, Mexico, Switzerland — childhood that taught me to land in a new city
-          and just start.
+        <p className="identity-card__subtitle">
+          Bronze-league rapid on Chess.com · @{chessUsername}
         </p>
-        <span className="identity-card__stats" aria-label="Nomad stats">
-          <span>
-            <span className="identity-card__stat-label">Countries</span>
-            <strong>{countriesLived}</strong>
-          </span>
-          <span>
-            <span className="identity-card__stat-label">Continents</span>
-            <strong>{continents}</strong>
-          </span>
-          <span>
-            <span className="identity-card__stat-label">Languages</span>
-            <strong>{languages}</strong>
-          </span>
-        </span>
-      </div>
 
-      <div className="identity-card identity-card--retos">
-        <span className="identity-card__icon" aria-hidden="true">⛷️</span>
-        <span className="identity-card__eyebrow">Motivated by retos</span>
-        <h3 className="identity-card__title">Challenges over comfort.</h3>
-        <p className="identity-card__copy">
-          Skiing since Montreux, with a soft spot for anything that needs another go at it. The
-          discipline behind the work shows up on the slopes too.
+        <ul className="identity-card__bullets">
+          <li>Rapid rating: {chessRapid ?? "—"}</li>
+          <li>Daily rating: {chessDaily ?? "—"}</li>
+          <li>Climbing slowly, mostly playing rapid</li>
+        </ul>
+
+        <a
+          className="identity-card__cta"
+          href={`https://www.chess.com/member/${chessUsername}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>View profile</span>
+          <Icon name="external-link" aria-hidden="true" />
+        </a>
+      </article>
+
+      <article className="identity-card identity-card--nomad">
+        <header className="identity-card__header">
+          <span className="identity-card__icon" aria-hidden="true">
+            <Icon name="globe" />
+          </span>
+          <h3 className="identity-card__title">A nomadic childhood.</h3>
+        </header>
+
+        <p className="identity-card__subtitle">
+          Spain → Brazil → Greece → Mexico → Switzerland → back to Spain.
         </p>
-        <span className="identity-card__tags" aria-hidden="true">
-          <span>Skiing</span>
-          <span>Retos</span>
-          <span>Discipline</span>
-        </span>
-      </div>
+
+        <ul className="identity-card__bullets">
+          <li>{countriesLived} countries before adulthood</li>
+          <li>{continents} continents crossed</li>
+          <li>{languages} languages spoken</li>
+        </ul>
+
+        <a className="identity-card__cta" href="#personal-timeline">
+          <span>See timeline</span>
+          <Icon name="arrow-right" aria-hidden="true" />
+        </a>
+      </article>
+
+      <article className="identity-card identity-card--retos">
+        <header className="identity-card__header">
+          <span className="identity-card__icon" aria-hidden="true">
+            <Icon name="mountain" />
+          </span>
+          <h3 className="identity-card__title">When it clicks.</h3>
+        </header>
+
+        <p className="identity-card__subtitle">
+          Motivated by hard problems — the kind that keep not making sense until they do.
+        </p>
+
+        <ul className="identity-card__bullets">
+          <li>School: maths, further maths, chemistry, mechanics</li>
+          <li>University: game theory, econometrics, statistics</li>
+          <li>Now: machine learning and anything that takes time to understand</li>
+        </ul>
+
+        <a className="identity-card__cta" href="/blog">
+          <span>Read the notes</span>
+          <Icon name="arrow-right" aria-hidden="true" />
+        </a>
+      </article>
     </section>
   );
 }
