@@ -1,0 +1,280 @@
+---
+slug: ml-from-scratch-03-feature-engineering
+title: "Part 3 — Feature Engineering: Picking the Features That Actually Matter"
+subtitle: "What makes a feature good, how to create new ones from raw inputs, three families of selection methods, and why Ridge and Lasso are just feature selection by another name."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "Part 3 of the ML from Scratch series — what defines a good feature, feature creation from raw inputs, the three families of selection methods (filter / wrapper / embedded), Ridge vs Lasso vs Elastic Net with the geometric intuition, and the strategy from my notes: 'filter lightly, select models by overshooting, regularize'."
+tags:
+  - Machine Learning
+  - Feature Engineering
+  - Regularization
+  - Lasso & Ridge
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 3
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/fig-04.svg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 3/12*
+
+> "Coming up with features is difficult, time-consuming, requires expert knowledge. 'Applied' machine learning is basically feature engineering." — Andrew Ng
+
+The clean / encode / scale pipeline from [Part 2](/blog/ml-from-scratch-02-data-cleaning) gets your data into a state an algorithm can read. <KeyTerm>Feature engineering</KeyTerm> is the next layer: deciding *which* features the algorithm should see, *how* to combine raw inputs into more useful signals, and *which* to throw away.
+
+There are no rigid guidelines for this part. There's intuition, domain knowledge, the data itself, and a small toolkit of methods to test. The leverage is enormous: better features routinely beat fancier algorithms.
+
+From my notes — and worth pinning to your monitor — the take-home from this whole session is exactly the Andrew Ng quote above. **Most of the difference between a working ML project and a broken one is the feature work.**
+
+## What is a "good" feature?
+
+Three properties. A feature is good to the extent it has all three:
+
+### 1. Informative
+
+The feature is relevant to the target you're trying to predict. Predicting house prices? Square footage is informative. The owner's name is not.
+
+This sounds obvious. In practice almost every dataset I've ever seen has at least one column that everyone *assumed* was informative but turns out to carry no signal. Spend ten minutes plotting feature-vs-target relationships before you trust them.
+
+### 2. Discriminating
+
+A good feature has values that are *strongly correlated with one class* and *not the others*. Knowing the value of the feature tells you something about which class the row belongs to.
+
+The mental model: imagine you're trying to predict whether someone buys a product. A good feature would be something like *answered "yes" on the post-trial survey*. If "yes" on this survey is closely related to "yes" on the purchase, the feature is doing the work for the algorithm.
+
+If a feature's values are equally distributed across all classes, it's useless — knowing it doesn't tell you anything about the target. Drop it.
+
+### 3. Independent
+
+You don't want correlated features in the model. Ideally no two features are strongly correlated, though you'll never achieve this in practice.
+
+Why? Because correlated features add dimensions without adding information. You're forcing the ML algorithm to search in a higher-dimensional space (curse of dimensionality, see [Part 1](/blog/ml-what-is-machine-learning)) for no payoff. If three features all encode "size" of a thing, pick one — or compress them with PCA ([Part 10](/blog/ml-from-scratch-10-pca)).
+
+<Callout color="yellow">
+  🔑 <strong>Definition that fits on a post-it:</strong> A feature is an individual measurable property of a phenomenon being observed. <strong>Feature engineering</strong> is the work of converting whatever raw inputs you have into <Highlight>informative, discriminating, and independent</Highlight> features.
+</Callout>
+
+## Why feature engineering matters so much
+
+Two reasons it's the most leveraged skill in ML:
+
+**Simpler, more flexible models.** Better features mean a less complex model can do the same job. Less complex models are easier to understand, easier to maintain, easier to debug, easier to retrain when the data drifts. A linear model on great features is almost always preferable to a deep net on mediocre ones.
+
+**Better results, period.** A linear model on great features routinely beats a deep net on poor ones — at a thousandth of the training cost. The whole "more data beats a cleverer algorithm" finding from [Part 1](/blog/ml-what-is-machine-learning) only holds when the features are good. Better features amplify everything.
+
+## The iterative loop
+
+Feature engineering is a cycle, not a checklist:
+
+1. **Brainstorm features.** Talk to the stakeholders who actually understand the domain. The expert who's been in this industry for 20 years knows things your data doesn't say. Spend an afternoon on this before you write any code.
+2. **Feature extraction.** Pull information out of the raw columns. Parse dates into day-of-week / month / season. Tokenise free-text columns. Decompose addresses into city / region / country.
+3. **Feature construction.** Create new variables by combining the raw ones. Ratios, time differences, interactions.
+4. **Feature selection.** Drop the ones that aren't helping. This is most of the rest of this post.
+5. **Model selection.** Pick the algorithm that best uses what you've selected.
+
+Iterate. Each round teaches you something about the data, which feeds the next round.
+
+## Feature creation
+
+Three things to look for:
+
+**Derived variables.** Combine raw columns into something more informative.
+
+- **Ratios:** `credit_card_sales / marketing_spend`. The ratio is often more predictive than either column alone.
+- **Time differences:** `time_since_last_purchase`, `account_age_days`. Time deltas encode behaviour you can't see in raw timestamps.
+- **Interaction terms:** `age × income`. When the effect of one feature depends on another, an interaction captures it.
+
+**Inferred variables.** Pull information from columns you'd otherwise discard.
+
+- Infer **age band** from honorific: `Ms.` / `Mrs.` / `Dr.` carry information about likely age groups.
+- Infer **language** from country.
+- Infer **device type** from user-agent string.
+
+**Variable transformations.** Apply mathematical operations to make the relationship learnable.
+
+- **Change the scale.** Log, square root, reciprocal. The choice depends on the distribution and the model.
+- **Linearise non-linear relationships.** A power-law relationship is linear after a log-log transform. Worth it for any model that assumes linearity.
+- **Symmetrise skewed distributions.** Log transforms turn long-tailed distributions into roughly Gaussian ones, which a lot of models assume.
+
+The point: **create**, don't just **select**. A new ratio you derived from two raw columns can outperform any single column in the original dataset.
+
+## Feature selection — three families
+
+After creation, you'll usually have more features than you actually need. Selecting the right subset matters for two reasons: it reduces overfitting (fewer parameters to learn), and it makes the model more interpretable.
+
+There are three families of methods. They differ in how tightly coupled the selection is to the model itself.
+
+### 1. Filter methods — score features in isolation
+
+Assign a score to every feature based on its relationship with the target. Drop the low-scoring ones. The model is never consulted.
+
+#### Chi-Squared test
+
+A statistical test for **independence** between a feature and the target. If they're independent (Chi² is small), the feature carries no information about the target — safely drop it.
+
+The intuition with an example. Suppose you want to predict whether someone votes *favour*, *indifferent*, or *opposed* on a given law. You have a feature: are they a democrat or a republican?
+
+Assume the two are independent — i.e., being a democrat doesn't affect their vote. Compute the **expected** values under that assumption. If you'd expect 115 democrats in favour of the law, and you actually see 138, that's a meaningful deviation. The democrat / republican distinction *is* affecting the vote — keep the feature.
+
+If the observed values match the expected values, they're independent. Drop the feature.
+
+- ✅ **Pros:** very fast, very simple, scales to thousands of features.
+- ❌ **Cons:** doesn't consider interactions between features. Two features that look useless alone might be powerful in combination.
+
+#### Information Gain (Mutual Information)
+
+Measures how much knowing one variable reduces uncertainty about another. Built on the concept of <KeyTerm>entropy</KeyTerm> — how unpredictable a variable is.
+
+In feature-selection terms: *if I know the feature, by how much does my uncertainty about the class drop?* High mutual information = useful feature.
+
+- ✅ **Pros:** catches non-linear relationships that correlation misses.
+- ❌ **Cons:** same blind spot — looks at one feature at a time.
+
+#### Multivariate analysis
+
+A small upgrade on the univariate methods above. Also checks pairwise (or N-way) interactions. Doesn't fix the fundamental "considered in isolation" problem, but catches the most important interactions.
+
+The pattern from my notes: imagine you're predicting machinery sale prices and you've got a `year_made` column. You'd expect newer = more expensive, and the overall trend confirms that. But in 1990 the trend breaks for no obvious reason.
+
+What happened? In 1990 the industry introduced a new conditioning system. When you control for the conditioning system as a variable, the relationship between year and price is clean and linear. Without controlling for it, Chi² or Information Gain on `year_made` alone would have missed it.
+
+**Use filter methods to drop the obviously useless. Don't use them to make the final cut.** The univariate framing is too blunt for that.
+
+### 2. Wrapper methods — let the model decide
+
+Treat feature selection as a search problem: try different subsets of features, evaluate each one with the actual model, keep the best.
+
+#### Best Subset Selection
+
+Try *every possible subset*, score each, pick the winner. Computationally bankrupt as soon as `p` is more than ~15 features (`2^p` combinations). Also tends to overfit when `p` is large — the bigger the search space, the higher the chance you find a combination that looks great on training data and is useless in production.
+
+#### Forward Stepwise Selection
+
+Start with zero features. At each iteration, add the single feature that gives the biggest improvement. Stop when adding more doesn't help.
+
+- ✅ **Pros:** computationally efficient (`O(p²)` instead of `O(2^p)`).
+- ❌ **Cons:** not guaranteed to find the best subset. If the best 2-feature model uses features X₂ and X₃, but the best 1-feature model uses X₁, forward selection picks X₁ first and never tries the X₂+X₃ combination.
+
+#### Backward Stepwise Selection
+
+Start with all features. At each iteration, drop the feature whose removal hurts the model least. Stop when removing more hurts too much. Same pros and cons as forward selection.
+
+#### Recursive Feature Elimination (RFE)
+
+A practical variant: fit the model, rank the features by importance (e.g., by coefficient magnitude), drop the bottom `k`, refit, repeat. Scikit-learn ships this as `RFE`.
+
+<Callout color="yellow">
+  💡 Wrapper methods are computationally heavy because they fit the model many times. Reserve them for small-to-medium feature counts (up to a few hundred), or run them after filter methods have already dropped the obviously useless. My professor's preference, and mine: don't bother with wrappers in most cases — embedded methods (next section) usually do the same job better.
+</Callout>
+
+### 3. Embedded methods — feature selection inside the model
+
+The model learns which features matter *while* it learns. The mechanism: add a penalty to the loss function that biases the model toward fewer / smaller coefficients. This is <KeyTerm>regularization</KeyTerm>.
+
+This is where Ridge, Lasso, and Elastic Net come in. They're so important they deserve their own section.
+
+## Regularization — the maths under "embedded methods"
+
+Linear regression learns coefficients `β₀, β₁, …, βₚ` that minimise the **residual sum of squares**:
+
+`RSS = Σᵢ (yᵢ − β₀ − Σⱼ βⱼ·xᵢⱼ)²`
+
+The error is the squared difference between predictions and actuals. If a feature has a big coefficient, the model is leaning hard on that feature.
+
+That's a problem. The coefficient might be huge because:
+
+- **The feature genuinely matters.** Good — keep it big.
+- **The model has overfit to a quirk in your training data.** Bad — the coefficient is reacting to noise.
+
+You can't easily tell the two apart at fit time. So you add a penalty that **discourages large coefficients in general**, on the theory that the genuine-signal coefficients will survive the penalty and the noise-fitting ones won't.
+
+### Ridge Regression (L2 penalty)
+
+`Loss = RSS + λ · Σⱼ βⱼ²`
+
+The penalty is the **sum of squared coefficients**. The tuning parameter <KeyTerm>λ</KeyTerm> (lambda) controls how strong the penalty is:
+
+- `λ = 0` → no regularization. Equivalent to plain least squares.
+- `λ → ∞` → all coefficients pushed to zero. Equivalent to predicting the mean.
+
+What Ridge does in practice: pushes coefficients *toward* zero but rarely *to* zero. The final model still includes every feature, just with smaller, more stable coefficients.
+
+**When to use Ridge:** when you suspect most features are relevant but want stability against overfitting.
+
+### Lasso (L1 penalty)
+
+`Loss = RSS + λ · Σⱼ |βⱼ|`
+
+Same idea, but the penalty is the **sum of absolute values**. This one detail changes everything: Lasso pushes some coefficients **exactly to zero**. So it does feature selection *as part of fitting*.
+
+**When to use Lasso:** when you suspect only a few features are relevant. Lasso is much easier to interpret because the final model only mentions the features whose coefficients survived.
+
+### Why does Lasso zero coefficients but Ridge doesn't?
+
+A geometric intuition. The penalty is a "budget" constraint on the coefficients.
+
+- Ridge's constraint is **circular** (`Σβ²` ≤ constant). The optimum sits somewhere on the circle — almost never on an axis.
+- Lasso's constraint is **diamond-shaped** (`Σ|β|` ≤ constant). The corners of the diamond sit *exactly* on the axes, so the optimum tends to land on a corner. A point on an axis means some coefficient is exactly zero.
+
+This is a real geometric difference. The L1 norm has corners; the L2 norm doesn't. That's all there is to it.
+
+### Elastic Net
+
+`Loss = RSS + λ · (α · Σ|βⱼ| + (1−α) · Σβⱼ²)`
+
+A blend of Lasso and Ridge. The hyperparameter <KeyTerm>α</KeyTerm> controls the mix: `α = 1` is pure Lasso, `α = 0` is pure Ridge.
+
+**When to use Elastic Net:** when features are correlated. Lasso alone tends to pick one feature out of a correlated group and zero the rest, somewhat arbitrarily. Elastic Net keeps the correlated group together.
+
+## Parameters vs hyperparameters — get this right
+
+Worth being precise about, because conflating them is a beginner mistake that bleeds time forever.
+
+- <KeyTerm>Parameters</KeyTerm> — values the model **learns from data**. In linear regression, the coefficients `β₀, β₁, …` are parameters.
+- <KeyTerm>Hyperparameters</KeyTerm> — values **you** set before training that control how the model learns. `λ`, `α`, the choice of L1 vs L2, the number of trees in a random forest, the learning rate, depth of a network, etc.
+
+The model doesn't learn the hyperparameters. You do — by trying several values and picking the best one.
+
+### How do you find the optimal `λ`?
+
+You don't know it. The honest answer is *there's no theoretically optimal value* — it depends on your data.
+
+The practical approach: try values across several orders of magnitude (`0.001, 0.01, 0.1, 1, 10, 100, …`), evaluate each one with cross-validation, pick the value that gives the best validation score. Then refit on all the training data with that `λ`.
+
+This is so common scikit-learn ships dedicated variants: `RidgeCV`, `LassoCV`, `ElasticNetCV`. Use them. We'll spend a whole post on cross-validation in [Part 5](/blog/ml-from-scratch-05-cross-validation).
+
+## The practical strategy
+
+The recipe that works, taken straight from my notes:
+
+<Callout color="green">
+  <strong>Filter lightly. Select models by overshooting. Regularize.</strong><br/><br/>
+  1. <strong>Filter lightly</strong> — drop only the obviously useless features (filter methods). Better to keep an irrelevant feature than to miss an important one.<br/>
+  2. <strong>Overshoot on the model</strong> — start with all your filtered features and let the model see them.<br/>
+  3. <strong>Regularize</strong> — use L1 / L2 / Elastic Net to push the irrelevant ones to zero. The model decides.<br/><br/>
+  Evaluate feature engineering decisions on the <strong>validation</strong> set. When the feature set is frozen, evaluate the final model on the <strong>test</strong> set — once.
+</Callout>
+
+A few more practical notes:
+
+- **Don't use wrapper methods on huge feature sets.** They scale terribly. If you have to, pre-filter aggressively first.
+- **Regularization needs scaled features.** The penalty term sums coefficients, and coefficient magnitude depends on the feature's scale. Always run `StandardScaler` *before* Lasso / Ridge.
+- **Tree-based models (Random Forest, XGBoost) do their own feature selection** during training. You don't need to pre-select for them — they'll ignore unhelpful features automatically. ([Parts 7 and 8](/blog/ml-from-scratch-07-decision-trees) cover this.)
+- **Look at the final coefficients.** If your model gives a feature a huge coefficient, ask: is this real signal, or did I leak something? Target encoding without proper held-out folds is the classic leak.
+
+## The big-picture take-away
+
+Feature engineering is the part of ML where domain knowledge actually beats algorithmic cleverness. The skills:
+
+- Knowing how to **create** useful features — ratios, time differences, interactions, derived variables.
+- Knowing how to **select** — filter, wrapper, embedded.
+- Knowing when to trust which method.
+
+And the meta-skill: knowing that **better features beat a fancier algorithm**, almost every time. If a colleague is reaching for a deeper network, ask whether you've exhausted the features first. Usually you haven't.
+
+---
+
+**Next up — [Part 4: Classification Metrics — Why Accuracy Lies](/blog/ml-from-scratch-04-classification-metrics).** Now that the features are good, we need to know whether the model is good. And accuracy isn't always the metric to trust.

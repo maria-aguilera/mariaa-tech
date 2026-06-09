@@ -1,0 +1,236 @@
+---
+slug: ml-from-scratch-06-naive-bayes
+title: "Part 6 — Naïve Bayes: Thinking in Probabilities"
+subtitle: "Bayes' theorem from the ground up. Why House M.D. is right that it's never lupus. A medical test that fools everyone. And a classifier that works despite making an assumption that's almost never true."
+date: "February 2022"
+updated: "June 2026"
+excerpt: "Part 6 of the ML from Scratch series — Bayes' theorem with the prior / likelihood / posterior framing, the 'it's never lupus' intuition, the medical test paradox (0.3% prevalence + 99% effective test = 23% chance of being sick), how Naïve Bayes uses this for text classification, the (false but useful) independence assumption, Laplace smoothing for unseen words, log-probabilities for underflow."
+tags:
+  - Machine Learning
+  - Naïve Bayes
+  - Probability
+  - Classification
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 6
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/fig-04.svg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 6/12*
+
+Naïve Bayes isn't a top-performance algorithm. It rarely wins a Kaggle competition. It's not what you'd ship as a final production model on a hard problem.
+
+It is, however, the algorithm you should reach for first. **Naïve Bayes is the baseline.** It runs in milliseconds, requires almost no tuning, and is good enough surprisingly often. Whatever model you eventually ship, you'll want to compare it against the Naïve Bayes baseline to see how much your fancier model is actually buying you.
+
+It's also the cleanest possible introduction to thinking probabilistically — which matters because Bayesian thinking is a fundamental skill in ML, not just a single algorithm.
+
+## Belief update — the Bayesian mindset
+
+Forget classifiers for a moment. The deeper idea behind Bayes is **how to update beliefs in the face of new evidence**.
+
+You start with an **initial belief** — the prior. You see some **new information** — the evidence. The Bayesian way: modify your belief based on the evidence, weighted by how distinctive that evidence is.
+
+> Initial Beliefs + Recent Data = A new and improved belief.
+
+The principle works for anything. If you think someone is great and you see them act poorly, you should weaken your belief. If you see information confirming your prior, you should strengthen it. **Don't stick to your prior if you see information contradicting it.**
+
+This is the whole intellectual structure under Naïve Bayes. The algorithm is just a mechanical way of doing this update over a huge number of features at once.
+
+## Independent vs dependent events — a warm-up
+
+Before we get to Bayes' theorem, a quick refresher on joint probabilities.
+
+**Independent events.** Two events are independent if knowing one tells you nothing about the other. The joint probability is just the product:
+
+> I run 3 days a week. When I listen to music, I pick rock 4 of 5 times. The two are independent.
+>
+> `P(running ∩ rock) = P(running) · P(rock) = 0.42 · 0.8 = 0.34`
+
+**Dependent events.** Knowing one *does* tell you something about the other. The joint probability needs the **conditional**:
+
+> I listen to Metallica 20% of the time overall, but *given* I'm listening to rock, that jumps to 50%. Rock and Metallica are not independent.
+>
+> `P(rock ∩ Metallica) = P(rock) · P(Metallica | rock) = 0.8 · 0.5 = 0.4`
+
+The conditional probability `P(A | B)` — read "probability of A given B" — is the hinge everything turns on.
+
+## Bayes' theorem
+
+The whole framework, in one formula:
+
+`P(H | e) = P(e | H) · P(H) / P(e)`
+
+Four named pieces. Memorise them:
+
+- <KeyTerm>Prior</KeyTerm> `P(H)` — how probable was our hypothesis *before* observing the evidence?
+- <KeyTerm>Likelihood</KeyTerm> `P(e | H)` — how probable is the evidence we see, assuming the hypothesis is true?
+- <KeyTerm>Evidence</KeyTerm> `P(e)` — how common is this evidence overall, across all possible hypotheses?
+- <KeyTerm>Posterior</KeyTerm> `P(H | e)` — the updated probability after seeing the evidence. **The thing you want.**
+
+In plain English:
+
+> The probability of a hypothesis given the evidence equals the probability of the evidence given the hypothesis, times the prior probability of the hypothesis, divided by the probability of the evidence overall.
+
+The structure: **prior × likelihood / marginal = posterior**. You start with what you knew, you update by how surprising the evidence is, and you normalise by how common the evidence is in general.
+
+## "It's never lupus" — the House M.D. principle
+
+Fans of *House M.D.* will recognise the joke: every episode someone suggests lupus, and it's never lupus. There's real Bayesian wisdom in that bit.
+
+**Step 1: Start with the prior.** What's the chance that a random patient walking into your hospital has lupus? Tiny — it's a rare condition. So the prior `P(lupus)` is very small. Whatever happens next, stay sceptical.
+
+**Step 2: Collect evidence and compute the likelihood.** Suppose the patient has a fever. Is fever a *good* evidence for lupus? Mathematically, yes — most lupus patients have fever, so `P(fever | lupus)` is high.
+
+But that's not what we care about. We care about the **posterior** — `P(lupus | fever)` — and the formula multiplies prior × likelihood and divides by `P(fever)`. And `P(fever)` is huge — fever is associated with hundreds of conditions, most of them more common than lupus.
+
+Result: the posterior `P(lupus | fever)` stays small. Even though fever is consistent with lupus, the rarity of lupus (low prior) and the commonness of fever (high marginal) keep the posterior low.
+
+What would change the answer? A *distinctive* symptom — one rare under any other hypothesis. Say, butterfly rash on the cheeks. `P(butterfly rash)` is low (most people don't have it) but `P(butterfly rash | lupus)` is meaningfully high. Now the formula starts pointing at lupus.
+
+<Callout color="yellow">
+  💡 The posterior depends on two things: <strong>how likely the hypothesis was to begin with (the prior)</strong> and <strong>how distinctive the evidence is (the likelihood relative to the marginal)</strong>. So: <Highlight>weak prior → need very distinctive evidence; strong prior → modest evidence is enough</Highlight>.
+</Callout>
+
+This is the lesson House actually teaches. Don't fall in love with a hypothesis because it's *consistent* with the evidence — check whether the evidence is *distinctive* under that hypothesis.
+
+## The medical test paradox
+
+The single most useful Bayesian intuition for everyday life.
+
+You take a medical test for a rare disease. The disease affects **0.3%** of the population. The test is **99% effective** (99% true positive rate, 99% true negative rate).
+
+The test comes back **positive**.
+
+What's the probability that you actually have the disease?
+
+Gut reaction: "99%, obviously, because the test is 99% effective."
+
+**Wrong. The answer is about 23%.**
+
+The maths. Out of 10,000 people:
+
+- 30 actually have the disease (0.3% prevalence).
+- 9,970 don't.
+
+The test:
+
+- Catches the 30 real cases (99% sensitive) → ~30 true positives.
+- Wrongly flags 1% of the 9,970 healthy people → ~100 false positives.
+
+Total positive tests: ~130. Of those, only ~30 actually have the disease.
+
+`P(disease | positive) = 30 / 130 ≈ 0.23`
+
+About **23%**. The test correctly came back positive, but you're still much more likely *not* to have the disease than to have it. Because the prior was so low, even an accurate test leaves you far from certain.
+
+Formally:
+
+```
+P(positive) = P(TP) + P(FP)
+            = 0.99 · 0.003 + 0.01 · 0.997
+            = 0.0129
+
+P(disease | positive) = P(positive | disease) · P(disease) / P(positive)
+                      = (0.99 · 0.003) / 0.0129
+                      ≈ 0.23
+```
+
+<Callout color="red">
+  ⚠️ When the prior is tiny, even a very accurate test leaves you far from certain. <Highlight>The rarity of the disease overwhelms the accuracy of the test.</Highlight> This is why screening rare conditions is statistically treacherous, and why second tests are routine.
+</Callout>
+
+This pattern shows up everywhere. Fraud detection on rare fraud. Security alerts on rare breaches. Spam classification when spam is uncommon. Anytime the base rate is low, **you have to think in posteriors, not just in test accuracy**.
+
+## From theorem to classifier
+
+How does this become an algorithm? The natural use is **text classification**: given a tweet, decide whether it's positive or negative sentiment.
+
+Each word in the tweet is a piece of evidence. The class (positive / negative) is the hypothesis. Bayes' theorem gives the posterior probability of each class given the words, and you pick whichever class has the higher posterior.
+
+For class `k₁` and a tweet of words `x₁, x₂, …, xₙ`:
+
+`P(k₁ | x₁, …, xₙ) = P(x₁, …, xₙ | k₁) · P(k₁) / P(x₁, …, xₙ)`
+
+You compute this for each class, pick the largest. The denominator `P(x₁, …, xₙ)` is the same for every class, so you can ignore it — you only care which class has the bigger numerator.
+
+`MAP = max{ P(x₁, …, xₙ | k₁) · P(k₁), P(x₁, …, xₙ | k₂) · P(k₂) }`
+
+This is called <KeyTerm>Maximum A Posteriori (MAP)</KeyTerm> classification. The class with the maximum a posteriori probability wins.
+
+## The "naïve" assumption
+
+Why is it called *naïve*? Because of one assumption that lets the maths actually work:
+
+> The probabilities of words appearing in a text are **independent** of one another, given the class.
+
+`P(x₁, …, xₙ | k) = P(x₁ | k) · P(x₂ | k) · … · P(xₙ | k)`
+
+This assumption is **wrong**. Language is highly conditional. The fact that "machine" appeared in the previous sentence makes "learning" much more likely to appear in the next. Words are not independent.
+
+So why does Naïve Bayes work despite this? Because what we *need* isn't accurate probabilities. We need accurate *rankings* — we just need to know which class's posterior is bigger. The independence assumption distorts the absolute probabilities massively, but it often preserves the ranking. That's enough to classify correctly.
+
+There's a famous ML saying: **"All models are wrong, but some are useful."** Naïve Bayes is the canonical example.
+
+<Callout color="yellow">
+  🔑 Naïve Bayes makes an assumption that's almost always false (feature independence). The reason it still works: classification only needs the <strong>ranking</strong> of posteriors to be right, not the actual probability values. <Highlight>The assumption distorts the magnitudes but often preserves the ranking.</Highlight>
+</Callout>
+
+## Computing the conditional probabilities
+
+Once you make the independence assumption, computing each `P(xᵢ | k)` is just a frequency count. How often does word `xᵢ` appear in tweets of class `k`?
+
+`P(xᵢ | k) = count(xᵢ, k) / Σ count(x, k)`
+
+You count the occurrences of every word in every class in your training data. That's literally the entire training procedure for Naïve Bayes. There's no gradient descent, no optimisation — just counting.
+
+This is why Naïve Bayes is so fast. Training is `O(N)` in the dataset size, and prediction is `O(features)` per example.
+
+## Smoothing — the zero-probability problem
+
+There's a landmine. If a word never appeared with a class in training, `P(xᵢ | k) = 0`. And because Naïve Bayes *multiplies* probabilities, one zero wipes everything out — the entire posterior becomes zero, even though every other word in the tweet might strongly suggest the class.
+
+The fix is <KeyTerm>Laplace (add-one) smoothing</KeyTerm>: nudge every count up by 1. Now no probability is ever exactly zero; unseen words get a small but non-zero probability:
+
+`P(xᵢ | k) = (count(xᵢ, k) + 1) / (Σ count(x, k) + V)`
+
+Where V is the vocabulary size. A tiny adjustment that completely changes the algorithm's behaviour on unseen vocabulary.
+
+## Underflow and log-probabilities
+
+A second numerical landmine. If your tweet has 50 words and each probability is around 0.01, the product is `10⁻¹⁰⁰` — which underflows to zero in floating point. Your classifier silently breaks.
+
+The fix: **sum logarithms instead of multiplying**.
+
+```
+log(a · b) = log(a) + log(b)
+```
+
+So multiplying many small probabilities becomes adding many large negative numbers. No underflow. The class with the largest sum of log-probabilities is still the winner — `log` is monotonic, so ranking is preserved.
+
+In practice every Naïve Bayes implementation does this internally. You don't have to think about it, but you should know it's happening so you understand the algorithm.
+
+## When Naïve Bayes shines
+
+- **Very fast, low storage.** It's basically counting. Tiny memory footprint.
+- **Robust to irrelevant features.** Irrelevant features contribute roughly equally to each class's score, so they cancel out.
+- **Excellent with many equally-important features.** Exactly what text classification looks like.
+- **Provably optimal if independence holds.** If the assumption is actually true, Naïve Bayes is the best classifier you can build.
+
+## Where it falls short
+
+- **Independence is almost never true** in practice, especially for text.
+- **Bad with strongly correlated features** — they get counted multiple times, distorting the posterior badly.
+- **Outclassed by deeper models** on hard problems. A modern transformer absolutely demolishes Naïve Bayes at sentiment analysis. But the transformer needs millions of examples and weeks of training; Naïve Bayes needs seconds.
+
+## The takeaway
+
+Naïve Bayes is a fantastic *baseline*: fast to train, hard to break, good enough surprisingly often. **Start here**, then reach for something heavier only when the data tells you to — when you've shown that the extra training time and complexity actually buys you better performance.
+
+It's also the best possible mental model for probabilistic thinking. If you internalise "prior + likelihood / marginal = posterior" you'll think more clearly about evidence in every domain, not just classification.
+
+---
+
+**Next up — [Part 7: Decision Trees](/blog/ml-from-scratch-07-decision-trees).** The first model in this series that *partitions* the problem instead of solving it whole. The foundation for everything that comes after — Random Forests, XGBoost, the whole tree ecosystem.

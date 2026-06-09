@@ -1,0 +1,273 @@
+---
+slug: ml-from-scratch-05-cross-validation
+title: "Part 5 — Cross-Validation, Probability Models & the Bias-Variance Trade-off"
+subtitle: "Why a single train/test split is a coin flip. How k-fold cross-validation fixes it. Probability models, threshold tuning, and the ROC curve. Bias vs variance, and the U-shape that decides every model's quality."
+date: "February 2022"
+updated: "June 2026"
+excerpt: "Part 5 of the ML from Scratch series — why one random train/test split is a coin flip and how k-fold cross-validation fixes it, the 3-way train/validation/test split, hyperparameter tuning via CV, probability models and ROC curves, the bias-variance trade-off and the U-shape of test error, regression metrics (RMSE, MAE, R²), clustering evaluation."
+tags:
+  - Machine Learning
+  - Cross-Validation
+  - Bias-Variance
+  - ROC AUC
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 5
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-quadrant.svg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 5/12*
+
+[Part 4](/blog/ml-from-scratch-04-classification-metrics) was about picking the right metric. This post is about using that metric *honestly* — so the score you compute on your dataset actually predicts how the model will behave in production.
+
+Five big ideas:
+
+1. Why a single train/test split can mislead you (the "lucky split" problem).
+2. **Cross-validation** as the practical fix.
+3. The 3-way train / validation / test split and why hyperparameter tuning needs it.
+4. **Probability models**, threshold tuning, and the ROC curve.
+5. **Bias vs variance** — the U-shape of test error and the fundamental trade-off behind every model.
+
+Plus regression metrics and clustering evaluation as smaller sections at the end.
+
+## The problem with a single train/test split
+
+The standard ML workflow you learn first:
+
+1. Split your data 80/20.
+2. Train the model on the 80%.
+3. Evaluate on the 20%.
+4. Report the test score.
+
+This works — most of the time. The problem is the **randomness of the split**.
+
+Imagine you're predicting Titanic survival. The split is random. What happens if, by chance, all the first-class passengers ended up in your training set and the test set is mostly third-class? Your model looks brilliant on train (the easy cases) and terrible on test. Not because the model is bad — because the split was *unlucky*.
+
+The reverse is also true. With a lucky split — easy cases in test, hard ones in train — your model looks 90% accurate. You deploy it. In production: 75%.
+
+<Callout color="red">
+  ⚠️ With the same model and the same dataset, just changing the random seed of the train/test split can change your reported score by 5-10 percentage points. <Highlight>A single split is a coin flip.</Highlight>
+</Callout>
+
+## Cross-validation — the fix
+
+The solution: do the splitting many times, average the results.
+
+This is **k-fold cross-validation**. The process:
+
+1. Split your training data into `k` equal-sized folds (typically `k = 5` or `10`).
+2. For each fold `i` in 1..k:
+   - Train the model on the *other* k-1 folds.
+   - Evaluate it on fold `i`.
+3. Average the k scores.
+
+By doing this k times, every data point gets to be in the validation set exactly once, and you're never tricked by a single lucky / unlucky split. The output is something like *"accuracy 85% ± 1%"* — the average score, plus the spread.
+
+```python
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(model, X_train, y_train, cv=5)
+print(f"{scores.mean():.3f} ± {scores.std():.3f}")
+```
+
+That `± 1%` is critical. It tells you how stable the model is. If the spread is huge (say, 60-95% across folds), the model is unstable and your headline accuracy is meaningless. If the spread is tight (84-86%), you can actually trust the number.
+
+<Callout color="yellow">
+  🔑 <strong>Cross-validation gives you the average performance of your model AND its variance.</strong> Both matter. Don't quote a single accuracy number — quote a range. <Highlight>"My model is 85% ± 1%"</Highlight> is honest. <Highlight>"My model is 85%"</Highlight> is hiding something.
+</Callout>
+
+### Why CV scores drop compared to single-split scores
+
+The cross-validation score is usually lower than a one-shot train/test score. Reason: each CV fold only uses k-1/k of the data for training (say, 80% if k=5), so each individual model is trained on slightly less data than your final model will be.
+
+That's fine. The CV score is the *honest estimate of generalisation*; the higher single-split score was probably an artefact of a lucky split.
+
+Once you've selected hyperparameters via CV, you refit the final model on **all** of the training data with those hyperparameters — that's the model you'll ship.
+
+## The 3-way split: train / validation / test
+
+The next subtlety. Suppose you're choosing between Ridge and Lasso, and you also want to find the optimal `λ` for each.
+
+You can't just train each version and check the test set, because:
+
+1. You're going to evaluate 25 values of `λ` for Ridge, 25 for Lasso → 50 model variants.
+2. If you score all 50 on the test set and pick the best, **you've selected against the test set**. Your test score is now contaminated — it's not measuring generalisation, it's measuring which model happens to fit your specific test split best.
+
+The fix: split into **three** sets.
+
+1. **Training set** — fit candidate models.
+2. **Validation set** — pick the best one. Try as many configurations as you want. The validation set is where hyperparameter tuning happens.
+3. **Test set** — the final, one-shot honest measurement. You touch it once at the end, after you've picked the final model. Never touch it again.
+
+In practice you usually combine train + validation into the CV pool (so the validation step *is* k-fold CV on the training data), and the test set is genuinely held out from start to finish.
+
+```python
+from sklearn.model_selection import train_test_split, GridSearchCV
+
+# 1. Carve out test set first — never look at it during selection
+X_dev, X_test, y_dev, y_test = train_test_split(X, y, test_size=0.2)
+
+# 2. Tune hyperparameters via CV on the dev set
+grid = GridSearchCV(model, param_grid={'alpha': [0.001, 0.01, 0.1, 1, 10]}, cv=5)
+grid.fit(X_dev, y_dev)
+
+# 3. ONE final measurement on the test set
+final_score = grid.score(X_test, y_test)
+```
+
+<Callout color="red">
+  ⚠️ Every time you peek at the test set during model selection, you contaminate it. The test set is your only honest measure of generalisation — <Highlight>spend it once</Highlight>.
+</Callout>
+
+## Bias vs variance — the U-shape
+
+Two kinds of errors an ML model can make. The terms get used loosely in conversation; in this context they mean specific things.
+
+### Variance — sensitivity to training data
+
+Imagine a model trained on a dataset. You expose it to a new example slightly different from the training data. **A high-variance model gives a wildly different prediction**, even for a slightly-different input.
+
+Example: predicting credit score. Someone aged 37, all other features average, score 0.7. A similar person aged 39 — basically the same — and the model predicts 0.1. That's high variance.
+
+High variance is the signature of **overfitting**: the model has memorised the training data instead of learning the underlying pattern. When it sees a new example, even one similar to the training data, it doesn't understand the pattern and gives weird predictions.
+
+The visual: a regression curve that snakes through every training point individually. The training error is zero. The test error is awful.
+
+### Bias — systematic under-fitting
+
+The opposite. A model with **high bias** can't even fit the training data. It gives you a default — an average — instead of learning anything.
+
+The visual: a straight line through curved data, when the relationship is clearly non-linear. Training error is high; test error is also high (but maybe similar).
+
+### The trade-off
+
+Make the model more complex → training error drops, but variance grows.
+
+Make the model simpler → variance drops, but bias grows.
+
+Plot **training error** and **test error** against model complexity:
+
+- **Training error** drops monotonically. Always. The more flexible the model, the better it can fit the training set.
+- **Test error** is **U-shaped**. It drops at first (because the model is learning the actual pattern), bottoms out, then rises (because the model starts memorising noise).
+
+The minimum of the test-error curve is the sweet spot. The training error tells you nothing about where this minimum is. **You can drive training error to zero with a complex-enough model — that doesn't mean it's good.**
+
+<Callout color="yellow">
+  💡 Training error always goes down. Test error is U-shaped. <Highlight>The trade-off between bias and variance is the entire game.</Highlight>
+</Callout>
+
+### How do you find the sweet spot in practice?
+
+Cross-validation. Train models of different complexity, average their CV scores, pick the complexity with the best average. Then refit on all training data with that complexity, evaluate once on test.
+
+This is also what `GridSearchCV` is doing under the hood — sweeping a hyperparameter grid, CV-scoring each option, picking the winner.
+
+## Probability models and threshold tuning
+
+So far we've discussed classifiers that output a hard label: positive or negative. But many models — logistic regression, Naïve Bayes, neural nets — actually output a **probability**: "I am 97% sure this is positive."
+
+That confidence is information. You can decide *where to put the threshold* between positive and negative.
+
+- **Default threshold = 0.5.** The standard. The model says positive if its probability for positive ≥ 0.5.
+- **Move it right (e.g., 0.9).** Only predict positive when very confident. Precision goes up; recall goes down.
+- **Move it left (e.g., 0.3).** Predict positive on the slightest signal. Recall goes up; precision goes down.
+
+Which threshold is right depends on the cost of mistakes — the same logic as in [Part 4](/blog/ml-from-scratch-04-classification-metrics).
+
+For covid screening: a model saying "51% positive, 49% negative" probably should flag the patient as positive. Better safe than sorry. **Move the threshold left, accept false alarms, catch every real case.**
+
+For fraud accusation: a model saying "60% fraud" probably shouldn't trigger an account suspension. **Move the threshold right, demand high confidence before acting.**
+
+### The ROC curve
+
+Once threshold is a knob, you can plot the trade-off. The **ROC curve** sweeps the threshold from 0 to 1 and at each value plots:
+
+- **True Positive Rate (TPR)** = recall, on the y-axis.
+- **False Positive Rate (FPR)** = `FP / (FP + TN)`, on the x-axis.
+
+Each threshold gives one point on the curve. An ideal model hugs the top-left corner (TPR=1, FPR=0). A random model is the diagonal. A model worse than random is below the diagonal.
+
+**AUC (Area Under the Curve)** — the area beneath the ROC. Ranges from 0.5 (random) to 1.0 (perfect). A useful summary for comparing model variants when you haven't committed to a specific threshold yet.
+
+When to use ROC AUC: model selection, especially when you'll choose the operating threshold later. When *not* to use it: as your final production metric, because at production time you've committed to a threshold and what you actually care about is the precision and recall at that threshold.
+
+### Double density plots
+
+The complementary visualisation. Plot the model's predicted probabilities, with separate density curves for the actual positives and actual negatives.
+
+A great model has the two curves separated — positives cluster near 1.0, negatives near 0.0. A bad model has them overlapping. The threshold you choose is the vertical line between them, and where you put it determines how many of each curve you misclassify.
+
+Useful for explaining a model to non-technical stakeholders: "look, this is what 'sure' looks like, this is what 'unsure' looks like."
+
+## Regression metrics
+
+A different question — *how far off?* instead of *right or wrong?* Three to know:
+
+**RMSE (Root Mean Squared Error)** — square root of the mean of squared errors.
+
+`RMSE = √(mean(yᵢ − ŷᵢ)²)`
+
+Same units as the target variable. Because errors are squared, **big errors are penalised disproportionately**. Use when a 10× error is more than 10× as bad as a 1× error.
+
+**MAE (Mean Absolute Error)** — like RMSE without the squaring.
+
+`MAE = mean(|yᵢ − ŷᵢ|)`
+
+Penalises errors linearly. More robust to outliers than RMSE. Use when you don't want huge errors to dominate the metric.
+
+**R² (Coefficient of Determination)** — the fraction of variance your model explains, on a 0-to-1 scale.
+
+`R² = 1 − (RSS / TSS)`
+
+Where RSS is the residual sum of squares and TSS is the total sum of squares. `R² = 1` is perfect prediction; `R² = 0` is no better than predicting the mean; `R² < 0` is worse than the mean (yes, possible).
+
+The RMSE-vs-MAE choice mirrors precision-vs-recall: it's about how hard you want to punish the big mistakes.
+
+## Clustering evaluation
+
+A brief detour. In unsupervised clustering you have no target variable, so "accuracy" doesn't exist. Instead you measure structural properties.
+
+**Compactness.** Are points within a cluster close to each other?
+
+**Separation.** Are different clusters far from each other?
+
+A good clustering has small intra-cluster distances and large inter-cluster distances. Concretely: **mean intra-cluster distance must be smaller than mean inter-cluster distance**.
+
+Common metrics:
+
+- **Silhouette Coefficient** — combines both ideas into one score from −1 (bad) to +1 (great).
+- **Davies-Bouldin Index** — lower is better.
+- **Calinski-Harabasz Score** — higher is better.
+
+Also worth checking the simpler diagnostics:
+
+- Clusters with very few samples — probably noise that wandered off.
+- Clusters with too many samples — the algorithm couldn't find structure.
+
+## Distribution drift — the final caveat
+
+One thing the test set can't catch: **production data drifting over time**.
+
+Most ML methods assume that the data distribution is **stationary** — meaning, what the model trained on is what it'll see at inference. In practice, distributions change. New customer demographics, new product categories, seasonality, regulatory shifts.
+
+When the production distribution drifts away from the training distribution, your model's accuracy degrades. The fix is **monitoring** — track the model's metric in production, retrain when it drops. We won't go deep here, but it's worth knowing the term: <KeyTerm>distribution drift</KeyTerm>. It's the reason every production ML system needs retraining infrastructure.
+
+## The honest workflow, version 2
+
+A unified picture of how to actually evaluate and validate a model in practice:
+
+<Callout color="green">
+  1. <strong>Pick your metric before you train</strong> based on the cost of mistakes ([Part 4](/blog/ml-from-scratch-04-classification-metrics)).<br/>
+  2. <strong>Carve out a test set</strong> at the start and never touch it.<br/>
+  3. <strong>Do hyperparameter selection with k-fold CV</strong> on the remaining data. Report the mean ± std, not a single number.<br/>
+  4. <strong>Pick the model at the bottom of the U-curve</strong>. Smallest test error, not smallest training error.<br/>
+  5. For probability models, choose the threshold based on the production cost asymmetry; ROC AUC for model selection.<br/>
+  6. <strong>Touch the test set once</strong> for a final score.<br/>
+  7. <strong>Monitor in production</strong> — distributions drift; retrain when they do.
+</Callout>
+
+---
+
+**Next up — [Part 6: Naïve Bayes — Thinking in Probabilities](/blog/ml-from-scratch-06-naive-bayes).** A classifier that has no business working as well as it does — and a great mental model for anyone who wants to think probabilistically.

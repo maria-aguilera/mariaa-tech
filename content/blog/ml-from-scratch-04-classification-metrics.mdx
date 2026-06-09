@@ -1,0 +1,220 @@
+---
+slug: ml-from-scratch-04-classification-metrics
+title: "Part 4 — Classification Metrics: Why Accuracy Lies"
+subtitle: "The confusion matrix as the foundation. Why accuracy fails on imbalanced data. Precision vs recall as the two questions that actually matter, plus F1, MCC, and Cohen's Kappa for when accuracy isn't enough."
+date: "February 2022"
+updated: "June 2026"
+excerpt: "Part 4 of the ML from Scratch series — model evaluation vs validation, the four problem types, the confusion matrix as the source of every classification metric, why accuracy lies on imbalanced data (the lottery model that scores 99%), precision vs recall through the covid-and-jail trade-off, F1, MCC, Cohen's Kappa. The principle: pick your metric before you train."
+tags:
+  - Machine Learning
+  - Classification
+  - Evaluation
+  - Precision & Recall
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 4
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-quadrant.svg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 4/12*
+
+There's a classic ML trap that everyone falls into once. You build a model to detect a disease present in 1% of patients. It reports **99% accuracy**. You celebrate. Then you realise it achieves that score by predicting "healthy" for everyone — it has never once detected the disease.
+
+The model is useless. The metric lied.
+
+This post is about not getting fooled. It covers what evaluation actually means, why accuracy fails on imbalanced data, and the metrics — precision, recall, F1, MCC, Cohen's Kappa — that tell you the truth.
+
+A note on scope: this is half of the original Session 7-8. The other half (cross-validation, probability models, the bias-variance trade-off, regression metrics) lives in [Part 5](/blog/ml-from-scratch-05-cross-validation).
+
+## Two different things: evaluation vs validation
+
+People mix these constantly. Worth pinning down:
+
+- <KeyTerm>Model evaluation</KeyTerm> — *how good is the model on data?* You pick a score (accuracy, F1, RMSE, whatever) and assign it to your model. This is what this post is about.
+- <KeyTerm>Model validation</KeyTerm> — *will the model still be good in production?* The process of making sure your evaluation generalises. Cross-validation is the practical tool. ([Part 5](/blog/ml-from-scratch-05-cross-validation) covers this.)
+
+You can have a model that evaluates beautifully but doesn't validate (overfit). You can have one that validates but evaluates poorly (under-fit on a hard problem). You need both.
+
+<Callout color="yellow">
+  🔑 <strong>The metric you pick is the thing your model will optimise for.</strong> Pick the wrong metric and you'll optimise the wrong thing — and worse, you won't notice. The single biggest mistake people make in ML is <Highlight>not picking the metric carefully before they train</Highlight>.
+</Callout>
+
+## Four kinds of problem, four kinds of metric
+
+Different problems need different metrics. Before you reach for accuracy, figure out which kind of problem you're solving:
+
+1. **Classification** — assign labels (categories) to observations. Binary (spam / not spam) or multi-class (digit recognition). You can always turn a binary classifier into a multi-class one. Confusion-matrix-based metrics.
+2. **Scoring / Regression** — predict a number. House prices, time to event, customer lifetime value. RMSE, MAE, R². (Covered in [Part 5](/blog/ml-from-scratch-05-cross-validation).)
+3. **Probability estimation** — like classification, but the model outputs a probability for each class instead of a hard label. Allows threshold tuning, ROC curves. ([Part 5](/blog/ml-from-scratch-05-cross-validation).)
+4. **No-target problems / clustering** — no outcome to predict. Apriori (recommendation systems), clustering, association rules. Compactness-based metrics. ([Part 5](/blog/ml-from-scratch-05-cross-validation).)
+
+This post focuses on classification — which is the most common case and the place where metric choice matters most.
+
+## The confusion matrix: where every classification metric is born
+
+Almost every classification metric is a different way of dividing one small table. It counts *what actually happened* against *what the model predicted*:
+
+|              | Predicted + | Predicted − |
+|--------------|-------------|-------------|
+| Actually +   | True Positive (TP)  | False Negative (FN) |
+| Actually −   | False Positive (FP) | True Negative (TN)  |
+
+Four numbers. Once you have these, every metric in this post is just one ratio or another. **Internalise this matrix — every metric in classification flows from it.**
+
+Why don't we just report the matrix and stop? Because four numbers don't summarise to one score. You can't say "is model A better than model B" by glancing at two matrices side by side. You need a single number. The rest of this post is about *which* single number to pick.
+
+## Accuracy
+
+The most common starting point. The fraction of predictions you got right:
+
+`Accuracy = (TP + TN) / (TP + FP + TN + FN)`
+
+Between 0 (failed at everything) and 1 (perfect).
+
+Accuracy is fine as a baseline. It's intuitive, easy to explain, and on roughly balanced datasets it tells you something useful.
+
+### Where accuracy lies: imbalanced classes
+
+The lottery example from my notes. Suppose you're predicting whether someone wins a lottery — a rare event, say 0.01% of tickets. A model that **always predicts "false"** (no win) is going to be right 99.99% of the time, because almost no one wins.
+
+99.99% accuracy. Useless model. Has learned nothing.
+
+Same with predicting fraud (rare), disease detection (rare), churn (often rare), security breaches (rare). On any imbalanced dataset, **accuracy is fundamentally misleading**.
+
+<Callout color="red">
+  ⚠️ <Highlight>Never use accuracy for imbalanced classes.</Highlight> The classic trap: a model that always predicts the majority class scores great on accuracy and has learned nothing. The confusion matrix exposes this in one glance; accuracy hides it.
+</Callout>
+
+### Where accuracy lies: asymmetric costs
+
+Sometimes the cost of FP and FN are radically different.
+
+- **COVID tests:** missing a real case (FN) is much worse than a false alarm (FP). You'd rather quarantine ten healthy people than miss one sick person. The optimal model is heavy on FP, light on FN.
+- **Sentencing decisions:** convicting an innocent person (FP) is much worse than a guilty person getting off (FN). The optimal model is heavy on FN, light on FP — Blackstone's ratio.
+
+Accuracy treats FP and FN symmetrically. It can't see this asymmetry. You need precision and recall.
+
+## Precision and recall — the two questions that matter
+
+Two complementary questions about the model:
+
+<KeyTerm>Precision</KeyTerm> — *of everything I predicted positive, how much actually is?* The measure of **confirmation**: when my model raises its hand, how often is it right?
+
+`precision = TP / (TP + FP)`
+
+<KeyTerm>Recall</KeyTerm> — *of everything that is positive, how much did I catch?* The measure of **utility**: how much of what I needed did I find?
+
+`recall = TP / (TP + FN)`
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-quadrant.svg"
+  alt="A vertical decision threshold splits the four outcomes. Move it right (only flag when very sure) and precision rises but recall falls; move it left and you catch more positives at the cost of false alarms."
+  caption="A vertical decision threshold splits the four outcomes. Move it right (only flag when very sure) and precision rises but recall falls. Move it left and you catch more positives at the cost of false alarms."
+/>
+
+### Which one matters more? Depends on the cost of mistakes.
+
+The covid example again, more precisely. You want **high recall** — catch every actual case. A miss (FN) is catastrophic; false alarms (FP) just mean a few more PCR tests for healthy people.
+
+The spam-filter example. You want **high precision** — when you flag an email as spam, you'd better be right. A miss (real email in spam folder) is much worse than spam slipping through.
+
+The principle, in one line: **let the cost of mistakes determine the metric.** There's no universally right balance, only the right one for your problem.
+
+### The trade-off
+
+You can't maximise both at once. The decision threshold gives you a sliding bar:
+
+- Move it right (only predict positive when very confident) → precision goes up, recall goes down. You become picky.
+- Move it left (predict positive on the slightest signal) → recall goes up, precision goes down. You catch more, including more false alarms.
+
+You can trick precision to 1.0 by only flagging the cases you're 100% sure about — but then your recall is terrible because you miss most of the positives. Conversely you can trick recall to 1.0 by flagging everything — but then precision is roughly the prevalence rate.
+
+There's no free lunch. Pick the balance that matches your costs.
+
+## F1 — one number to balance them
+
+When you want a single number that captures both:
+
+`F1 = 2 · precision · recall / (precision + recall)`
+
+The **harmonic mean** of precision and recall. The reason it's harmonic instead of arithmetic: the harmonic mean is much more sensitive to the lower value. A model that drives one of them down will see F1 drop hard.
+
+In other words, **you can't game F1 by maximising one and ignoring the other.** It penalises imbalance between precision and recall.
+
+When to use F1: when you want a single balanced number and the costs of FP and FN are roughly similar.
+
+The caveat (again): F1 is also not ideal under heavy class imbalance. It's better than accuracy, but it still ignores TN. For imbalanced data, reach for MCC.
+
+## MCC — the fair one under imbalance
+
+Matthew's Correlation Coefficient. The metric that doesn't lie.
+
+`MCC = (TP·TN − FP·FN) / √((TP+FP)(FN+TN)(FP+TN)(TP+FN))`
+
+Three properties make it special:
+
+- **Range:** −1 (perfectly wrong) through 0 (random) to +1 (perfect). No metric on a 0–1 scale tells you whether the model is doing worse than random; MCC does.
+- **Uses all four cells.** Most metrics ignore one or more cells (accuracy ignores nothing but treats FP and FN symmetrically; precision ignores TN; recall ignores TN and FP). MCC uses TP, TN, FP, and FN.
+- **Fair under imbalance.** It only scores high when the model does well across *all four* quadrants — a model that just predicts the majority class can't fool it.
+
+The killer example from my notes. On imbalanced data, you might see a model with:
+
+- **Accuracy: 0.93** — looks great.
+- **Recall: 1.0** — perfect.
+- **MCC: 0.0** — quietly telling you the truth.
+
+<Callout color="yellow">
+  🔑 A degenerate classifier on imbalanced data can show <strong>Accuracy 0.93</strong> and <strong>Recall 1.0</strong> — and <strong>MCC 0.0</strong>, telling you what you needed to know: <Highlight>the model learned nothing</Highlight>.
+</Callout>
+
+**Use MCC** whenever your data is imbalanced and you need to know whether the model is actually picking up signal.
+
+## Cohen's Kappa — better than random?
+
+Another metric for the imbalanced case. Cohen's Kappa measures how much better your model is doing than **random guessing weighted by the class frequencies**.
+
+`κ = (p_observed − p_chance) / (1 − p_chance)`
+
+- `κ = 0` — the model is no better than guessing at the marginal rate.
+- `κ = 1` — perfect agreement with the labels.
+- `κ < 0` — worse than guessing (yes, possible).
+
+The intuition: if your dataset is 90% class A and 10% class B, a model that randomly picks based on those proportions would get 82% accuracy *by chance*. Kappa tells you whether you're meaningfully above that floor.
+
+When to reach for Kappa: when you want to know whether the model's accuracy is genuinely better than a dumb baseline, accounting for class imbalance. Especially common in inter-rater agreement studies (medical diagnoses, content moderation labels).
+
+## Multi-class — one-vs-rest, micro vs macro
+
+In multi-class problems you still have a confusion matrix, but it's K×K instead of 2×2. The metrics generalise in two main ways:
+
+**One-vs-rest decomposition.** Compute precision / recall / F1 for each class separately by treating it as a binary problem ("class A vs everything else"). You get one score per class.
+
+**Averaging.**
+
+- **Macro average** — average the per-class scores equally. Treats all classes as equally important regardless of size. Use when minority classes matter.
+- **Weighted average** — weight by class size. Use when overall accuracy on the population is what you care about.
+- **Micro average** — pool all the TPs, FPs, FNs across classes, then compute one score. Equivalent to accuracy for many metrics. Use when you don't care which class the error was on.
+
+The choice depends on whether minority classes carry equal weight, or larger classes dominate. In my experience: macro for fairness audits, weighted for product metrics, micro when you don't care.
+
+## The honest workflow
+
+If you take one thing from this post:
+
+<Callout color="green">
+  <strong>Pick your metric before you train.</strong>
+  <br/><br/>
+  1. Start from the confusion matrix to ground yourself in what FP and FN actually mean.<br/>
+  2. Distrust accuracy on imbalanced data. Default to MCC or Kappa when you're worried.<br/>
+  3. Choose precision vs recall by the cost of mistakes.<br/>
+  4. Use F1 for a balanced single number; MCC under imbalance.<br/>
+  5. For multi-class, pick macro / weighted / micro based on whether minorities matter.<br/><br/>
+  <Highlight>If you pick the metric after training, you'll end up optimising for whichever metric makes your model look best — not for what actually matters.</Highlight>
+</Callout>
+
+---
+
+**Next up — [Part 5: Cross-Validation & Probability Models](/blog/ml-from-scratch-05-cross-validation).** Now that we have metrics, we need to use them honestly. That means knowing whether the score we measured will hold up in production — which is what cross-validation is for.

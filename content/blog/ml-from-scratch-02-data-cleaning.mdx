@@ -1,0 +1,344 @@
+---
+slug: ml-from-scratch-02-data-cleaning
+title: "Part 2 — Before You Model, Clean. Before You Clean, Understand."
+subtitle: "The four-stage ML pipeline, the biases that quietly ruin every model, four scalers and when each one wins, the fit/transform contract that protects your test set, and how to handle the categorical features, outliers, and nulls that fill 80% of every project."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "The bulk of any ML project isn't modelling — it's data cleaning and preprocessing. This is the full playbook: pipeline, biases, scaling, categorical encoding, outliers, nulls. Plus the fit/transform discipline that keeps your test set honest, and the personal beats from my own course notes (`CANNOT PUT FIT`, the `-1 years old` example, the solar reading that was actually night time)."
+tags:
+  - Machine Learning
+  - Data Cleaning
+  - Bias
+  - Preprocessing
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 2
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/fig-01.jpg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 2/12*
+
+Everyone wants to talk about algorithms. Almost nobody wants to talk about the part of the ML job that actually fills your week: getting the data into a state where an algorithm can learn from it at all.
+
+This is that part. And I'm going to spend a lot of words on it because it's where projects quietly succeed or fail. Two ideas frame everything we'll do here:
+
+- <KeyTerm>Data cleaning</KeyTerm> — removing errors, preparing raw data. Cleaning makes the data *correct*.
+- <KeyTerm>Feature engineering</KeyTerm> — creating meaningful features and removing irrelevant ones. Feature engineering makes the data *useful*. (We'll cover this in depth in [Part 3](/blog/ml-from-scratch-03-feature-engineering).)
+
+Both happen *before* learning. Both set the ceiling on how good your final model can possibly be. If you're going to skim one post in this series, don't make it this one.
+
+## The four-stage ML pipeline
+
+A typical ML project moves through four stages, in order:
+
+1. **Select data** — choose and collect the inputs your models need.
+2. **Pre-process** — cleanse and reformat: fix errors, handle outliers, drop irrelevant info.
+3. **Transform** — improve quality and model performance through scaling, encoding, derived features.
+4. **Model & train** — build, validate, ship.
+
+Most of the effort lives in steps 1–3. The modelling everyone romanticises is often the smallest part of the project.
+
+This post is about steps 2 and 3. Step 1 is mostly business / domain work. Step 4 is the rest of this series.
+
+## Step 1 — understand your data before you touch it
+
+Before you transform anything, understand what each feature *means*. This isn't busywork. It's how you catch the failure modes that ruin models silently.
+
+### Errors with a meaning
+
+The classic gotchas:
+
+- A column for `age` containing **`-1`** or **`139`**. Both are technically numbers; both are obviously wrong. `-1` is probably a sentinel for "missing"; `139` is probably a typo or a corrupted record. If you feed these to a model, the model will dutifully learn that some customers are 139 years old.
+- A column for `solar_power_output` containing **`0`** for half the rows. Is it broken? No — those zeros are the **night-time readings**. A model trained without understanding this will think solar panels produce zero power half the time.
+- A column for `purchase_amount` with negative numbers. Refunds? Returns? Just errors? The answer changes how you handle them.
+
+You can't auto-detect these. You have to look at the data, ask what each column *means* in the business, and decide what each surprising value represents. This is the work.
+
+### Biases and systematic errors
+
+The other side of "understand your data" is being sceptical about how it was collected. **Bias in the data becomes bias in the model**, no exceptions.
+
+<Callout color="red">
+  ⚠️ <strong>Biased data makes biased models.</strong> An ML algorithm learns — and then reproduces and amplifies — whatever bias is baked into the data. Train on biased data and you'll ship a biased model.
+</Callout>
+
+There are three classic biases you should know by name, because if you can name them you'll spot them:
+
+**1. Volunteer / self-selection bias.** The sample isn't random because people self-select into being in it. More women volunteer for medical studies. Heavier users self-select into giving product feedback. Engaged employees self-select into engagement surveys. A "random" sample of volunteers is anything but random.
+
+**2. Selection bias.** Your sampling *frame* is skewed. Healthy people seldom go to hospital — so if you study only patients, your conclusions don't generalise to the population. Successful companies write more case studies — so if you study only the case studies, you'll attribute success to whatever they did, missing that the unsuccessful ones did the same thing.
+
+**3. Survivorship bias.** You only see the data points that *made it through* some selection process. The most famous example is from WWII:
+
+> Analysts studied aircraft that returned and mapped where they'd been shot. The instinct: reinforce the areas with the most bullet holes.
+>
+> The mathematician Abraham Wald pointed out the opposite: those were the planes that **came back**. The bullet holes showed where a plane could be hit *and survive*. The areas with **no** holes on returning planes were exactly the fatal spots — because planes hit there never made it home to be counted.
+>
+> Reinforce the unmarked areas, not the bullet-holed ones.
+
+<Callout color="yellow">
+  🔑 If you only study the survivors — the data points that "made it" — you draw exactly the wrong conclusions. Every time you analyse only the customers who stayed, or only the experiments that worked, ask: <Highlight>what got filtered out before this data reached me?</Highlight>
+</Callout>
+
+### Representative data, or your model lies confidently
+
+The flip side of bias. To generalise to production, your training data must be **representative** of the cases you'll actually predict. Two distinct ways data goes bad:
+
+- **Too small a sample → sampling noise.** With few examples, your "pattern" is partly chance.
+- **A flawed sampling method → sampling bias.** Even a *huge* dataset can be non-representative if it was collected in a skewed way.
+
+The takeaway: a million rows of biased data is still biased. Volume doesn't fix selection.
+
+## Step 2 — scaling: when magnitude hijacks your model
+
+Features in raw data live on wildly different scales. A house dataset might have `bedrooms` (1–5), `bathrooms` (1–4), and `price` (100,000–900,000). Untreated, the `price` column dominates everything else by sheer magnitude.
+
+Two situations where this matters and one where it doesn't:
+
+**It matters for coefficient-based methods** (linear regression, logistic regression). The big-magnitude feature gets a bigger coefficient just because of its scale — not because it's more important.
+
+**It matters for distance-based algorithms** (KNN, SVM, PCA). They compute distances between data points, and a 100,000-unit gap on `price` swamps a 4-unit gap on `bedrooms`, even when `bedrooms` is the more informative feature.
+
+**It doesn't matter for tree-based methods** (CART, Random Forest, Gradient-Boosted Trees). Splits are based on *ordering*, not on distance — multiplying a feature by 1000 doesn't change which rows are above or below a threshold.
+
+<Callout color="blue">
+  💡 <strong>Where scaling is non-negotiable:</strong> KNN, SVM, PCA, gradient-descent-based methods. <strong>Where it doesn't matter:</strong> tree-based methods. <strong>Where it can speed things up anyway:</strong> almost everywhere else, because gradient descent converges much faster on scaled features.
+</Callout>
+
+### The four scalers you'll actually use
+
+Scikit-learn ships four scalers worth knowing. Each one is the right answer in a different situation.
+
+| Scaler | What it does | When to reach for it |
+|---|---|---|
+| `StandardScaler` | Centres to mean 0, scales to std 1 | Default for most algorithms. Assumes roughly Gaussian features. |
+| `RobustScaler` | Centres to median, scales by IQR | When you have outliers you can't / don't want to remove — it ignores them. |
+| `MinMaxScaler` | Squishes into the range `[0, 1]` | When you need bounded inputs — e.g., some neural-net activations, or when negative values aren't meaningful. |
+| `Normalizer` | Projects each row onto the unit sphere (length 1) | When you care about *direction* not *magnitude* — cosine distance on text vectors, recommender systems. |
+
+The default is `StandardScaler`. The rule of thumb: if `StandardScaler` doesn't work or your data has weird outliers, try `RobustScaler` next.
+
+### The `fit` / `transform` contract (this is where people get burned)
+
+Every scikit-learn transformer has two methods. **The way you call them is the most important rule in preprocessing**, so I'm going to spell it out carefully.
+
+- `fit()` — the transformer *learns the transformation from the data*. For `StandardScaler`, this means computing the mean and standard deviation. For `MinMaxScaler`, it's the min and max.
+- `transform()` — the transformer *applies* what it learned.
+- `fit_transform()` — does both in one call. Convenient shortcut for training data.
+
+Now the rule:
+
+<Callout color="red">
+  ⚠️ <Highlight>Fit ONLY on training data. Then transform both train and test.</Highlight> If you `fit` on the test set, you've leaked test statistics into your "unseen" data and your evaluation is no longer honest. You have no idea how the model will behave in production.
+</Callout>
+
+In code:
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+
+# Train: fit + transform
+X_train_scaled = scaler.fit_transform(X_train)
+
+# Test: ONLY transform — the scaler already learned mean and std from train
+X_test_scaled = scaler.transform(X_test)
+```
+
+I wrote it in my notes in capitals: **CANNOT PUT FIT** on test data. You make decisions using training data; you only ever *evaluate* on test data. No inspection, no fitting, no tuning on test. The test set is your one-shot honest measurement of how the model behaves in production, and you only get to spend it once.
+
+This rule also applies to every other transformer in this post — encoders, imputers, all of it.
+
+## Step 3 — categorical features
+
+Most ML algorithms — anything that computes means, distances, dot products — refuse to consume the string `"Manhattan"` or `"red"` directly. You **must encode categories as numbers** before feeding them to the model.
+
+The exceptions: all tree-based models, and some Naïve Bayes implementations. Always check the library docs — scikit-learn's tree implementations require numeric input even though the algorithm wouldn't need it conceptually.
+
+There are three encoding strategies. Which one you use depends on the cardinality (how many distinct values) and the meaning.
+
+### Ordinal encoding
+
+Assign each category a number: `Bronx=0, Brooklyn=1, Manhattan=2, Queens=3`.
+
+```python
+df['boro_ordinal'] = df.boro.astype("category").cat.codes
+```
+
+**The catch:** this implies an *order* and *distances*. The model will think Manhattan (2) and Queens (3) are "closer" than Bronx (0) and Queens (3) — which is nonsense for boroughs. The numbers are meaningless distances.
+
+**Use ordinal encoding only when an order genuinely exists** — `low / medium / high`, `small / medium / large`, education levels, t-shirt sizes. Otherwise reach for one of the next two.
+
+### One-hot (dummy) encoding
+
+Create one binary column per category. The borough column becomes four columns:
+
+| boro | salary |  | bronx | brooklyn | manhattan | queens | salary |
+|---|---|---|---|---|---|---|---|
+| Manhattan | 103 |  | 0 | 0 | 1 | 0 | 103 |
+| Queens | 89 |  | 0 | 0 | 0 | 1 | 89 |
+| Brooklyn | 54 |  | 0 | 1 | 0 | 0 | 54 |
+
+```python
+# Pandas way (quick)
+pd.get_dummies(df)
+
+# Sklearn way (use this inside a pipeline)
+from sklearn.preprocessing import OneHotEncoder
+OneHotEncoder().fit(df).transform(df).toarray()
+```
+
+**The catch:** the dummy variables are redundant. The last category is always `1 − sum(others)`, which means the columns are perfectly co-linear. For most models you should `drop=1` of them — but keeping all of them can make the model more interpretable.
+
+**The bigger catch — high cardinality.** If `zipcode` has 200 distinct values, one-hot encoding adds 200 columns. You've just exploded your dimensionality. Every algorithm that suffers from the curse of dimensionality ([Part 1](/blog/ml-what-is-machine-learning)) is now hurting. And the columns are mostly zeros, which is a sparsity nightmare.
+
+This is where target encoding comes in.
+
+### Target (impact) encoding
+
+For high-cardinality categorical features, instead of 200 sparse columns you get **one** dense column. The value for each category becomes the *average value of the target variable for that category*.
+
+For zipcodes predicting house price: the value for `98029.0` becomes the average price of houses in `98029.0`. Suddenly the model has a single, strongly-predictive feature instead of 200 noisy columns.
+
+```python
+from category_encoders import TargetEncoder
+te = TargetEncoder(cols='zipcode').fit(X_train, y_train)
+X_train_encoded = te.transform(X_train)
+```
+
+(Not built into scikit-learn — use the `category_encoders` library.)
+
+In benchmarks on the King County house-prices dataset, switching from one-hot to target encoding on `zipcode` lifted R² from around 0.5 to 0.78. That's a huge gap. If the categorical is informative and high-cardinality, target encoding is often the cleanest win in the whole pipeline.
+
+**The trade-off:** you lose explainability. The model is now running on "average price in this zip" instead of raw zipcodes. Fine for prediction; awkward when the stakeholder asks "which zips drive the price?" — you can map back, but you don't have the original codes in the model anymore.
+
+### Putting it together with `ColumnTransformer`
+
+In practice every dataset has a mix of categorical and numerical columns, and you want different transformations on each. `ColumnTransformer` lets you compose them:
+
+```python
+from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+
+categorical = df.dtypes == object
+
+preprocess = make_column_transformer(
+    (StandardScaler(), ~categorical),
+    (OneHotEncoder(), categorical),
+)
+```
+
+One pipeline, scales the numbers, encodes the categories, all under the same fit/transform discipline. This is how you should structure preprocessing in any real project.
+
+## Step 4 — outliers
+
+<KeyTerm>Outliers</KeyTerm> are data points that don't follow the distribution of the rest. They bias the overall pattern by forcing the model to accommodate extreme behaviour at the cost of fit on the bulk of the data.
+
+The first question is **not** "how do I remove them?" — the first question is **"do they mean something?"**
+
+The decision tree:
+
+1. **Are they meaningful?** Sometimes outliers *are* the signal. Fraud detection lives entirely in the outliers — they're the fraud. Anomaly detection generally. Sensor failure detection. In all these cases, you keep them and make them the focus.
+2. **Are they a category in their own right?** Sometimes the right move is to add an `is_outlier` boolean feature so the model can learn from their presence without being distorted by their values.
+3. **Are they just errors / noise?** Remove or impute.
+
+### How to detect outliers
+
+Two approaches:
+
+**Statistic-based.** Compute a metric per row and threshold it.
+
+- **Z-score:** `|x − μ| / σ > 3` flags everything more than 3 standard deviations from the mean. Simple, fast, works on roughly Gaussian features.
+- **Interquartile range (IQR):** anything below `Q1 − 1.5·IQR` or above `Q3 + 1.5·IQR`. More robust because it doesn't assume Gaussian.
+
+Both are prone to false positives when the data itself is heavy-tailed. My professor's preference — and mine in practice — is **model-based** detection for anything serious.
+
+**Model-based.** Train a model that learns what "normal" looks like, then flag anything the model can't explain.
+
+- **Isolation Forest** — trees that isolate anomalies in few splits.
+- **One-class SVM** — treats normal data as one class, outliers as the rejected region.
+- **Elliptic Envelope** — assumes Gaussian and finds the points outside a fitted ellipse.
+
+These are more robust because they learn the actual distribution of your data, not a global statistic.
+
+### What to do with them
+
+- **Remove** — if outliers are under 1% of the dataset and clearly errors.
+- **Cap (winsorise)** — clip values to the 1st / 99th percentile. The outlier becomes the boundary value, which most models handle fine.
+- **Impute** — replace with the mean / median / a model-predicted value.
+- **Flag** — add an `is_outlier` column so the model can learn from the *presence* of an extreme value without being biased by its actual magnitude. Great with tree-based methods.
+
+The "remove" option breaks down if outliers are spread across many columns of the dataset, because you'll end up dropping most of your rows. Then prefer capping or flagging.
+
+## Step 5 — null values
+
+Most ML algorithms refuse to consume `NaN` directly. You have to decide what `NaN` *means* before you decide what to do with it.
+
+### MCAR vs MNAR — the framing that matters
+
+Two situations, very different treatment:
+
+- **MCAR** (Missing Completely At Random) — the absence carries no signal. The fact that `age` is missing for some rows tells you nothing about the person. The nulls are basically noise.
+- **MNAR** (Missing Not At Random) — the absence *is* signal. People who decline to share their income often share more than the number itself would reveal. Sensor downtime is often correlated with the condition you're trying to detect.
+
+How to tell them apart: **look at the distribution of nulls across other features.** If the rows with `null age` look just like the rest of the dataset, it's MCAR. If the rows with `null age` are systematically older / younger / from one country, it's MNAR.
+
+**For MCAR:** impute (if there are a lot of them) or remove (if there are few).
+
+**For MNAR:** add a `MissingIndicator` feature so the model can learn from the presence of nulls. Don't just impute and lose the signal — the *absence* is the signal.
+
+### Imputation strategies
+
+**Univariate** — uses only information from the column itself.
+
+- For numerical: replace with the column's mean or median.
+- For categorical: replace with the most common value, or with the string `"unknown"`.
+
+Fast, simple, good baseline. Use it when nulls are a small fraction of the column.
+
+**Multivariate** — uses information from the other columns.
+
+- `IterativeImputer` — model the missing column as a function of the others, predict the value.
+- `KNNImputer` — find the K most similar rows that aren't missing this column, use their average.
+
+More accurate but slower. Reach for multivariate when the missing volume is large enough that mean-imputation visibly biases the column, or when the missingness has clear predictors.
+
+<Callout color="blue">
+  💡 If a column has so many nulls that imputation would hallucinate most of it (say over 50%), drop the column entirely. Bad information is worse than no information. The column isn't telling you anything.
+</Callout>
+
+## Step 6 — the polish that's easy to forget
+
+A handful of transformations that come up often enough to be worth a section:
+
+**Skewness in the target variable.** Many models (linear regression especially) assume roughly normal residuals. If your target is heavily skewed — income, house prices, time-to-event — apply `log(x)` or a Box-Cox transformation to symmetrise it before training. Exponentiate predictions back at inference time. This change alone can shift a model from "broken" to "good".
+
+**Binning (bucketisation).** Reduce the cardinality of categorical features by grouping similar levels. `Country` with 200 distinct values → `Continent` with 6. The model has less to learn, you have less of a sparsity problem, and the underlying signal is usually still there.
+
+**Discretisation.** Turn a continuous feature into a categorical one. `KBinsDiscretizer` carves a column into K equal-width or equal-population bins. Useful when you suspect the relationship between the feature and the target is non-linear and bin-by-bin — `age` → `age_bucket` often beats raw `age` in linear models.
+
+**Typing.** Dates should be dates, floats should be floats, categories should be categories. Garbage typing → garbage models. This sounds trivial; in practice it eats hours.
+
+## The whole process, in one summary
+
+If you read nothing else, read this:
+
+1. **Frame the problem.** Is this even an ML problem? What outcome am I predicting? What features can I collect? What's my budget for errors?
+2. **Find data.** And verify it's representative of what you'll see in production.
+3. **Clean.** Fix errors, handle outliers, handle nulls, address bias.
+4. **Encode.** Turn categories into numbers (ordinal / one-hot / target depending on cardinality).
+5. **Scale.** If your algorithm is distance-based or coefficient-based.
+6. **Fit-transform on train, transform-only on test.** Every transformer, every time, no exceptions. `CANNOT PUT FIT` on test data.
+7. **Now you can model.**
+
+<Callout color="yellow">
+  🔑 Preprocessing isn't glamorous, but it's where models quietly succeed or fail. Get this right and the fanciest algorithm gets easier. <Highlight>Get it wrong and the algorithm just learns your mistakes faster.</Highlight>
+</Callout>
+
+---
+
+**Next up — [Part 3: Feature Engineering — Picking the Features That Actually Matter](/blog/ml-from-scratch-03-feature-engineering).** Cleaning makes the data correct. Feature engineering makes it useful.

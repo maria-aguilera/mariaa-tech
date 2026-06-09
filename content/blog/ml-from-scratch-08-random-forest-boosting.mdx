@@ -1,0 +1,159 @@
+---
+slug: ml-from-scratch-08-random-forest-boosting
+title: "Part 8 — Random Forest & Boosting: Strength in Numbers"
+subtitle: "A lone tree always overfits. The fix is to use many. Two completely different ways of combining them — bagging (Random Forest) and boosting (XGBoost) — produce two of the most powerful algorithms in all of ML."
+date: "February 2022"
+updated: "June 2026"
+excerpt: "Part 8 of the ML from Scratch series — why one tree overfits but many trees don't, bagging as bootstrap+aggregate, Random Forest's row+column subsampling trick, boosting as sequential error-correction, XGBoost as the Kaggle dominator, and the production trade-off: Random Forest's reliability vs Boosting's marginal accuracy."
+tags:
+  - Machine Learning
+  - Random Forest
+  - Boosting
+  - XGBoost
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 8
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/trees-forests/random-forest-subsampling.jpg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 8/12*
+
+[Part 7](/blog/ml-from-scratch-07-decision-trees) ended with the most important line: **don't use a single decision tree, use many.** This post is about how.
+
+Two completely different approaches to combining trees, both invented as fixes for the same problem (a lone tree overfits). They produce two of the most powerful tabular-ML algorithms in existence — and a choice you'll face in every real ML project on tables.
+
+- **Bagging → Random Forest.** Train many trees in parallel on different subsamples, then average. The reliable workhorse. Easy to train. Strong out of the box.
+- **Boosting → XGBoost.** Train trees sequentially, each one correcting the errors of the previous. The Kaggle dominator. Can be more accurate but needs careful tuning.
+
+## Why one tree fails
+
+Recap from [Part 7](/blog/ml-from-scratch-07-decision-trees). A single decision tree overfits because it can keep splitting until each training point gets its own region. Even with pruning, a single tree:
+
+- Is **unstable** — small changes in the training data produce a totally different tree.
+- Is **noisy** — the specific splits depend on the specific training rows.
+- Has **high variance** — predictions on similar inputs can swing wildly.
+
+The cure for high variance is the same one statisticians have used for centuries: **average over many noisy estimates**. The noise tends to cancel; the signal reinforces.
+
+That's the whole insight under bagging. Build many trees, each one a bit different. Average their predictions. The randomness cancels out.
+
+## Bagging — bootstrap + aggregate
+
+**Bagging** = **B**ootstrap **AGG**regat**ING**. Two ideas in one name:
+
+1. **Bootstrap.** Generate many subsamples of your training data by sampling with replacement. Each subsample is the same size as the original but with different rows (and some rows duplicated, others missing).
+2. **Aggregate.** Train one tree per subsample. To classify a new point, run it through all the trees and aggregate the predictions — majority vote for classification, average for regression.
+
+<Image
+  src="/images/blog/ml-from-scratch/trees-forests/bagging-bootstrap.jpg"
+  alt="Bagging: randomly subsample the dataset many times (D₁, D₂, D₃…), train a tree on each, then aggregate. Each tree overfits a different slice, so the noise averages out and the overall pattern survives."
+  caption="✎ From my course notes. Bagging: bootstrap the dataset many times, train a tree on each, aggregate. Each tree overfits a different slice. The noise cancels."
+/>
+
+The magic: **each tree overfits — but each one overfits a different aspect of the data.** When you average them, the overfitting cancels because no two trees overfit in the same way. The underlying signal stays.
+
+That's it. Bagging in one paragraph. It works for any model (you could bag logistic regressions), but it works exceptionally well with trees because trees are high-variance — exactly the kind of model that benefits most from averaging.
+
+### The weakness of plain bagging
+
+There's a subtle problem. If one feature is dominant — say, `neighbourhood` strongly predicts house price — then **every tree will use that feature for its top split**. The trees end up similar. Their predictions correlate. Averaging correlated predictions doesn't reduce variance much.
+
+The fix is Random Forest.
+
+## Random Forest — bagging plus feature subsampling
+
+Random Forest adds one tweak: **at every split**, only consider a random subset of the features. Typically `√p` features (for p total).
+
+<Image
+  src="/images/blog/ml-from-scratch/trees-forests/random-forest-subsampling.jpg"
+  alt="Random Forest subsamples both rows AND columns. Forcing trees to use different features keeps them de-correlated, so each focuses on a different aspect of the data."
+  caption="✎ From my course notes. Random Forest subsamples both rows AND columns. Forcing trees to use different features keeps them de-correlated, so each focuses on a different aspect of the data."
+/>
+
+What this does: even if `neighbourhood` is the strongest feature, on most splits it's *not available* to the tree (because that split is constrained to a random subset). So most trees end up using other features for their top splits. The trees become genuinely different from each other.
+
+Different trees → uncorrelated errors → averaging works.
+
+The result is one of the **most powerful, most reliable methods in all of ML**:
+
+- Captures complex patterns.
+- Generalises well.
+- Resists overfitting (the more trees, the more averaging — and overfitting decreases monotonically with tree count).
+- Handles mixed feature types out of the box.
+- Almost no preprocessing required (no scaling, no encoding for trees).
+- Robust to outliers.
+
+**How many trees?** As many as your compute budget allows. More is better — there's no overfitting risk from more trees. Typical: 100–1000.
+
+**How deep?** Use cross-validation. Random Forests are less sensitive to this than single trees, but a depth limit still helps.
+
+## Boosting — the sequential alternative
+
+Boosting takes the opposite philosophy from bagging. Instead of training many trees in parallel and averaging, **train trees sequentially, each one correcting the previous one's mistakes**.
+
+The procedure:
+
+1. Train a small, pruned tree on the data. It's mediocre — by design.
+2. Compute the model's residuals (errors).
+3. Train a new tree on the residuals. This tree learns to predict the previous tree's mistakes.
+4. The final prediction is the sum: `prediction = tree₁ + tree₂`.
+5. Compute the new residuals. Train another tree. Add it. Repeat.
+
+Hundreds of trees, each one shrinking the residuals further. The composite model becomes very expressive — it can fit almost any pattern in the training data.
+
+That's also the danger. **Because every step drives training error down**, boosting will overfit if you let it. The number of trees, the learning rate, the regularization — all critical hyperparameters that need careful tuning.
+
+### XGBoost — the canonical implementation
+
+**XGBoost** (eXtreme Gradient Boosting) is the famous implementation. Plus its cousins LightGBM and CatBoost. They share the boosting idea but add:
+
+- **Regularization terms** on the tree size and weights.
+- **Smart parallelisation** for fast training.
+- **Histogram-based splits** for huge speedups on big data.
+- **Handling of missing values** without preprocessing.
+
+For tabular ML competitions, XGBoost (or LightGBM) wins more often than anything else. It is genuinely the state of the art for tabular prediction.
+
+## Bagging vs Boosting — when to use which
+
+In practice you'll choose between Random Forest and XGBoost on almost every tabular project. Here's the actual trade-off:
+
+| | Random Forest | XGBoost |
+|---|---|---|
+| **Approach** | Parallel + averaging | Sequential + error correction |
+| **Reduces** | Variance | Bias (also variance, with care) |
+| **Overfitting risk** | Low | High without tuning |
+| **Tuning effort** | Minimal | High — weeks of experimentation |
+| **Out-of-box accuracy** | Strong | Often higher with careful tuning |
+| **Robustness in production** | Excellent | Fragile if data drifts |
+| **Kaggle competitions** | Used | Dominant |
+| **Production reality** | Often preferred | Risky for changing distributions |
+
+<Callout color="yellow">
+  🔑 <strong>The practical reality:</strong> XGBoost wins on Kaggle because it can squeeze out the last 1-2% of accuracy that decides the leaderboard. In production, many teams prefer Random Forest because <Highlight>you're never quite sure XGBoost isn't overfitting</Highlight>, and you'd have to check every day that the results stay consistent. The marginal accuracy isn't worth the reliability cost.
+</Callout>
+
+If accuracy is everything (Kaggle, internal experiments), XGBoost. If reliability and ease of maintenance matter (production systems that have to keep working for years), Random Forest. There's no objectively right choice — it depends on what you're optimising.
+
+## The big picture
+
+The recap, in one paragraph:
+
+A single tree carves the dataset into regions and overfits aggressively. **Bagging** averages many trees trained on bootstrapped subsamples; the overfitting cancels. **Random Forest** improves bagging by also subsampling features per split, forcing trees to be diverse and de-correlating their errors. **Boosting** trains trees sequentially, each one correcting the previous one's mistakes; it can be more accurate but is much more prone to overfitting.
+
+The choice between Random Forest and XGBoost is rarely about which is technically "better" — it's about whether you want a robust workhorse you can ship and forget, or a finely-tuned racehorse that needs constant care.
+
+<Callout color="green">
+  <strong>What I actually do in practice:</strong>
+  <br/><br/>
+  1. <strong>Random Forest as baseline.</strong> Always. It's three lines of code, no tuning. It tells you what's achievable on this problem.<br/>
+  2. <strong>XGBoost if accuracy gap matters.</strong> Tune the depth, learning rate, regularization, and number of trees via cross-validation.<br/>
+  3. <strong>Ship Random Forest unless XGBoost is clearly better AND the data is stable.</strong> <Highlight>The 1% accuracy gain is rarely worth the operational risk</Highlight>.
+</Callout>
+
+---
+
+**Next up — [Part 9: Support Vector Machines — The Widest Possible Margin](/blog/ml-from-scratch-09-svm).** The other dominant classifier of the pre-deep-learning era. Large margins, support vectors, the C knob, and the kernel trick that turns impossible problems into linear ones.

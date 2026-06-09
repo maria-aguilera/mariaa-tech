@@ -1,158 +1,291 @@
 ---
 slug: ml-what-is-machine-learning
-title: "Session 1: What Machine Learning Actually Is"
-subtitle: "The foundations of ML, straight from my course notebook — definitions, generalization, overfitting, and how to actually evaluate a model."
-date: "June 2024"
-updated: "June 2024"
-excerpt: "A visual walk through my Session 1 notes on Machine Learning II — learning as representation + evaluation + optimization, the curse of dimensionality, why more data beats a cleverer algorithm, and the train/validate/test workflow."
+title: "Part 1 — What Machine Learning Actually Is"
+subtitle: "Mitchell's definition, the three pieces of learning, why generalization is the only thing that counts, and the five take-homes that the rest of the course builds on."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "The opening session of my Machine Learning II course. What it means to say a machine 'learns'. The three pieces every learning algorithm decomposes into (representation, evaluation, optimization). Why generalization is the entire game. The curse of dimensionality. And why more data beats a cleverer algorithm — unless the data is rubbish."
 tags:
   - Machine Learning
   - Fundamentals
   - Overfitting
-  - Feature Engineering
+  - Generalization
 source: Notes
+topic: Machine Learning
 series: "Machine Learning from Scratch"
 seriesPart: 1
-seriesTotal: 8
+seriesTotal: 12
 coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-03.jpg"
 style: navy
 bannerImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/banner.jpg"
 ---
 
-*Machine Learning from Scratch · Part 1/8*
+*Machine Learning from Scratch · Part 1/12*
 
-This is Session 1 of my Machine Learning II course, the way I actually wrote it down. The page images below are scans of my real notebook — I'm leaving them in because the diagrams and emphasis are where most of the intuition lives. The short typed lead-ins exist so the post is searchable and skimmable; the depth is in the pages themselves.
+This is Session 1 of my Machine Learning II course at IE — the foundation everything else in this series rests on. The page images below are scans of my actual notebook. I'm leaving them in because the diagrams and emphasis (highlighted bits, arrows, the messy bits) are where most of the intuition actually lives.
 
-> 📄 **Prefer the raw notes?** [Download the original PDF](/notes/ML_Session_1_Introduction.pdf) (12 pages).
+I've rewritten the typed prose around them so the post is searchable, skimmable, and complete. If you want the raw notes, those scans *are* the raw notes — just read them top to bottom.
 
-## What is machine learning?
+## A machine that "learns"
 
-Tom Mitchell's definition is still the cleanest one: a computer program *learns* from experience **E** with respect to a task **T** and a performance measure **P**, if its performance on T, as measured by P, improves with E. A spam filter is the textbook example — task: flag spam; experience: the examples users mark; measure: classification accuracy.
+A machine learning algorithm is, in the most literal sense, **a piece of code that tries to give computers the ability to learn**. The textbook definition is Tom Mitchell's, and it's still the cleanest formulation anyone has come up with:
+
+> A computer program **learns** from experience **E** with respect to some task **T** and some performance measure **P**, if its performance on T, as measured by P, improves with experience E.
+
+So three ingredients: a task, experience, a way to measure how it's going. The classic example is a spam filter:
+
+- **Task (T):** flag emails as spam or not spam.
+- **Experience (E):** the emails users have already flagged.
+- **Performance measure (P):** the percentage of emails it gets right.
+
+If, the more flagged examples it sees, the better it gets at classifying — *that's* learning.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-01.jpg"
   alt="Page 1 of my Session 1 notes — Mitchell's definition of machine learning and the three components of learning algorithms."
-  caption="✎ From my Session 1 notes. The opening definition and a glimpse at the table of representations / evaluation / optimization combinations."
+  caption="✎ Page 1 — Mitchell's definition and the first sketch of representation / evaluation / optimization."
 />
+
+<Callout color="yellow">
+  💡 <strong>Heuristic that's saved me hours</strong>: only implement ML if the solution genuinely is machine learning. A rule-based system is faster to build, easier to debug, and won't drift on you. Reach for ML when the rules are too many, too fuzzy, or unknown.
+</Callout>
+
+## Learning = Representation + Evaluation + Optimization
+
+Every ML algorithm — every single one we'll cover in this series — decomposes into three pieces. This framing comes from Pedro Domingos's "A Few Useful Things to Know About Machine Learning" paper, and it's the lens I use to compare algorithms.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-02.jpg"
   alt="Handwritten page expanding the definition with the spam-filter example and breaking learning into representation, evaluation, and optimization."
-  caption="✎ From my Session 1 notes. Learning = Representation + Evaluation + Optimization — the framing the rest of the series builds on."
+  caption="✎ Page 2 — the spam-filter example and the three-piece decomposition. Most of the next 11 posts are about choices for the first two."
 />
 
-The three pieces are: <KeyTerm>Representation</KeyTerm> (the kind of model — linear regression, decision tree, neural net…), <KeyTerm>Evaluation</KeyTerm> (the metric that decides what counts as a good model), and <KeyTerm>Optimization</KeyTerm> (how the algorithm actually searches for it). Most of this series is really about different choices for the first two.
+### 1. Representation
 
-## Generalization is what counts
+The first thing every algorithm picks is **what kind of solution it can express**. A linear regression can only fit a straight line. A decision tree can only carve the space into axis-aligned boxes. A neural network can express almost anything — at the cost of needing huge amounts of data and being basically uninterpretable.
 
-The first big idea: it doesn't matter how well your model fits the data you have. What matters is how it behaves on data it hasn't seen. **Overfitting** is when training error is tiny but new-data error explodes; **underfitting** is when the model is too simple to capture the pattern at all.
+The phrase from the literature: *"choosing the set of classifiers that it can possibly learn. This set is called the hypothesis space of the learner."*
+
+In plain terms: you pick the shape of the model first, then you let the training find the best version of that shape.
+
+### 2. Evaluation
+
+You have a model. How do you know it's any good? You need a metric — accuracy, F1, RMSE, whatever fits the problem. <KeyTerm>The metric you pick is the thing your model will optimise for</KeyTerm>, so picking the wrong metric means optimising the wrong thing.
+
+This is why a whole post in this series ([Part 4 — Classification Metrics](/blog/ml-from-scratch-04-classification-metrics)) is dedicated just to picking metrics. Accuracy isn't always the right answer, and on imbalanced data it's actively misleading.
+
+### 3. Optimization
+
+How does the algorithm actually search through the hypothesis space to find the best one? Gradient descent, tree splitting, dual quadratic programming — every algorithm has its own. This is mostly a Machine Learning III topic; in this series we'll mention it but not dwell.
+
+For now: <Highlight>representation chooses the shape, evaluation chooses the goal, optimization does the searching</Highlight>.
+
+## The first big idea: it's generalization that counts
+
+This is the single most important sentence in the entire course. Write it down. Tattoo it.
+
+<Callout color="yellow">
+  🔑 <Highlight>IT'S GENERALIZATION THAT COUNTS.</Highlight>
+</Callout>
+
+Imagine you build a model to predict customer churn and it achieves 99% accuracy. Are you done? Are you happy?
+
+Not yet — you don't know how good the model is until it sees data it has *never* seen before. On your training data, you already know what happened. You don't care about predicting the past; you care about predicting the future. The whole point of the model is to work on new, unseen data.
+
+<KeyTerm>Generalization</KeyTerm> is how well your model behaves on data it hasn't seen. And it's difficult — because all you ever have is past data.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-03.jpg"
   alt="Notes on generalization, overfitting and underfitting, with the classic happiness-vs-wealth example and a bias-variance curve."
-  caption="✎ From my Session 1 notes. The happiness-vs-wealth example (linear underfits, quadratic fits, a deep model overfits) on top of the bias-variance curve. The sweet spot is the bottom — not the smallest training error."
+  caption="✎ Page 3 — the wealth-vs-happiness example. Linear underfits, quadratic fits, a complex model overfits. The sweet spot is the bottom of the test-error curve, not the bottom of the training-error curve."
 />
 
-Cross-validation is the practical defence: split the training data into k folds, hold out one at a time while training on the rest, and average the scores. Bigger and cleaner datasets push the sweet spot further to the right.
+### The wealth-vs-happiness example
+
+You're trying to predict someone's happiness from their wealth. You have a scatter plot. You try three models:
+
+1. **A linear model** — a straight line through the data. The line goes roughly in the right direction but misses obvious structure. The training error is high. The test error is also high. This is <KeyTerm>underfitting</KeyTerm>: the model is too simple for the relationship.
+2. **A quadratic model** — a gentle curve. Now it captures the bulk of the pattern. Training error drops. Test error also drops. We're in a good place.
+3. **A complex model** (say, a deep neural net) — the curve now snakes through every point. Training error is essentially zero. But it's also memorised the noise. On a new data point, the prediction is wild. The training error is 0; the test error is huge. This is <KeyTerm>overfitting</KeyTerm>.
+
+The lesson: **you can always reduce training error by making the model more complex**. That's a one-way knob — turn it up forever. But test error is U-shaped: it goes down at first, hits a minimum, then climbs as the model starts memorising noise instead of pattern.
+
+### Underfitting vs overfitting in one line
+
+- **Underfit:** high training error, high test error. The model is too rigid to capture the pattern.
+- **Overfit:** zero (or near-zero) training error, high test error. The model has learned the training data instead of the underlying pattern.
+
+The whole game is to find the sweet spot in the middle. Cross-validation is the practical tool for that — we'll get to it in [Part 5](/blog/ml-from-scratch-05-cross-validation).
+
+<Callout color="blue">
+  💡 <strong>Practical note</strong>: the larger your dataset and the smarter your feature engineering, the less you have to worry about overfitting. Big datasets give the model enough signal that the noise can't dominate. A few thousand examples? Worry. A few million? Less worry.
+</Callout>
+
+## Cross-validation, in one sentence
+
+We'll dedicate a whole post to it later, but the idea fits in a paragraph:
+
+> Randomly divide your training data into k subsets, hold out each one in turn while training on the rest, test the model on the held-out one, average the k scores.
+
+This gives you a much more honest estimate of how the model will perform on truly unseen data, because you're testing on data you didn't train on, and you're averaging over k different splits so you don't get tricked by a lucky one. <KeyTerm>Cross-validation is the way you evaluate any ML model in practice.</KeyTerm>
 
 ## The curse of dimensionality
 
-Adding features sounds like more information, but only if they actually carry signal. If they don't, you've just made the problem harder: each new feature is a new dimension, the search space explodes, and the same number of points becomes sparser.
+Here's a question I used to get wrong:
+
+> Which dataset has more information: **A** (10,000 instances, 100 features) or **B** (10,000 instances, 10,000 features)?
+
+The intuitive answer is B — more features should mean more information, right? **Wrong.** The answer is *it depends* — and in practice, B usually has *less* useful information than A.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-05.jpg"
   alt="Notes on the curse of dimensionality showing how the same data covers less and less of the feature space as you go from 1D to 2D to 3D."
-  caption="✎ From my Session 1 notes. From 1D to 2D to 3D, the same points cover less and less of the space. Why feature selection matters before any modelling."
+  caption="✎ Page 5 — the curse of dimensionality. The same number of points covers less and less of the space as dimensions grow."
 />
 
-There's also a counter-effect — the **blessing of non-uniformity** — because real data isn't spread uniformly across the space; it tends to live on a lower-dimensional manifold. Good feature engineering is what makes that show up.
+Why? <KeyTerm>The curse of dimensionality.</KeyTerm>
 
-## More data beats a cleverer algorithm
+Each feature is a new dimension. Adding features makes the space your algorithm has to search **exponentially bigger**. The same number of data points becomes sparser and sparser — and your algorithm has to find a pattern in a much emptier space.
 
-If you only remember one thing from this session: more *good* data almost always beats a fancier model. Four different algorithms converge to similar accuracy once you feed them enough examples. But "good" matters — garbage in, garbage out.
+If the new features carry real signal, fine. If they don't, you've made the problem strictly harder without adding any information. You've added noise dimensions that the model now has to learn to ignore.
+
+So adding features isn't free. If the features aren't relevant, **you have less information after adding them, not more.**
+
+<Callout color="red">
+  ⚠️ When in doubt, fewer features beats more features. Adding a feature should require justification, not the other way around.
+</Callout>
+
+## Feature engineering is the key
+
+This is the practical implication of the curse of dimensionality. If most of the work in ML is making sure your features carry signal and not noise, then the most leveraged skill in ML is **feature engineering**.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-06.jpg"
   alt="Notes on feature engineering, the more-data-beats-algorithm chart, and the GIGO (garbage in, garbage out) principle."
-  caption="✎ From my Session 1 notes. The famous chart — algorithms converge with enough data — plus the GIGO principle and the four ingredients of an ML problem: objective, levers, data, models."
+  caption="✎ Page 6 — feature engineering is the key, the more-data-beats-algorithm chart, GIGO, and the four ingredients of any ML problem."
 />
 
-The four ingredients of any ML problem: a **defined objective** (what outcome am I trying to achieve?), **levers** (what inputs we can control), **data** (what we can collect), and **models** (how levers map to objective).
+<Callout color="yellow">
+  🔑 <Highlight>FEATURE ENGINEERING IS THE KEY.</Highlight>
+</Callout>
+
+A well-engineered feature can take a problem from impossible to trivial. The classic example: predicting house prices. The raw column `address` is essentially useless to a model. But if you turn it into `distance_to_city_centre`, `crime_rate`, `school_district_rating`, suddenly the model has signal it can actually use.
+
+We'll spend a whole post on this — [Part 3 — Feature Engineering](/blog/ml-from-scratch-03-feature-engineering). For now: when an ML project isn't working, the first place to look is the features.
+
+## More data beats a cleverer algorithm
+
+Here's the most counter-intuitive result in this whole course. The classic experiment (Banko & Brill, 2001, on natural-language disambiguation):
+
+> Take four different ML algorithms. Train each one on increasing amounts of data. Plot accuracy vs training set size.
+
+What do you get? With **little data**, the more sophisticated algorithm (think neural net, memory-based) wins. The simpler ones can't compete. So far, expected.
+
+But as you keep adding data, the gap shrinks. And shrinks. By the time you've got enough data, **all four algorithms converge to roughly the same accuracy** — around 95%. The fancy algorithm and the simple one perform nearly identically.
+
+<Callout color="yellow">
+  🔑 <Highlight>MORE DATA BEATS A CLEVERER ALGORITHM.</Highlight>
+</Callout>
+
+If you only remember one thing about the relationship between data and algorithms: **more good data almost always beats a fancier model**. Investing weeks in a better algorithm rarely pays off compared to investing those weeks in better data.
+
+## But data alone is not enough
+
+There's a giant asterisk on the previous point, and the asterisk is the entire reason this course is not titled "Just Get More Data".
+
+<Callout color="red">
+  ⚠️ <strong>Garbage In, Garbage Out (GIGO).</strong> More data only helps if the data is good. Data full of errors, biases, irrelevant features, or unrepresentative samples will produce a worse model the more of it you have, not a better one.
+</Callout>
+
+What "good data" means in practice:
+
+- **No errors.** Numbers with a meaning: someone listed as `-1` years old, or `139`. A solar-power reading of `0` that's actually the night-time value, not a missing one. You have to clean these up before the algorithm sees them. (We'll cover this exhaustively in [Part 2 — Data Cleaning](/blog/ml-from-scratch-02-data-cleaning).)
+- **Novel.** If your rows are duplicates of each other (or near-duplicates), the duplicates don't add information. If you spot repeated data, **discard it**.
+- **Relevant.** Data from the wrong domain (training on cats, deploying on dogs) won't help.
+- **Representative.** Training on people from one country and deploying everywhere is the classic trap. Your training set has to look like the data you'll see in production.
+
+So the full statement, with both halves:
+
+<Callout color="yellow">
+  🔑 <Highlight>MORE DATA IS GOOD, BUT DATA ALONE IS NOT ENOUGH.</Highlight>
+</Callout>
+
+You also need to **understand the context** of the model. As Domingos puts it: *every learner must embody some knowledge or assumptions beyond the data it's given*. Pure curve-fitting on raw numbers will only get you so far. You need to know what those numbers mean, what your stakeholders care about, and what kind of failures are catastrophic vs tolerable.
+
+## Combine data with expertise
+
+The biggest signal that an ML project is going to work isn't the algorithm. It's the data scientist sitting down with someone who's been in the industry for 20 years and saying *"so what actually matters to you?"*
+
+Those conversations produce features you'd never invent on your own. The expert knows:
+
+- Which seasonal effects matter.
+- Which weird outliers are real signal and which are data-entry errors.
+- Which target variable is the one the business actually cares about — versus the one you've been computing.
+- Which costs are asymmetric (false negatives are worse than false positives, or the reverse).
+
+Whenever I work on a new problem, the first thing I do is ask the domain expert what they would *want* to know. Then I figure out how to engineer features that answer their question. It works better than starting from the data.
 
 ## Learn many models, not just one
 
-There is no single best model — the **no-free-lunch theorem**. Different problems suit different representations, and the strongest practical move is usually to combine several models rather than pick a winner.
+The last big idea from Session 1, and the one that gives Random Forests their power. The **no-free-lunch theorem** says (informally): there is no single algorithm that's best for every problem. Different problems suit different representations.
+
+So what's the strongest practical move? **Don't pick one model. Train several, combine them.**
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-07.jpg"
   alt="Notes on the no-free-lunch theorem, ensemble decision boundaries, and the five take-home points of Session 1."
-  caption="✎ From my Session 1 notes. The ensemble decision boundary — three models focusing on different regions, then averaged. Also where random forests get their power."
+  caption="✎ Page 7 — ensemble decision boundaries. Three different models, each focusing on a different region; averaging them produces a boundary that captures all three."
 />
+
+The idea of the **ensemble decision boundary**: imagine three different models trained on the same data. Each model is wrong in a different way (different overfit, different blind spots). If you average their predictions, the random errors tend to cancel out and the real signal reinforces.
 
 <Arrow>Concept of Ensemble Decision Boundary</Arrow>
 
-Ensembles are also a defence against overfitting: train several diverse models, combine them, and the random errors tend to cancel while the real signal reinforces.
+That's exactly the principle that powers Random Forests ([Part 8](/blog/ml-from-scratch-08-random-forest-boosting)): hundreds of decision trees, each trained on a different slice, averaged together.
 
 <Callout color="yellow">
-  If you only remember one thing from this section: <Highlight>LEARN MANY MODELS, NOT JUST ONE</Highlight>. Combining diverse models almost always beats picking a single winner.
+  💡 If you only remember one thing from this section: <Highlight>LEARN MANY MODELS, NOT JUST ONE</Highlight>. Combining diverse models almost always beats picking a single winner.
 </Callout>
 
 ## Types of ML learning systems
 
-ML systems get sorted three ways: by *how much human supervision* they get (supervised, unsupervised, semi-supervised, reinforcement), by *whether they learn incrementally* (batch vs online), and by *how they generalize* (instance-based vs model-based).
+A useful taxonomy before we close. ML systems get sorted along three axes:
+
+### How much supervision do they get?
+
+- **Supervised** — labelled examples. You know the answer for the training data; the algorithm learns to predict it. Classification, regression. The bulk of what we'll cover.
+- **Unsupervised** — no labels. The algorithm finds structure on its own. Clustering, dimensionality reduction (PCA — [Part 10](/blog/ml-from-scratch-10-pca)).
+- **Semi-supervised** — a small amount of labelled data and a lot of unlabelled data. Mostly useful when labelling is expensive (medical images, for example).
+- **Reinforcement learning** — the algorithm interacts with an environment, gets rewards or punishments, and learns a policy. AlphaGo, robotics, recommendation systems. A whole different framework — covered separately in the [Reinforcement Learning posts](/blog/reinforcement-learning-intro).
+
+### Do they learn incrementally?
+
+- **Batch learning** — train once on the whole dataset, deploy. To incorporate new data, retrain from scratch. Most ML in practice is batch.
+- **Online learning** — train continuously as new data arrives. Useful for systems that need to adapt fast (recommendation systems, fraud detection).
+
+### How do they generalize?
+
+- **Instance-based** — store the training data and compare new examples to it. KNN ([Part 12](/blog/ml-from-scratch-12-knn)) is the canonical example.
+- **Model-based** — fit a model with parameters; throw away the training data after fitting. Linear regression, neural nets, almost everything else.
 
 <Image
   src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-08.jpg"
   alt="Handwritten notes summarising the four supervision categories, batch vs online learning, and instance-based vs model-based methods."
-  caption="✎ From my Session 1 notes. The full taxonomy — supervised / unsupervised / semi-supervised / reinforcement; batch vs online; instance-based vs model-based."
+  caption="✎ Page 8 — the full taxonomy. Most of this series lives in the upper-left quadrant: supervised, batch, model-based."
 />
 
-Reinforcement learning is the one with the most distinct framing: an *agent* observes an *environment*, picks an *action*, gets a *reward*, and slowly learns a *policy* that maximises long-term reward.
+## The five things to remember
 
-## The six main challenges
+I'll close with the five take-homes from Session 1. If you forget everything else from this post, keep these:
 
-Most of the practical pain in ML projects comes from one of six places: insufficient data, non-representative training data (sampling noise + sampling bias), poor-quality data, irrelevant features, overfitting, and underfitting.
+1. **Be aware of overfitting.** Your ML model should work well on new data, not just on the training set. That's the whole point.
+2. **Feature engineer; mind the curse of dimensionality.** More features isn't more information; sometimes it's strictly worse. Spend more time on which features go in, not on tuning the model.
+3. **More features isn't always good, but more good data almost always is.** Just remember the GIGO asterisk — more bad data is worse, not better.
+4. **Combine data with expertise.** A domain expert spending 30 minutes with you will produce features you wouldn't invent in a week.
+5. **Ensemble many models.** Different models make different mistakes. Averaging them cancels the random errors and keeps the real signal.
 
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-09.jpg"
-  alt="Notes listing the six main challenges of ML in practice, with regularization and the role of hyperparameters."
-  caption="✎ From my Session 1 notes. The six things that actually go wrong, with regularization (controlled by a hyperparameter) as the main lever against overfitting."
-/>
+---
 
-The fixes mirror each other: more or better data tackles the first three; feature engineering tackles irrelevant features; **regularization** (controlled by a hyperparameter) tackles overfitting; a more powerful model or fewer constraints tackles underfitting.
+That's Session 1. The remaining 11 posts each pick one piece of this picture and go deep on it.
 
-## Train, validate, test — and the right way to evaluate
-
-A single split is not enough. Split your data three ways: **training** (fit the model), **validation** (decide which hyperparameters to use), and **test** (one final, untouched performance check you're not allowed to optimise against).
-
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-10.jpg"
-  alt="Notes on the data-to-deployment pipeline, train/validation/test split, and the four classification metrics — accuracy, precision, recall, F1 — with the confusion matrix."
-  caption="✎ From my Session 1 notes. The pipeline, the three-way split, the four classification metrics, and the confusion matrix with Type I (FP) and Type II (FN) errors."
-/>
-
-Four metrics worth knowing cold: **accuracy** (when classes are balanced), **recall** (fraction of true positives you actually caught), **precision** (fraction of predicted positives that are real), and **F1** (the *harmonic* mean of the two — it punishes extreme values harder than the average would).
-
-## scikit-learn and hyperparameter tuning
-
-Every scikit-learn algorithm follows the same six-step pattern: import, set hyperparameters, split, **fit**, **predict**, **evaluate**. Once that pattern is internalised, every algorithm in this series looks the same from the outside.
-
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-11.jpg"
-  alt="Notes on the scikit-learn estimator pattern (import, set hyperparameters, fit, predict, evaluate) and on hyperparameter tuning via hold-out validation and cross-validation."
-  caption="✎ From my Session 1 notes. The scikit-learn pattern and why you tune hyperparameters with a hold-out validation set or cross-validation, never with the test set."
-/>
-
-The catch with hyperparameter tuning: if you tune by checking your *test* set, the test set is no longer a fair estimate of generalization. The fix is a **validation set** — or, better, **k-fold cross-validation**, which averages the validation score across many small folds and gives a more reliable read.
-
-## Take-home points
-
-1. **Beware of overfitting** — your model must work well on data it hasn't seen.
-2. **Feature-engineer against the curse of dimensionality** — too many irrelevant features hurts; select what matters.
-3. **More features aren't always good, but more (good) data almost always is.**
-4. **Combine data with expertise** — domain knowledge from people who understand the problem.
-5. **Ensemble many different models** — diverse models combined beat any single one.
-
-That's the whole foundation of the field, in one session. Next we get our hands dirty with the unglamorous step that decides whether any of this even has a chance: cleaning and understanding data.
-
-> 📄 [Download the full Session 1 PDF](/notes/ML_Session_1_Introduction.pdf) if you'd rather read it all in my handwriting.
+**Next up — [Part 2: Before You Model, Clean. Before You Clean, Understand.](/blog/ml-from-scratch-02-data-cleaning)**

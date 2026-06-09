@@ -1,0 +1,169 @@
+---
+slug: ml-from-scratch-11-lda-qda
+title: "Part 11 — LDA & QDA: Supervised Projection That Knows the Answer"
+subtitle: "PCA's supervised cousin. Same projection idea, but optimised to separate classes instead of preserving total variance. Plus QDA — the non-linear version — and why statisticians love LDA but ML practitioners reach for Random Forest."
+date: "March 2022"
+updated: "June 2026"
+excerpt: "Part 11 of the ML from Scratch series — LDA as PCA's supervised twin, the maximize-between-class-over-within-class ratio that drives it, why LDA is itself a classifier (not just preprocessing), the max-K-1-linear-discriminants rule, the Gaussian/no-outlier/equal-variance assumptions that LDA needs, and QDA as the non-linear version with per-class covariance."
+tags:
+  - Machine Learning
+  - LDA
+  - QDA
+  - Classification
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 11
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/lda-qda-knn/lda-worst-best-subspace.jpg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 11/12*
+
+[Part 10](/blog/ml-from-scratch-10-pca) introduced PCA — a way to project data into fewer dimensions by combining correlated features. PCA is *unsupervised*: it never looks at the target variable. It maximises variance, period.
+
+But sometimes you have a target. And sometimes "maximum variance" isn't the same as "best separation between classes". When the class structure is *not* aligned with the directions of maximum variance, PCA gives you a clean low-dimensional view that doesn't actually help your classifier.
+
+That's where **LDA** comes in. It's PCA's supervised cousin: same idea (project to fewer dimensions), but now the projection is chosen to **maximise the separation between classes**.
+
+And LDA isn't just a preprocessing step — it's also a classifier in its own right.
+
+## LDA vs PCA — the headline difference
+
+PCA finds a projection that **reduces correlations between features**. It rotates the axes until the data has the smallest possible covariance off-diagonal — uncorrelated dimensions, ordered by total variance.
+
+LDA finds a projection that **maximises class separation**. Same rotation idea, but the criterion is different.
+
+| | PCA | LDA |
+|---|---|---|
+| **Uses target variable?** | No (unsupervised) | Yes (supervised) |
+| **Optimises for** | Total variance | Class separation |
+| **Outputs principal components** | Yes | No — outputs linear discriminants |
+| **Is itself a classifier** | No, just preprocessing | Yes |
+| **Max dimensions in output** | p (= original feature count) | min(K−1, p) where K = number of classes |
+
+That last row matters. LDA is fundamentally limited to **K−1 dimensions** at most, regardless of how many features you started with. With 3 classes and 100 features, LDA gives you at most 2 dimensions to work with. With 2 classes, just 1.
+
+That sounds limiting. It's actually the point — LDA compresses ruthlessly because the class structure only needs that many dimensions to be fully separated.
+
+## The intuition
+
+Imagine three classes — red, blue, green — distributed in some 2D feature space. You can project them onto various 1D axes.
+
+<Image
+  src="/images/blog/ml-from-scratch/lda-qda-knn/lda-worst-best-subspace.jpg"
+  alt="Three classes projected onto different 1D axes. The 'worst' axis merges all classes together; the 'best' axis pulls them apart. LDA searches for that best-separating projection."
+  caption="✎ From my course notes. Three classes projected onto different 1D axes. The 'worst' axis merges them all; the 'best' pulls them apart."
+/>
+
+The "worst" axis merges all three classes — projecting onto it loses the class information entirely. The "best" axis spreads them out — projecting onto it preserves the class structure with a single dimension.
+
+LDA's job: **find that best axis**. Mathematically.
+
+## The algorithm: between-class vs within-class
+
+LDA maximises a single ratio:
+
+`J(β) = between-class variance / within-class variance`
+
+Specifically:
+
+- **Between-class variance** — how far apart the class centroids are. Bigger is better.
+- **Within-class variance** — how spread out each class is internally. Smaller is better.
+
+Push class centres apart while squeezing each class together → maximum ratio → best separating projection.
+
+The optimisation finds a direction `β` that maximises J(β). The first linear discriminant LD1 is the direction that maximises this ratio overall. LD2 is the next-best direction *uncorrelated with* LD1. And so on — up to K−1 directions.
+
+## LDA is itself a classifier
+
+This is the second key difference from PCA. PCA is just preprocessing — you have to put a classifier on top.
+
+LDA is a two-step algorithm:
+
+1. **Find the projection.** Compute LD1, LD2, …, LD_{K-1}.
+2. **Find the decision boundary.** In the LD space, fit a linear classifier (essentially: for each class, find the centroid; classify a new point by which centroid it's nearest to, weighted by the class priors).
+
+The result is a probabilistic classifier — it gives you the probability that each point belongs to each class, not just a hard label.
+
+So when you call `lda.predict(X)` in scikit-learn, you get class predictions. When you call `lda.transform(X)` you get the LD projection. Both are LDA — the algorithm includes both ends.
+
+## LDA's requirements
+
+LDA makes three big assumptions. Violating them doesn't break the algorithm, but it does hurt performance.
+
+**1. Gaussian distribution.** LDA assumes each feature, within each class, is roughly Gaussian. If your features are heavily skewed, transform them first (Box-Cox, log).
+
+**2. No outliers.** LDA is based on means and standard deviations — both heavily affected by outliers. Clean them up first ([Part 2](/blog/ml-from-scratch-02-data-cleaning)).
+
+**3. Equal class covariances.** LDA assumes all classes have the *same* covariance matrix — same "shape" in feature space. When this is violated, you should use QDA instead (see below).
+
+**4. Scaled features.** Same reason as for PCA and SVM. LDA is distance-based; unscaled features bias the projection toward high-magnitude ones.
+
+## The max-(K−1)-dimensions rule
+
+Why is LDA limited to K−1 dimensions? Because K class centroids define a (K−1)-dimensional subspace at most.
+
+- Two classes → one centroid difference → 1 LD axis.
+- Three classes → two independent centroid differences → 2 LD axes.
+- K classes → K−1.
+
+For a 3-class problem, no matter if you have 13 features or 1000, LDA gives you at most 2 LD axes. That's enough to fully encode the class structure (if the classes really are linearly separable). Anything more would be redundant.
+
+This is why LDA is also a brutal dimensionality-reduction technique — much more aggressive than PCA — but only when classification is your goal.
+
+## The Wine dataset example
+
+Same Wine dataset I used in [Part 10](/blog/ml-from-scratch-10-pca) — 13 features, 3 cultivars.
+
+PCA gave you 13 PCs. The first 2 explained ~55% of total variance and the three cultivars *happened* to separate cleanly in PC1-PC2 space.
+
+LDA gives you exactly **2 LDs** (because K=3). The first 2 LDs are guaranteed to maximise class separation — and on this dataset, LD1 alone explains ~68% of *between-class* variance, LD2 explains the rest. Plot LD1 vs LD2 and the three cultivars separate even more cleanly than they did under PCA. The classification is nearly trivial in the LD space.
+
+The bonus: applying a simple classifier on the original 13 features might give ~95% accuracy; applying it after LDA might give ~100%, with vastly less compute.
+
+## When LDA fails — and QDA's fix
+
+LDA assumes all classes share the same covariance matrix. When they don't — when one class is a tight blob and another is a long elongated cloud — LDA's linear boundary cuts awkwardly through both classes.
+
+**QDA (Quadratic Discriminant Analysis)** fixes this by allowing **each class to have its own covariance matrix**. The decision boundary becomes a quadratic curve instead of a straight line — better-fitting when classes have genuinely different shapes.
+
+| | LDA | QDA |
+|---|---|---|
+| **Per-class covariance?** | No (shared) | Yes |
+| **Decision boundary** | Linear | Quadratic (curved) |
+| **Parameters to estimate** | Fewer | More |
+| **Risk of overfitting** | Lower | Higher |
+| **Works on small datasets** | Yes | Less so (more parameters to fit) |
+
+Use **LDA** when classes look like Gaussian blobs of similar shape, or when your dataset is small. Use **QDA** when classes have visibly different shapes and you have enough data. Practically, the difference is rarely dramatic — try both via CV.
+
+## When to actually use LDA in practice
+
+LDA is more loved by statisticians than ML practitioners. In real-world ML projects:
+
+- ✅ **Works well when:** your features are mostly numerical, roughly Gaussian, of similar scale, and the classes really do separate linearly. Logistic regression alone might be enough, but LDA can find a more compact representation.
+- ✅ **Useful as preprocessing** — apply LDA, then any classifier on the LDs. The classifier sees a cleaner problem in fewer dimensions.
+- ❌ **Struggles with:** categorical features (LDA loves numbers), heavily skewed distributions, very high-dimensional data, complex non-linear class boundaries.
+
+**Random Forest** ([Part 8](/blog/ml-from-scratch-08-random-forest-boosting)) just wins on messy real-world tabular data — mixed feature types, different scales, irregular distributions. That's why most ML practitioners reach for it first.
+
+Where LDA still shines: when you actually care about the question *"which variables best discriminate between classes?"* That's the question LDA was built to answer, and the LD loadings give you exactly that — which features contribute most to class separation.
+
+## Summary
+
+- **LDA = supervised PCA.** Same projection-to-fewer-dimensions idea, but optimised for class separation rather than total variance.
+- **LDA is also a classifier**, not just preprocessing.
+- **Limited to K−1 dimensions**, which is both its strength (aggressive compression) and its limit (can't go further).
+- **Assumes Gaussian features, no outliers, equal covariances, similar scales.** Transform / scale your data first.
+- **QDA relaxes** the equal-covariance assumption with quadratic boundaries.
+- **PCA + LDA combined** is a common pipeline: PCA first to reduce noise, LDA on top to find the supervised projection.
+
+<Callout color="yellow">
+  🔑 If your problem is small, clean, and roughly linear, <strong>LDA can be a powerful classifier in surprisingly few dimensions</strong>. For everything else — messy real-world tabular data with mixed types and complex non-linear boundaries — <Highlight>Random Forest just wins</Highlight>.
+</Callout>
+
+---
+
+**Next up — [Part 12: KNN & Recommender Systems](/blog/ml-from-scratch-12-knn).** The final post in the series. The lazy classifier that does no training, just looks at the neighbours — and powers more recommendation systems than you'd guess.

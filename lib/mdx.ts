@@ -21,6 +21,14 @@ export type MdxPostMeta = {
   style?: MdxPostStyle;
   bannerImage?: string;
   avatarImage?: string;
+  /** Top-level grouping for the Blog index (e.g., "Machine Learning"). */
+  topic?: string;
+  /** If this post is part of an editorial series, its display title. */
+  series?: string;
+  /** Position in the series (1-indexed). */
+  seriesPart?: number;
+  /** Total parts in the series. */
+  seriesTotal?: number;
 };
 
 export type MdxPost = {
@@ -100,6 +108,10 @@ export function getAllMdxPostMeta(): MdxPostMeta[] {
       style: normalizeStyle(data.style),
       bannerImage: normalizeText(data.bannerImage) || undefined,
       avatarImage: normalizeText(data.avatarImage) || undefined,
+      topic: normalizeText(data.topic) || undefined,
+      series: normalizeText(data.series) || undefined,
+      seriesPart: typeof data.seriesPart === "number" ? data.seriesPart : undefined,
+      seriesTotal: typeof data.seriesTotal === "number" ? data.seriesTotal : undefined,
     };
   });
 }

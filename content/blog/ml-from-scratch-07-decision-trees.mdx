@@ -1,0 +1,219 @@
+---
+slug: ml-from-scratch-07-decision-trees
+title: "Part 7 — Decision Trees: Split, Don't Solve"
+subtitle: "The algorithm that refuses to fit a single function over the whole dataset. Instead it carves the space into regions, until each region is trivial. The most powerful tabular-data idea in ML."
+date: "February 2022"
+updated: "June 2026"
+excerpt: "Part 7 of the ML from Scratch series — decision trees as a recursive partition of the space, prediction-via-stratification, why DT beats logistic regression on non-linear problems, regression trees, the three splitting metrics (Gini, Entropy, Misclassification), cost function, why a lone tree always overfits, and how pruning saves it. Lead-in to Random Forests + Boosting in Part 8."
+tags:
+  - Machine Learning
+  - Decision Trees
+  - Tree-Based Methods
+  - Classification
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 7
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/trees-forests/tree-splitting.jpg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 7/12*
+
+Most ML algorithms try to find one clever function that works across your *entire* dataset. Logistic regression draws a single line. A neural net tries to learn one function from inputs to outputs. SVM finds one decision boundary.
+
+Decision trees refuse to do that. Instead of solving the problem all at once, they **chop the dataset into pieces small enough to be trivial**. That single shift — from "find one function" to "find good splits" — is the foundation of the most powerful family of tabular-ML algorithms in existence.
+
+This post is about a single decision tree. The next post ([Part 8](/blog/ml-from-scratch-08-random-forest-boosting)) is about why you should almost never use just one — and what to do about it: Random Forests and Boosting.
+
+## Why trees, before anything else
+
+Trees handle:
+
+- **Categorical features** naturally — no need for one-hot or target encoding.
+- **A large number of features** without struggling.
+- **Correlations between features** — they can still find a useful split even when many features carry similar information.
+- Some automatic feature understanding — splits tell you which features actually matter.
+
+On **tabular data**, tree ensembles routinely outperform deep learning. Deep learning wins on images, text, and audio — but for the kind of mixed-type, moderate-feature-count tables most businesses actually have, trees are the state of the art. That's a fact worth internalising.
+
+## The core idea: split, don't solve
+
+Imagine a binary classification problem with two features. The classes are mixed in some non-trivial pattern.
+
+Most algorithms — logistic regression, say — would take the whole space and try to learn one function (a line) that separates the classes. If the boundary is straight-ish, the algorithm wins. If it's curved or carved up, the algorithm fails.
+
+Decision trees do something different. They take the dataset and **split it into regions**, hoping each region becomes easier to classify than the whole. If a region ends up containing mostly one class, classification in that region is trivial — just predict the majority.
+
+<Image
+  src="/images/blog/ml-from-scratch/trees-forests/tree-splitting.jpg"
+  alt="The dataset becomes the tree root, then each split (X₁ < T₁?) carves it into regions R₁, R₂… until each region is nearly pure. Once a region is pure, classification is trivial: just predict the majority class."
+  caption="✎ From my course notes. The dataset becomes the tree root. Each split (X₁ < T₁?) carves it into regions R₁, R₂… until each region is nearly pure. Once a region is pure, classification is trivial."
+/>
+
+The first split divides the dataset into two regions. Maybe R1 is mostly class 1, R2 is mixed. Then we split R2 into two finer regions. Now R3 is mostly class 1, R4 is mostly class 2. Recurse until each region is nearly pure.
+
+**The whole point** of a decision tree is to move the problem from *find a function over the whole dataset* to *split so well that no function is needed*. The leaves of the tree just say "majority class here".
+
+## Prediction via Stratification
+
+The formal name from the statistics literature. The procedure:
+
+1. **Divide** the set of possible values for the predictors X₁, X₂, …, Xp into J non-overlapping regions R₁, R₂, …, Rⱼ.
+2. **For every observation** that falls into region Rⱼ, the same prediction is associated — the mean of the response values for the training observations in that region (regression) or the majority class (classification).
+3. **Repeat** the process within each resulting region.
+
+That's it. Three steps. A decision tree is just a recursive implementation of this.
+
+## How splits become a tree
+
+The visual: a tree because you can plot all the decisions in a tree structure.
+
+- The **root node** is the entire dataset.
+- Each **internal node** is a split: a condition like `X₁ < T₁?`.
+- Each **leaf node** is a region with a final prediction.
+
+Every split is binary — you go left (yes) or right (no). To classify a new point, you start at the root, evaluate each condition, walk down to a leaf, output that leaf's prediction. **A trained decision tree is also a set of if/then rules** — completely interpretable if it's not too deep.
+
+## DT vs Logistic Regression vs SVM with Kernel
+
+The three different ways of solving the same non-linear problem:
+
+1. **Logistic Regression** — draws one straight line. If the classes form a circle around each other, it fails completely.
+2. **Decision Tree** — carves the space into axis-aligned rectangles. It can approximate any boundary, given enough splits.
+3. **SVM with kernel** — wraps a smooth curve around each class (more in [Part 9](/blog/ml-from-scratch-09-svm)).
+
+Trees can find any decision boundary given enough splits. But that flexibility is also their biggest problem.
+
+## The catch: trees overfit badly
+
+"Keep splitting until every region is pure" has an obvious failure mode: **you can create one region per data point**. Training error goes to zero. The tree has memorised the training data. A single outlier gets its own little region.
+
+Textbook overfitting. Low bias, sky-high variance.
+
+A new data point that looks just like a training point but happens to be on the other side of an outlier-driven split gets misclassified. The tree doesn't generalise.
+
+<Callout color="red">
+  ⚠️ A decision tree without regularization will overfit, always. <Highlight>Never use a single decision tree without pruning.</Highlight>
+</Callout>
+
+## Pruning — keeping the tree small
+
+Two main techniques:
+
+**Regularization.** Add a penalty term to the cost function based on tree size. Specifically: the number of leaves (terminal nodes). The bigger the tree, the bigger the penalty.
+
+```
+Cost = Σ classification_error + λ · num_leaves
+```
+
+The hyperparameter `λ` controls the trade-off:
+
+- `λ = 0` → no penalty, the tree grows until each leaf is a single point. Overfit.
+- `λ → ∞` → trees shrink toward a single leaf. Underfit.
+
+The right `λ` is found via cross-validation, exactly like with Ridge/Lasso ([Part 3](/blog/ml-from-scratch-03-feature-engineering)).
+
+**Cross-validation directly.** Train trees of several maximum depths (or several minimum-samples-per-leaf values). Pick the one with the best CV test score. This is what `max_depth` and `min_samples_leaf` do in scikit-learn.
+
+The principle, same as with linear models: **the smallest training error is not what you want. The smallest test error is what you want.** Pruning is the mechanism that gets you there.
+
+## Regression trees
+
+Trees aren't just for classification. The same recursive-partitioning idea works for predicting a numeric target — that's a **regression tree**.
+
+The change is just in step 2 of the stratification procedure:
+
+- **Classification:** predict the majority class in the region.
+- **Regression:** predict the **mean of the target values** in the region.
+
+The supermarket example from my notes. You want to predict how much someone spends on fresh products, based on what they buy in other categories. Train a regression tree. The leaves are regions of customer behaviour; each leaf's prediction is the average fresh-product spend among the training customers who fell into that leaf.
+
+If the leaf condition is *"spending on milk > some threshold"*, the prediction might be `$37,360` — the average fresh-products spend among high-milk-spending customers in the training data.
+
+The interpretation is the same as classification: people in this region behave similarly, so we predict the average behaviour.
+
+<Callout color="blue">
+  💡 <strong>Practical advice from my course notes:</strong> decision trees work really well for classification but <Highlight>not as well for regression</Highlight>. The piecewise-constant predictions inside each leaf are too coarse for most regression problems. Reach for tree-based regression only with ensembles (Random Forest, Gradient Boosting).
+</Callout>
+
+## How does the tree actually pick a split?
+
+Now the algorithmic detail. Given a region, which feature do we split on, and at what value?
+
+The honest answer: **try everything**. For each feature, sort the values. For each value as a candidate threshold, do the split, score how good the resulting two regions are. Keep the (feature, threshold) pair that produces the best split.
+
+It sounds wasteful, but it's actually fast. Each split is cheap; the scoring is cheap; and modern implementations parallelise over features. On a dataset with thousands of features and millions of rows, this is still tractable.
+
+### The three splitting metrics
+
+How do you score a split? You measure how **pure** the resulting regions are. Three standard metrics:
+
+**Gini impurity.** For a region with classes in proportions p₁, p₂, …, pₖ:
+
+`Gini = 1 − Σ pᵢ²`
+
+Gini is 0 if the region is pure (one class only); approaches 1 if the region is uniformly mixed. Lower is better. Used by default in scikit-learn's `DecisionTreeClassifier`.
+
+**Entropy / Information Gain.**
+
+`Entropy = − Σ pᵢ · log(pᵢ)`
+
+Same intuition — measures impurity — but with a logarithmic curve. Used by ID3 and C4.5 algorithms. Behaves very similarly to Gini in practice; either works.
+
+**Misclassification error.**
+
+`Error = 1 − max(pᵢ)`
+
+The fraction of points in the region that aren't in the majority class. Simple but less sensitive to changes — usually inferior to Gini and Entropy for *growing* the tree, but useful for evaluating it.
+
+In practice, the choice between Gini and Entropy rarely matters. Pick one, move on.
+
+## A real example: predicting churn
+
+A telecom company wants to predict which customers will churn. Target variable: `LEAVE` ∈ {yes, no}.
+
+Train a decision tree. The tree learns the most discriminating feature first — say, `monthly_bill > $80`. That's the root split. Then within each branch, the next most discriminating feature: `customer_service_calls > 3` on the high-bill side, `tenure_months < 6` on the low-bill side. And so on.
+
+What you get is a tree where:
+
+- **Top splits** are the broadly discriminating features. The most important ones.
+- **Lower splits** are increasingly specific — and increasingly at risk of overfitting.
+
+Regularization (or `max_depth`) cuts off the tree before the splits get too specific. The model focuses on the broad patterns, not on the customer who happened to call support five times in March.
+
+A bonus: you can **translate the tree to a set of business rules**: *"if monthly bill > $80 AND customer service calls > 3 AND tenure > 12 months → high churn risk."* Stakeholders love this. It's why trees are still used in heavily-regulated domains (banking, healthcare, insurance) where black-box models are hard to defend.
+
+## The cost function — what we're actually optimising
+
+Putting it together, the tree-growing algorithm is optimising:
+
+```
+Cost = Σ (impurity over leaves) + λ · num_leaves
+```
+
+The first term wants to keep splitting (smaller leaves = lower impurity). The second term penalises bigger trees. The balance between them — set by `λ` and discovered by cross-validation — gives you the right depth.
+
+There's no closed-form optimum. The growing algorithm is greedy: at each step, pick the locally best split. That's not globally optimal but it works well in practice, and globally optimal tree-finding is NP-hard anyway.
+
+## The big takeaway
+
+Decision trees:
+
+- **Split the dataset into regions** instead of fitting one function.
+- Predict the **majority class** (classification) or **mean** (regression) in each leaf.
+- **Always overfit** without regularization — so always prune.
+- **Interpretable as rules**, which makes them invaluable in regulated domains.
+
+But — and this is critical — **a single tree is rarely the right answer**. Even a well-pruned tree is too unstable, too overfitted, too noisy.
+
+The real power shows up when you stop using one tree and start using *many*. Average them, or chain them. That's where Random Forests and Gradient Boosting come in.
+
+<Callout color="yellow">
+  🔑 <strong>The actual rule from my notes:</strong> <Highlight>do not use a decision tree. Use many decision trees.</Highlight>
+</Callout>
+
+---
+
+**Next up — [Part 8: Random Forest & Boosting — Strength in Numbers](/blog/ml-from-scratch-08-random-forest-boosting).** Bagging, Random Forests, and gradient boosting — three different ways of combining trees, two algorithms that dominate modern tabular ML.

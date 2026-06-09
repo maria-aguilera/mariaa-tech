@@ -1,0 +1,240 @@
+---
+slug: ml-from-scratch-12-knn
+title: "Part 12 — KNN & Recommender Systems: Learning by Looking Around"
+subtitle: "The algorithm that doesn't really learn anything. It just remembers your training data and, when asked to predict, checks the neighbours. Simple to the point of feeling like cheating — and the engine behind half the recommender systems on the internet."
+date: "March 2022"
+updated: "June 2026"
+excerpt: "Part 12 (final) of the ML from Scratch series — KNN as instance-based / distance-based classification, the lazy and memory-based limitations, why k matters (and the bias-variance trade-off shows up again), distance metrics for different feature types, democratic vs weighted voting, why KNN powers collaborative filtering in recommender systems."
+tags:
+  - Machine Learning
+  - KNN
+  - Recommender Systems
+  - Classification
+source: Notes
+topic: Machine Learning
+series: "Machine Learning from Scratch"
+seriesPart: 12
+seriesTotal: 12
+coverImage: "/images/blog/ml-from-scratch/lda-qda-knn/knn-k-comparison.svg"
+style: navy
+---
+
+*Machine Learning from Scratch · Part 12/12*
+
+We close the series with two methods that bookend a beautiful contrast.
+
+[Part 11](/blog/ml-from-scratch-11-lda-qda) was LDA — supervised projection that uses the labels to find an intelligent transformation of the data. Maximum sophistication.
+
+This post is KNN — which barely "learns" anything at all. It just remembers your training data and, when asked to predict, looks at what's nearby. Maximum simplicity.
+
+Both are useful. And surprisingly, **KNN is the algorithm behind a huge fraction of the recommendation systems you use every day** — Netflix, Amazon, music streaming. It scales differently than you'd expect, and the trick is that it doesn't need to model behaviour, just compare it.
+
+## The core idea
+
+KNN's logic in one line:
+
+> Find an existing instance that's "most similar" to the new instance you're trying to classify. Use that.
+
+For classification: pick the class of the nearest neighbour (or majority vote among K nearest). For regression: average the target values of the K nearest neighbours.
+
+That's it. No equations. No optimization. No loss function. Just *find the closest examples and copy their answers*.
+
+The intuition is human. If you want to predict the price of a house, you look at similar houses recently sold. If you want to recommend a movie, you look at people whose taste matches yours and see what they liked. **KNN's whole worldview** is that similar things behave similarly.
+
+## When KNN actually wins
+
+KNN is at its best in two situations:
+
+**1. When the decision boundary is highly non-linear and hard to model.** Imagine class structure that looks like a thousand small clusters scattered everywhere. A logistic regression, an SVM, even a Random Forest all struggle to *model* that. KNN doesn't try to model it. It just checks the neighbourhood.
+
+**2. When you can't describe the underlying pattern.** This is huge for recommender systems. You can't write down a function that explains why someone likes Peaky Blinders. But you can identify that this user has watched the same things as you — so the things they liked but you haven't watched yet are probably good recommendations. KNN doesn't need to understand the why; it just compares.
+
+## Distance — the heart of the algorithm
+
+KNN is meaningless without a distance metric. The whole algorithm is *find the K most similar examples*, and "similar" is whatever your distance function says it is.
+
+A distance is a function that takes two points and returns a number — small if they're similar, large if they're different. With four axioms it has to satisfy:
+
+1. **Non-negativity:** d(x, y) ≥ 0.
+2. **Identity:** d(x, y) = 0 if and only if x = y.
+3. **Symmetry:** d(x, y) = d(y, x).
+4. **Triangle inequality:** d(x, y) + d(y, z) ≥ d(x, z).
+
+The standard distances:
+
+- **Euclidean** — the straight-line distance. `√Σ(xᵢ − yᵢ)²`. The default. Use for numerical features on similar scales.
+- **Manhattan** — sum of absolute differences. `Σ|xᵢ − yᵢ|`. More robust to outliers. Like distance in a grid city.
+- **Minkowski** — a generalisation. p=1 gives Manhattan, p=2 gives Euclidean.
+- **Cosine** — angle between vectors. Used heavily for text and high-dimensional sparse data.
+- **Hamming** — number of differing positions. For categorical features.
+- **Mahalanobis** — distance that accounts for feature correlations.
+
+**Pick the distance that matches your data.** Euclidean is the default but it's not always right.
+
+## Scaling — non-negotiable
+
+Same point I've made in every distance-based post. Features on different scales destroy KNN. A feature ranging 0-100,000 will dominate one ranging 0-5, regardless of which carries the actual signal.
+
+```python
+from sklearn.preprocessing import StandardScaler
+X_scaled = StandardScaler().fit_transform(X)
+knn = KNeighborsClassifier(n_neighbors=5).fit(X_scaled, y)
+```
+
+<Callout color="red">
+  ⚠️ KNN without scaling is broken. <Highlight>Always scale your features before KNN</Highlight>. This is the single most common KNN mistake.
+</Callout>
+
+If some features genuinely matter more than others, encode that by **weighting the distance function** rather than letting it happen accidentally through scale.
+
+## The k hyperparameter — the only knob that matters
+
+K is the number of neighbours you consult. It controls the bias-variance trade-off directly — same U-shape from [Part 5](/blog/ml-from-scratch-05-cross-validation).
+
+<Image
+  src="/images/blog/ml-from-scratch/lda-qda-knn/knn-k-comparison.svg"
+  alt="The decision boundary for k = 1, 5, 30. At k = 1 it's jagged and overfits to single points; at k = 30 it smooths out toward the global average. The sweet spot is in between."
+  caption="The decision boundary for k = 1, 5, 30. At k = 1 it's jagged and overfits to single points. At k = 30 it smooths toward the global average. The sweet spot is in between."
+/>
+
+- **k too small (k=1)** — the prediction depends on a single point. Maximally sensitive to noise. The decision boundary becomes jagged, snaking around individual training points. **Overfitting.**
+- **k too large (e.g., k = N)** — every neighbour vote matters equally, including ones far away. The decision boundary smooths out, eventually predicting the majority class everywhere. **Underfitting.**
+- **k in between (3 to 15)** — usually the sweet spot. The neighbourhood is big enough to be stable, small enough to track local structure.
+
+The honest answer: **find k with cross-validation**. Try several values, pick the one with the best CV score. There's no shortcut.
+
+## The two big limitations: lazy and memory-based
+
+KNN has two structural weaknesses that determine where you can deploy it.
+
+### Lazy
+
+KNN does almost no work at training time. `fit()` essentially just stores the training data. There's nothing to learn — no coefficients, no parameters, no trees to grow.
+
+All the work happens at **prediction** time. To predict for one new point, KNN computes its distance to every stored point, sorts the distances, picks the top k, votes. That's `O(N · D)` per prediction for N stored points and D features.
+
+For training data of 100,000 points with 50 features, predicting *one* new instance means 100,000 × 50 = 5M arithmetic operations. Not slow. But for 1M points, 50M operations per prediction. Now slow.
+
+**Implication:** KNN is fine for offline batch prediction. KNN is potentially bad for real-time prediction with strict latency budgets.
+
+### Memory-based
+
+Because KNN needs the training data at prediction time, it must store **the entire training set in memory**. 100k rows × 50 features × 8 bytes ≈ 40MB. Manageable. 100M rows? 40GB. Bad.
+
+Compare to logistic regression, where you store a few hundred coefficients regardless of training set size. Or Random Forest, where the model size depends on tree count, not data size.
+
+**Implication:** KNN is a bad fit for memory-constrained deployment (mobile devices, edge sensors, micro-services). It's a fine fit when you have a database server with the training data anyway.
+
+## Voting strategies
+
+You've found the k nearest neighbours. How do you combine their predictions?
+
+**Democratic voting** — every neighbour gets one equal vote. Majority class wins.
+
+- Use **odd k** in binary classification to avoid ties.
+- For K classes, use k = K+1 to reduce tie risk.
+
+**Weighted voting** — closer neighbours count more. The weight is typically the inverse of distance: `weight = 1 / (distance + ε)`.
+
+- Closer points get higher weights.
+- Distinguishes between "barely the closest" and "definitely the closest".
+- Helps when k is small and ties are likely.
+
+In scikit-learn: `KNeighborsClassifier(n_neighbors=5, weights='distance')`.
+
+### Feature weighting
+
+A third lever — make some features matter more than others. If you know `gender` is more predictive than `age`, you can weight the feature axes in the distance function.
+
+```python
+# Standardise, then scale each feature by its importance
+X_weighted = X_scaled * feature_weights
+```
+
+Useful in domain-specific applications. Risky without justification because you're basically adding hyperparameters.
+
+## A worked voting example
+
+To make this concrete. You have customers and want to recommend a product. The training data:
+
+| ID | Gender | Age | Salary | Respond? |
+|---|---|---|---|---|
+| 1 | F | 27 | 19,000 | No |
+| 2 | M | 51 | 64,000 | Yes |
+| 3 | M | 52 | 105,000 | Yes |
+| 4 | F | 33 | 55,000 | Yes |
+| 5 | M | 45 | 45,000 | No |
+
+A new customer: **F, 45, 100,000**. Will they respond?
+
+After scaling features, compute Euclidean distance to each training point, get the closest 5 in order. Suppose they are: 4, 1, 5, 2, 3. Their answers: Y, N, N, Y, Y.
+
+- **k = 1:** nearest is #4 → Yes (100% confident).
+- **k = 3:** nearest 3 are #4, #1, #5 → Y, N, N → No (67% confident).
+- **k = 5:** nearest 5 → Y, N, N, Y, Y → Yes (60% confident).
+
+The prediction depends on K. This is exactly why cross-validation matters.
+
+Notice: at k=3 you predict No, at k=1 and k=5 you predict Yes. Strong sensitivity to K on small datasets is a sign the training set isn't big enough.
+
+## Where KNN truly shines: recommender systems
+
+> "The full k-nearest neighbours algorithm works much in the way some of us ask for recommendations from our friends. First we start with people whose taste we feel we share, then we ask them to recommend something to us." — *Machine Learning for Hackers*
+
+Modelling *why* people behave a certain way is brutally hard. KNN sidesteps the problem entirely. It doesn't model behaviour — it just notices that *this user watches the same things you do, so you probably belong to the same taste segment*.
+
+That's the logic behind "people like you also watched…", "customers who bought this also bought…", "users with similar listening history also liked…". The technical term is <KeyTerm>collaborative filtering</KeyTerm>, and KNN is the simplest implementation.
+
+A worked example. Karen has rated three movies. Sally, Bob, Chris, and Lynn are existing users:
+
+| | Star Wars | Jurassic Park | Terminator 2 | Independence Day |
+|---|---|---|---|---|
+| Sally | 7 | 6 | 3 | 7 |
+| Bob | 7 | 4 | 4 | 6 |
+| Chris | 3 | 7 | 7 | 2 |
+| Lynn | 4 | 4 | 6 | 2 |
+| **Karen** | **7** | **4** | **3** | **?** |
+
+Karen hasn't seen Independence Day yet. Should we recommend it?
+
+Compute the cosine similarity of Karen's vector to each existing user (over the three movies she rated). Bob is most similar to Karen (cosine ≈ 0.995). Bob loved Independence Day (rating: 6). **Recommend it.**
+
+The recommendation isn't based on understanding why Karen would like Independence Day. It's based on the fact that Bob has the same taste as Karen, and Bob liked it. That's collaborative filtering in a single example.
+
+## KNN summary
+
+- **Use it when** the decision boundary is highly non-linear, you have lots of data but fewer than ~20 features, and prediction latency isn't critical.
+- **Always scale** your features. Always.
+- **Find k via cross-validation.** Usually between 3 and 15.
+- **Beats LDA/logistic regression** on non-linear boundaries — but tells you nothing about which predictors matter.
+- **Lazy** (slow at query time) and **memory-based** (stores all training data). Plan deployment accordingly.
+
+**Pros:** Dead simple. No training. Learns complex non-linear patterns. Excellent for recommendations.
+
+**Cons:** Slow at query time. Memory-hungry. Fooled by irrelevant features. Sensitive to scale and to K.
+
+---
+
+## That's the series
+
+Twelve posts. From "what does it actually mean for a machine to learn?" to a full toolkit of classifiers, ensembles, dimensionality reduction techniques, and a recommender-systems engine.
+
+The thread never changed:
+
+<Callout color="yellow">
+  🔑 <Highlight>It's generalisation that counts.</Highlight> Cross-validation, pruning, large margins, the right K, the right metric — all of it serves one goal: doing well on data you've never seen.
+</Callout>
+
+Master that mindset and the specific algorithms become what they always were — interchangeable tools you pick based on the problem in front of you.
+
+If you remember nothing else from these 12 posts, remember these five things from [Part 1](/blog/ml-what-is-machine-learning):
+
+1. **Be aware of overfitting.** Your model should work on new data, not just on training.
+2. **Feature engineer.** Mind the curse of dimensionality.
+3. **More good data almost always beats a cleverer algorithm.** But garbage in, garbage out.
+4. **Combine data with expertise.** Domain experts know things your data doesn't.
+5. **Ensemble many models.** Different mistakes cancel; signal reinforces.
+
+Thanks for reading. If you found this useful, the other series on this site cover Reinforcement Learning and various data projects.
+
+**Series complete.** Back to [Part 1: What is Machine Learning?](/blog/ml-what-is-machine-learning) or browse the [series index](/series/ml-from-scratch).

@@ -26,6 +26,8 @@ export type BlogPost = {
   excerpt: string;
   tags: string[];
   source: "Blog" | "Project" | "Notes";
+  /** Top-level grouping for the Blog index. */
+  topic?: string;
   coverImage: string;
   sections: BlogPostSection[];
 };
@@ -433,6 +435,7 @@ export const blogPosts: BlogPost[] = [
       "A collaborative master thesis on demand forecasting and supply chain optimization using ML and time-series methods.",
     tags: ["Forecasting", "Time Series", "Supply Chain"],
     source: "Project",
+    topic: "Data Projects",
     coverImage: "https://maria-aguilera.github.io/images/industrias_duero.jpg",
     sections: [
       {
