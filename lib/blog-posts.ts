@@ -427,16 +427,17 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "master-thesis-forecasting",
-    title: "Master Thesis: Raw Material Forecasting of Industrias Duero",
-    subtitle: "Forecasting demand to improve inventory turnover.",
-    date: "2023",
-    updated: "2023",
+    title: "Forecast the Material, Not the Product",
+    subtitle:
+      "How hundreds of finished products collapse to a few dozen time series.",
+    date: "July 2022",
+    updated: "June 2026",
     excerpt:
-      "A collaborative master thesis on demand forecasting and supply chain optimization using ML and time-series methods.",
-    tags: ["Forecasting", "Time Series", "Supply Chain"],
+      "An IE MBD Capstone forecasting raw-material demand for a Spanish road-safety manufacturer. Mixing Prophet and XGBoost at the raw-material level instead of the SKU level.",
+    tags: ["Forecasting", "Time Series", "Prophet", "XGBoost", "Supply Chain"],
     source: "Project",
     topic: "Data Projects",
-    coverImage: "https://maria-aguilera.github.io/images/industrias_duero.jpg",
+    coverImage: "/images/blog/raw-materials-forecasting/forecast-to-purchase.png",
     sections: [
       {
         id: "overview",
@@ -445,62 +446,7 @@ export const blogPosts: BlogPost[] = [
           {
             type: "paragraph",
             text:
-              "Collaborated with a team to predict raw material demand and improve inventory turnover for Industrias Duero.",
-          },
-        ],
-      },
-      {
-        id: "data-pipeline",
-        title: "Data Pipeline",
-        blocks: [
-          {
-            type: "paragraph",
-            text:
-              "We integrated supply-chain data sources and built a clean forecasting dataset, then validated assumptions with stakeholders.",
-          },
-        ],
-      },
-      {
-        id: "modeling",
-        title: "Modeling",
-        blocks: [
-          {
-            type: "list",
-            items: [
-              "Implemented time-series and ML forecasting strategies.",
-              "Compared classical models with ML baselines.",
-              "Designed evaluation to reflect operational lead times.",
-            ],
-          },
-        ],
-      },
-      {
-        id: "outcomes",
-        title: "Outcomes",
-        blocks: [
-          {
-            type: "list",
-            items: [
-              "Analyzed over 1.5 million data points across the supply chain.",
-              "Built dashboards to communicate forecasting outcomes.",
-              "Delivered recommendations for inventory turnover improvements.",
-            ],
-          },
-        ],
-      },
-      {
-        id: "skills-tools",
-        title: "Skills and Tools",
-        blocks: [
-          {
-            type: "list",
-            items: [
-              "Python",
-              "Facebook Prophet",
-              "Time-series forecasting",
-              "XGBoost, CatBoost",
-              "Microsoft Power BI",
-            ],
+              "A team Capstone forecasting raw-material demand for an industrial client, anonymised here. The interesting decision was to forecast at the raw-material level instead of the SKU level.",
           },
         ],
       },
