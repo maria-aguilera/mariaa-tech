@@ -1028,41 +1028,11 @@ body.theme-dark .series-detail__item--soon {
   min-width: 0;
 }
 
-/* Edge fades — pseudo-elements paint the page background over the left
-   and right edges of the tag strip so it's obvious tags scroll off-screen.
-   Width is ~5rem each side; z-index is above the tag buttons. */
-.blog-tags::before,
-.blog-tags::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 5rem;
-  pointer-events: none;
-  z-index: 5;
-}
+/* No edge fade — kozodoi doesn't have one. Tags scroll under hard
+   container edge with no gradient overlay. */
 
-.blog-tags::before {
-  /* Fade IN from the left edge so tags slid off the left also blur away. */
-  left: 5rem;                                       /* skip the "Tag:" label */
-  background: linear-gradient(
-    to right,
-    rgba(248, 250, 252, 1) 0%,
-    rgba(248, 250, 252, 0) 100%
-  );
-}
-
-.blog-tags::after {
-  right: 0;
-  background: linear-gradient(
-    to right,
-    rgba(248, 250, 252, 0) 0%,
-    rgba(248, 250, 252, 1) 100%
-  );
-}
-
-/* Horizontally scrollable tag strip — kozodoi pattern + soft edge fade
-   + always-visible styled scrollbar thumb (Option B). */
+/* Horizontally scrollable tag strip — exact kozodoi recipe:
+   `flex items-center gap-2 overflow-x-auto scrollbar-hide`. */
 .blog-tags__list {
   display: flex;
   gap: 0.5rem;
@@ -1070,17 +1040,19 @@ body.theme-dark .series-detail__item--soon {
   align-items: center;
   overflow-x: auto;
   min-width: 0;
-  padding-bottom: 0.5rem;            /* room for the visible thumb */
   -webkit-overflow-scrolling: touch;
-  /* Firefox — thin, slate-400 thumb on transparent track */
+  /* Firefox — thin scrollbar that's invisible at rest, visible on hover
+     (matches the WebKit scrollbar styling below). */
   scrollbar-width: thin;
-  scrollbar-color: #90a1b9 transparent;
+  scrollbar-color: transparent transparent;
+  -ms-overflow-style: none;
   /* Fade is now drawn by .blog-tags::after, which paints the page
      background over the right edge — see above. */
 }
 
-/* WebKit (Chrome/Safari) — thin always-visible styled thumb.
-   Thumb: slate-400 dark gray pill matching kozodoi's look. */
+/* WebKit (Chrome/Safari) — thin, transparent at rest, dark thumb on
+   hover/active. Mimics the macOS overlay scrollbar appearance even on
+   systems where the native overlay won't trigger. */
 .blog-tags__list::-webkit-scrollbar {
   height: 6px;
   background: transparent;
@@ -1091,12 +1063,22 @@ body.theme-dark .series-detail__item--soon {
 }
 
 .blog-tags__list::-webkit-scrollbar-thumb {
-  background: #90a1b9;                          /* slate-400 */
+  background: transparent;                          /* invisible at rest */
   border-radius: 999px;
+  transition: background 200ms ease;
 }
 
-.blog-tags__list::-webkit-scrollbar-thumb:hover {
-  background: #62748e;                          /* slate-500 — darker on hover */
+/* Show the thumb when hovering the tag area or while it's being
+   scrolled, then it auto-fades when interaction ends. */
+.blog-tags__list:hover::-webkit-scrollbar-thumb,
+.blog-tags__list:active::-webkit-scrollbar-thumb,
+.blog-tags__list:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.7);             /* slate-500 / 70% */
+}
+
+/* Firefox — thumb fades in on hover too. */
+.blog-tags__list:hover {
+  scrollbar-color: rgba(100, 116, 139, 0.7) transparent;
 }
 
 .blog-tag {
