@@ -17,12 +17,15 @@ coverImage: https://maria-aguilera.github.io/images/forest-cover-type2.png
 
 ## Overview
 
-Most Kaggle writeups start with *"I trained XGBoost and tuned the parameters."*  
-This one starts earlier -- with the part that actually saves time.
+In terrain datasets, the weird values are usually **geography**, not bugs. That single sentence saved me weeks on this competition.
+
+Most Kaggle writeups start with *"I trained XGBoost and tuned the parameters."* This one starts earlier — with the part that actually saves time.
 
 **Forest Cover Type Prediction** is a multiclass classification task: given cartographic variables, predict the forest cover type (classes **1-7**) for each location.
 
 The interesting part isn't the model. It's the **features**.
+
+> **Update (2026):** Two years after writing this, I came back to the same model and shipped it to production on Azure — see **[From Notebook to Endpoint](/blog/forest-cover-from-notebook-to-endpoint)** for the cloud-migration story.
 
 Many variables describe the same terrain from different angles (sometimes encoding the same signal), which means the highest-leverage step is understanding **what the dataset is really measuring** before you start "cleaning" or "optimizing".
 
