@@ -2224,33 +2224,6 @@ body.theme-dark .post-content__table tbody tr:hover {
   transform: translateY(-1px);
 }
 
-/* Prominent variant — for end-of-post "where to find this project" pills */
-.post-links--prominent {
-  margin: 1.5rem 0 2rem;
-  gap: 0.75rem;
-}
-
-.post-links--prominent a {
-  padding: 0.6rem 1.1rem;
-  gap: 0.5rem;
-  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
-  color: #1e40af;
-  border: 1px solid rgba(59, 130, 246, 0.45);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-  font-size: 0.92rem;
-}
-
-.post-links--prominent a:hover {
-  background: linear-gradient(180deg, #eef2ff 0%, #c7d2fe 100%);
-  border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.18);
-  transform: translateY(-2px);
-}
-
-.post-links--prominent svg {
-  flex-shrink: 0;
-}
-
 /* =====================================================
    HOME HERO
    ===================================================== */

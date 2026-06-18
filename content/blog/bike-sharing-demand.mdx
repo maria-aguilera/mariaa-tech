@@ -231,6 +231,13 @@ A few other things worth repeating:
 - **Tree-based models are happy with numerical time features.** Save the one-hot/cyclic encodings for linear models, where the encoding is doing real work.
 - **Always look at predicted-vs-actual on the held-out period.** A model that does well on cross-validation but visibly misses rush hour is hiding something the score isn't telling you.
 
+## Related Kaggle write-ups
+
+Two more from the same family — each one starts with feature semantics before any model:
+
+- **[Before You Fix Your Data, Understand It (Forest Cover Type)](/blog/forest-cover-type-prediction)** — cartographic features, sanity checks, and why "weird values" often mean geography rather than bad data.
+- **[When Missing Values Aren't Random (Spaceship Titanic)](/blog/spaceship-titanic)** — relational imputation from PassengerID and Cabin schemas, plus a 10-model bake-off.
+
 ## Resources
 
 <div className="post-links">
