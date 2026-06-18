@@ -38,10 +38,28 @@ type Props = {
   series?: SeriesCard;
   /** Standalone posts in this topic. */
   posts: PostCard[];
+  /**
+   * If set, cap the visible grid to this many posts. When more posts
+   * exist than the cap, a "View all in <title> →" link renders below
+   * the grid pointing to /projects/<slug>.
+   */
+  maxVisible?: number;
+  /** URL slug for the "View all" page (e.g. "machine-learning"). */
+  topicSlug?: string;
 };
 
-export default function TopicSection({ title, anchor, series, posts }: Props) {
+export default function TopicSection({
+  title,
+  anchor,
+  series,
+  posts,
+  maxVisible,
+  topicSlug,
+}: Props) {
   if (!series && posts.length === 0) return null;
+
+  const isCapped = typeof maxVisible === "number" && posts.length > maxVisible;
+  const visiblePosts = isCapped ? posts.slice(0, maxVisible) : posts;
 
   return (
     <section className="topic-section" id={anchor}>
@@ -127,7 +145,7 @@ export default function TopicSection({ title, anchor, series, posts }: Props) {
 
       {posts.length > 0 && (
         <div className="topic-section__grid">
-          {posts.map((post) => (
+          {visiblePosts.map((post) => (
             <Link key={post.slug} href={`/blog/${post.slug}`} className="blog-card">
               <div className="blog-card__image">
                 <Image
@@ -166,6 +184,24 @@ export default function TopicSection({ title, anchor, series, posts }: Props) {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {isCapped && topicSlug && (
+        <div className="topic-section__viewAll">
+          <Link href={`/projects/${topicSlug}`} className="topic-section__viewAllLink">
+            View all in {title}
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M13 6L19 12L13 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
         </div>
       )}
     </section>

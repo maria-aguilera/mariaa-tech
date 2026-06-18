@@ -3,6 +3,8 @@ import { Caveat, Cormorant_Garamond, Geist, Geist_Mono, Inter } from "next/font/
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import Navbar from "@/components/Navbar";
+import SiteFooter from "@/components/SiteFooter";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -77,6 +79,8 @@ export default function RootLayout({
         </a>
         <Navbar />
         {children}
+        <SiteFooter />
+        <ScrollToTop />
       </body>
     </html>
   );

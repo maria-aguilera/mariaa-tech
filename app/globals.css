@@ -921,39 +921,57 @@ body.theme-dark .series-detail__item--soon {
   color: #94a3b8;
 }
 
+/* Outer controls row — matches kozodoi:
+   `mb-8 flex flex-col sm:flex-row sm:items-center gap-4`. */
 .blog-controls {
   margin-top: 1.5rem;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem 1.5rem;
-  color: #475569;
-  font-size: 0.9rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  color: #314158;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .blog-controls {
+    flex-direction: row;
+    align-items: center;
+  }
 }
 
 .blog-control {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem;                              /* gap-2 */
 }
 
 .blog-control__label {
-  font-weight: 600;
-  color: #475569;
+  font-weight: 400;
+  color: #45556c;                           /* slate-600 — exact kozodoi */
+  font-size: 0.875rem;                      /* text-sm */
 }
 
+/* Sort/icon pill — kozodoi: px-4 py-2 bg-slate-200 text-slate-700
+   rounded-lg text-sm font-medium transition-all hover:bg-slate-300 */
 .blog-control__pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: #e2e8f0;
-  color: #0f172a;
-  font-weight: 600;
-  font-size: 0.85rem;
+  gap: 0.5rem;                              /* gap-2 */
+  padding: 0.5rem 1rem;                     /* py-2 px-4 */
+  border-radius: 0.5rem;                    /* rounded-lg */
+  border: none;
+  background: #e2e8f0;                      /* slate-200 */
+  color: #314158;                           /* slate-700 */
+  font-weight: 500;                         /* font-medium */
+  font-size: 0.875rem;                      /* text-sm */
+  line-height: 1.25rem;                     /* text-sm line-height (Tailwind) */
   cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.blog-control__pill:hover {
+  background: #cad5e2;                      /* slate-300 */
 }
 
 .blog-control__pill svg {
@@ -962,36 +980,219 @@ body.theme-dark .series-detail__item--soon {
 }
 
 .blog-control__pill--icon {
-  padding: 0.4rem 0.55rem;
+  padding: 0.5rem 0.75rem;                  /* py-2 px-3 */
+}
+
+/* Thin vertical divider between the Sort cluster and the Tag strip
+   (kozodoi's `hidden sm:block h-8 w-px bg-slate-300`). */
+.blog-controls__divider {
+  display: inline-block;
+  width: 1px;
+  height: 2rem;
+  background: #cad5e2;                              /* slate-300 */
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .blog-controls__divider {
+    display: none;                                  /* hide when controls wrap */
+  }
+}
+
+/* "Clear filters" — appears only when a filter is active. Quiet pill. */
+.blog-controls__clear {
+  background: transparent;
+  border: 1px solid #e2e8f0;                        /* slate-200 */
+  color: #475569;                                   /* slate-600 */
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  flex-shrink: 0;
+}
+
+.blog-controls__clear:hover {
+  background: #f8fafc;
+  color: #0f172b;
+  border-color: #cad5e2;
 }
 
 .blog-tags {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex: 1 1 100%;
+  gap: 0.5rem;                              /* gap-2, matches kozodoi */
+  flex: 1 1 0;                              /* flex-1, takes remaining width */
+  min-width: 0;
 }
 
+/* Edge fades — pseudo-elements paint the page background over the left
+   and right edges of the tag strip so it's obvious tags scroll off-screen.
+   Width is ~5rem each side; z-index is above the tag buttons. */
+.blog-tags::before,
+.blog-tags::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5rem;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.blog-tags::before {
+  /* Fade IN from the left edge so tags slid off the left also blur away. */
+  left: 5rem;                                       /* skip the "Tag:" label */
+  background: linear-gradient(
+    to right,
+    rgba(248, 250, 252, 1) 0%,
+    rgba(248, 250, 252, 0) 100%
+  );
+}
+
+.blog-tags::after {
+  right: 0;
+  background: linear-gradient(
+    to right,
+    rgba(248, 250, 252, 0) 0%,
+    rgba(248, 250, 252, 1) 100%
+  );
+}
+
+/* Horizontally scrollable tag strip — kozodoi pattern + soft edge fade
+   + always-visible styled scrollbar thumb (Option B). */
 .blog-tags__list {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  overflow-x: auto;
+  min-width: 0;
+  padding-bottom: 0.5rem;            /* room for the visible thumb */
+  -webkit-overflow-scrolling: touch;
+  /* Firefox — thin, slate-400 thumb on transparent track */
+  scrollbar-width: thin;
+  scrollbar-color: #90a1b9 transparent;
+  /* Fade is now drawn by .blog-tags::after, which paints the page
+     background over the right edge — see above. */
+}
+
+/* WebKit (Chrome/Safari) — thin always-visible styled thumb.
+   Thumb: slate-400 dark gray pill matching kozodoi's look. */
+.blog-tags__list::-webkit-scrollbar {
+  height: 6px;
+  background: transparent;
+}
+
+.blog-tags__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.blog-tags__list::-webkit-scrollbar-thumb {
+  background: #90a1b9;                          /* slate-400 */
+  border-radius: 999px;
+}
+
+.blog-tags__list::-webkit-scrollbar-thumb:hover {
+  background: #62748e;                          /* slate-500 — darker on hover */
 }
 
 .blog-tag {
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  border: none;
-  background: #e2e8f0;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
+  flex-shrink: 0;             /* don't squish into "Machi..." inside the strip */
 }
 
-.blog-tag--active {
-  background: #2563eb;
+/* Pagination — Nikita pattern: Prev / 1 2 3 / Next */
+.blog-pagination {
+  margin-top: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.blog-pagination__btn,
+.blog-pagination__pageBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #314158;                              /* slate-700 */
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.blog-pagination__btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.blog-pagination__btn:hover:not(:disabled),
+.blog-pagination__pageBtn:hover:not(.blog-pagination__pageBtn--active) {
+  background: #f8fafc;
+  border-color: #cad5e2;
+  color: #0f172b;
+}
+
+.blog-pagination__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.blog-pagination__pageBtn--active {
+  background: #155dfc;                         /* blue-600 */
+  border-color: #155dfc;
+  color: #ffffff;
+}
+
+.blog-pagination__pages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.blog-pagination__ellipsis {
+  color: #94a3b8;
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
+/* Tag pill — kozodoi: px-3 py-1 rounded-full text-sm transition-all
+   flex-shrink-0 bg-slate-200 text-slate-700 hover:bg-slate-300 */
+.blog-tag {
+  padding: 0.25rem 0.75rem;                 /* py-1 px-3 */
+  border-radius: 9999px;                    /* rounded-full */
+  border: none;
+  background: #e2e8f0;                      /* slate-200 */
+  color: #314158;                           /* slate-700 */
+  font-weight: 400;                         /* regular */
+  font-size: 0.875rem;                      /* text-sm */
+  line-height: 1.25rem;                     /* text-sm line-height (Tailwind) */
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease;
+  white-space: nowrap;
+}
+
+.blog-tag:hover {
+  background: #cad5e2;                      /* slate-300 */
+}
+
+.blog-tag--active,
+.blog-tag--active:hover {
+  background: #155dfc;                      /* blue-600 (exact kozodoi) */
   color: #ffffff;
 }
 
@@ -1015,6 +1216,7 @@ body.theme-dark .series-detail__item--soon {
 }
 
 .blog-card {
+  position: relative;                               /* anchor for the ::after ring */
   background: #ffffff;
   border-radius: 1rem;
   overflow: hidden;
@@ -1023,23 +1225,67 @@ body.theme-dark .series-detail__item--soon {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: transform 200ms ease, box-shadow 200ms ease,
+              border-color 200ms ease;
   text-decoration: none;
   color: inherit;
 }
 
-.blog-card {
-  transition: transform 200ms ease, box-shadow 200ms ease,
-              border-color 200ms ease;
+/* Hover ring is a pseudo-element overlay so the 2px blue border
+   sits on top of the image too — no thinner edge where it crosses
+   the cover photo. */
+.blog-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  pointer-events: none;
+  transition: border-color 200ms ease;
+  z-index: 3;
 }
 
 .blog-card:hover {
   transform: translateY(-4px);
   border-color: #3080ff;                            /* blue-500 */
   box-shadow:
-    inset 0 0 0 1px #3080ff,                        /* border-2 effect */
     0 20px 25px -5px rgba(21, 93, 252, 0.15),
     0 8px 10px -6px rgba(21, 93, 252, 0.10);
+}
+
+.blog-card:hover::after {
+  border-color: #3080ff;                            /* matches outer */
+}
+
+/* "View all in <Topic> →" link rendered below a capped grid. */
+.topic-section__viewAll {
+  display: flex;
+  justify-content: flex-end;
+  margin: 1.25rem 0 0;
+}
+
+.topic-section__viewAllLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #155dfc;                                   /* blue-600 */
+  text-decoration: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.5rem;
+  transition: background-color 150ms ease, color 150ms ease, gap 200ms ease;
+}
+
+.topic-section__viewAllLink:hover {
+  background: #eff6ff;                              /* blue-50 */
+  color: #1447e6;                                   /* blue-700 */
+  gap: 0.7rem;                                       /* arrow nudges right */
+}
+
+.topic-section__viewAllLink svg {
+  width: 16px;
+  height: 16px;
 }
 
 .blog-card__title {

@@ -112,11 +112,12 @@ export default function BlogIndexPage() {
               visiblePosts = allTopicPosts.filter((p) => !mlSeriesSlugs.has(p.slug));
             }
 
+            const topicSlug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
             return (
               <TopicSection
                 key={topic}
                 title={topic}
-                anchor={topic.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
+                anchor={topicSlug}
                 series={seriesCard}
                 posts={visiblePosts.map((p) => ({
                   slug: p.slug,
@@ -126,6 +127,8 @@ export default function BlogIndexPage() {
                   tags: p.tags,
                   coverImage: p.coverImage,
                 }))}
+                maxVisible={5}
+                topicSlug={topicSlug}
               />
             );
           })}
