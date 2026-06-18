@@ -14,17 +14,22 @@ tags:
 source: Project
 topic: Reinforcement Learning
 coverImage: "/images/blog/aws-deepracer.jpg"
-style: navy
 bannerImage: "/images/blog/aws-deepracer/img_09_p03_6e90124b4c.png"
 ---
 
-*Hands-on notes from training an AWS DeepRacer on the Cumulo Turnpike — the cloud architecture behind training, every parameter you can use in a reward function, the hyperparameters worth tuning, and the gap between simulator and a real track.*
+For a few weeks during my MSc, I had a 1/18-scale toy car learning to drive itself around a virtual racetrack. The car is **AWS DeepRacer** — Amazon's reinforcement-learning playground — and the single most important thing I learned is this:
+
+<Arrow>The bug is always in the reward function, never in the agent.</Arrow>
 
 <Video
   src="https://www.youtube.com/embed/At4k1VLL1bM"
   title="AWS DeepRacer agent driving the Cumulo Turnpike"
   caption="Demo: the trained DeepRacer agent driving the Cumulo Turnpike track in the simulator."
 />
+
+My first model drove perfectly centred down every straight and *crawled* around every corner. I thought it was broken. It wasn't — it was an A-student. I'd written a reward function that paid out for "stay near the centre" and nothing else, and the agent did precisely that. The model was a star pupil; I was a bad teacher.
+
+This post is what I learned trying to be a better one — the cloud architecture behind training, every parameter you can use in a reward function, the hyperparameters worth tuning, and the gap between simulator and a real track.
 
 ## What AWS DeepRacer actually is
 
