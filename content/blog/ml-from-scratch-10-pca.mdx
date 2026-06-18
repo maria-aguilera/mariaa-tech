@@ -1,10 +1,10 @@
 ---
 slug: ml-from-scratch-10-pca
 title: "Part 10 — PCA & the Art of Throwing Dimensions Away"
-subtitle: "The technique that takes correlated features and bundles them into uncorrelated combinations. Fewer dimensions, more signal — when correlations exist. When they don't, PCA is pointless."
+subtitle: "Take correlated features. Bundle them into uncorrelated combinations. Fewer dimensions, same signal — when correlations exist. When they don't, PCA is pointless."
 date: "March 2022"
 updated: "June 2026"
-excerpt: "Part 10 of the ML from Scratch series — feature selection vs dimensionality reduction, why high dimensions hurt, the map-of-Italy rotation that motivates PCA, principal components as linear combinations, the eigenvectors/eigenvalues math sketch (spectral decomposition theorem), three criteria for picking the number of components, and why PCA breaks on uncorrelated or unscaled data."
+excerpt: "Part 10 of the ML from Scratch series — feature selection vs PCA, the map-of-Italy intuition, principal components as recipes, the eigenvector/eigenvalue mnemonic, four ways to pick how many components, the Wine dataset end-to-end, and what quietly breaks PCA."
 tags:
   - Machine Learning
   - PCA
@@ -15,178 +15,245 @@ topic: Machine Learning
 series: "Machine Learning from Scratch"
 seriesPart: 10
 seriesTotal: 12
-coverImage: "/images/blog/ml-from-scratch/pca/pca-rotation.svg"
+coverImage: "/images/blog/ml-from-scratch/pca/italy-pca-rotation.png"
 style: navy
 ---
 
 *Machine Learning from Scratch · Part 10/12*
 
-[Part 9](/blog/ml-from-scratch-09-svm) ended with kernels: a way to *add* dimensions so a problem becomes solvable. This post is about the opposite — **removing dimensions** to make data more useful. Both ideas turn out to be deeply connected.
+[Part 9](/blog/ml-from-scratch-09-svm) used kernels to *add* dimensions. This post does the opposite — **remove dimensions** to make data more useful.
 
-Sometimes the best thing you can do for a dataset is make it *smaller* — capturing most of its interesting behaviour in fewer dimensions. That's <KeyTerm>dimensionality reduction</KeyTerm>, and its flagship is <KeyTerm>Principal Component Analysis (PCA)</KeyTerm>.
-
-## Two ways to shrink your data
-
-Both are legitimate, but they're different operations:
-
-- <KeyTerm>Feature selection</KeyTerm> — remove irrelevant features. Chi-Square, Information Gain, Lasso ([Part 3](/blog/ml-from-scratch-03-feature-engineering)). You keep a subset of your *original* features. Interpretability stays intact.
-- <KeyTerm>Dimensionality reduction</KeyTerm> — first *transform* the data into a new representation, then drop dimensions in that new space. PCA is in this family.
-
-The key difference: when you transform with PCA, you no longer have your original features. You have **combinations** of them. You're not removing `income` or `age`; you're removing a *dimension* in a rotated space, where each dimension is a weighted combination of the original features.
-
-This trade-off matters. You compress aggressively, but you lose direct interpretability.
-
-## Why care about high dimensions?
-
-If every feature genuinely carries signal, more features = more information. Fine.
-
-But every feature you add also **enlarges the space** your algorithm must search ([Part 1](/blog/ml-what-is-machine-learning), the curse of dimensionality). Past a point, extra dimensions cost more than they're worth. The signal-to-noise ratio drops; the data becomes sparse; distance-based methods lose meaning.
-
-Dimensionality reduction is the principled fix. Compress what you have into the fewest dimensions that preserve most of the information.
-
-## The map of Italy
-
-The intuition I always come back to. Imagine you have a map of Italy with four regions on the standard north-south / east-west grid. The points are spread diagonally across the grid in a long thin cloud.
-
-Now **rotate** the map slightly. Suddenly each region clusters neatly along one axis. Same data, way better representation. You've replaced N-S-E-W with new axes — call them PC1 and PC2 — along which the structure is far clearer.
-
-In the new representation, PC1 captures most of the variability of the data. PC2 captures the remainder. If you wanted to summarise the dataset in fewer dimensions, you could drop PC2 and lose very little.
-
-That's PCA's job in one paragraph: **find the rotation automatically**. In the right rotation, deciding which dimensions you actually need becomes easy. But notice: after the rotation you no longer have N/S/E/W — PC1 and PC2 are weighted combinations of them.
-
-<Callout color="yellow">
-  💡 PCA finds the rotation that puts the most information along the fewest axes. <Highlight>It compresses by combining correlated features.</Highlight> If your features aren't correlated, PCA can't compress anything — and it's pointless.
+<Callout color="blue">
+  <strong>The one sentence:</strong> <Highlight>PCA doesn't change the data — it changes the perspective from which the data is described.</Highlight>
 </Callout>
 
-## What the principal components actually are
+## Feature selection vs. dimensionality reduction
 
-Mathematically, each principal component is a **linear combination** of the original features:
+Two ways to shrink a dataset:
+
+- <KeyTerm>Feature selection</KeyTerm> — drop irrelevant features. You keep your originals.
+- <KeyTerm>Dimensionality reduction</KeyTerm> — *transform* first, then drop dimensions in the new space.
+
+| | Feature selection | PCA |
+| --- | --- | --- |
+| What it returns | Subset of original features | New axes (blends of features) |
+| Interpretability | Preserved | Reduced |
+| Mechanism | Drops columns | Rotates, then drops dimensions |
+| Methods | Chi-Square, Lasso | PCA, Kernel PCA, LDA |
+
+<Arrow>In PCA we don't remove individual features. We create new dimensions formed as linear combinations of the originals.</Arrow>
+
+## Why high dimensions hurt
+
+Imagine looking for a friend in a one-storey house, then a ten-storey building, then a skyscraper. Each new floor *multiplies* the rooms. That's what adding a feature does — the search space inflates, the data gets sparse, distance-based methods stop meaning much.
+
+## PCA: the map of Italy
+
+Italy on the usual North–South / East–West grid. The points spread diagonally — the axes are *valid*, but they don't describe the structure.
+
+Rotate the map slightly. **The points don't move. Distances don't change. The perspective does.** Suddenly each region clusters along one axis.
+
+<Image
+  src="/images/blog/ml-from-scratch/pca/italy-pca-rotation.png"
+  alt="Italy on N–S/E–W axes vs the same map rotated so the new axes are PC1 and PC2, with clusters aligned."
+  caption="Same data, same distances — new perspective."
+/>
+
+| Italy example | PCA meaning |
+| --- | --- |
+| Original map orientation | Original feature space |
+| N–S and E–W axes | Original variables |
+| Rotating the map | Changing the coordinate system |
+| Better-separated regions | Structure becomes clearer |
+| New axes after rotation | Principal components |
+
+<Callout color="yellow">
+  💡 PCA finds this rotation automatically. <Highlight>It compresses by combining correlated features.</Highlight> No correlations → nothing to compress.
+</Callout>
+
+## Principal components are recipes
+
+Each PC is a fixed blend of the original ingredients — a bit of `income`, a dash of `age`, a pinch of `zipcode`.
 
 `PC₁ = w₁·x₁ + w₂·x₂ + … + wₚ·xₚ`
 
-The weights `w₁, w₂, …` define the direction of the new axis in the original feature space.
+PCA orders them:
 
-PCA orders the components by importance:
+- **PC₁** — most variability of any possible blend.
+- **PC₂** — most *remaining* variability, uncorrelated with PC₁.
+- **PC₃** — same idea, uncorrelated with PC₁ and PC₂.
 
-- **PC₁** captures the most variability of all possible linear combinations.
-- **PC₂** captures the most *remaining* variability, while being **uncorrelated** with PC1.
-- **PC₃** captures the most remaining variability while being uncorrelated with both PC1 and PC2.
-- … and so on.
+You get the same number of PCs as you had features. **The reduction is your call afterwards** — keep the top K.
 
-<Image
-  src="/images/blog/ml-from-scratch/pca/pca-rotation.svg"
-  alt="Left: a correlated cloud on the original axes, with the two principal directions drawn on. Right: after rotating onto those axes, the data is uncorrelated and PC1 holds most of the variance."
-  caption="Left: a correlated cloud on the original axes, with the two principal directions drawn on. Right: after rotating, the data is uncorrelated and PC1 holds most of the variance."
-/>
-
-You always end up with the **same number of principal components as you had original features** — PCA itself doesn't reduce anything. The reduction is the decision YOU make afterwards: how many of the top PCs to keep.
-
-## The explainability tax
-
-Because every PC blends (potentially all) your original features, **you lose explainability**.
-
-If a stakeholder asks "which features drive the price?", PCA fights you. Your model now runs on `0.3 · income + 0.6 · age + 0.2 · zipcode + …` — abstract combinations that don't map cleanly to a business story.
-
-Use PCA to compress and speed things up. **Don't use it when explainability is the deliverable.** For that, Lasso or feature importance from a Random Forest is better.
-
-## When PCA works and when it's pointless
-
-PCA reduces dimensions by **bundling correlated features into a single component**. That's the entire mechanism. So:
-
-<Callout color="red">
-  ⚠️ PCA works because of <strong>correlations</strong>. If your features are uncorrelated, there's nothing to bundle — computing PCA is pointless. <Highlight>You'll end up with the same number of components as features, each carrying the same variance.</Highlight>
+<Callout color="green">
+  <strong>Do say:</strong> "PCA creates new dimensions from combinations of the original variables."<br/>
+  <strong>Don't say:</strong> "PCA selects the best original features." That's feature selection, not PCA.
 </Callout>
 
-Also note: PCA is a <KeyTerm>technique</KeyTerm>, not an algorithm. It's exploratory or preparatory. It transforms data; it doesn't predict anything. You still need a classifier or regressor afterwards.
+<Callout color="pink">
+  <strong>The explainability tax.</strong> Every PC blends your features. Your model now runs on <code>0.3·income + 0.6·age + 0.2·zipcode + …</code>. <Highlight>Don't use PCA when explainability is the deliverable</Highlight> — reach for Lasso or RF feature importance.
+</Callout>
 
-## PCA is unsupervised — and its supervised cousin
+## When PCA is pointless
 
-PCA does **not** consider the target variable. The transformation depends only on the features. That makes it unsupervised — appropriate for clustering, exploratory analysis, or compression before any model.
+PCA bundles correlated features. So:
 
-If you have a target and want a transformation that respects it (i.e., one that maximises class separation rather than total variance), you want PCA's supervised counterpart: <KeyTerm>LDA</KeyTerm>. That's [Part 11](/blog/ml-from-scratch-11-lda-qda).
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-correlated-data.png"
+  alt="Two strongly correlated variables X and Y on a scatter, Y = X plus small noise."
+  caption="Two variables, one direction of information. PCA's whole job."
+/>
+
+<Callout color="orange">
+  ⚠️ No correlations → no compression. You'll end up with as many components as features, each carrying the same variance.
+</Callout>
+
+PCA is a <KeyTerm>technique</KeyTerm>, not an algorithm. It transforms; it doesn't predict.
+
+## PCA vs LDA
+
+PCA ignores the target — it's unsupervised. If you have labels and want axes that maximise *class separation*, that's <KeyTerm>LDA</KeyTerm> ([Part 11](/blog/ml-from-scratch-11-lda-qda)).
+
+| | PCA | LDA |
+| --- | --- | --- |
+| Target labels? | No | Yes |
+| Maximises | Total variance | Class separation |
+| Used for | EDA, compression, viz | Classification prep |
 
 ## Two things that quietly break PCA
 
-**Scaling.** PCA judges variance in the original units. A feature in the thousands (e.g., `income`) will dominate one in single digits (e.g., `age`) purely by magnitude, even if `age` carries more signal. **Always scale before PCA** — `StandardScaler` from [Part 2](/blog/ml-from-scratch-02-data-cleaning).
+**Scaling.** A feature in the thousands (`income`) will dominate a feature in single digits (`age`) by magnitude alone — like a loud speaker drowning out a quiet one. **Always scale first.**
 
-**Skewness.** PCA performs best on roughly Gaussian features. Heavy-tailed or skewed distributions throw off the variance calculation. The best results come from scaled *and* roughly normal features. Apply log-transforms to fix skewness before PCA when you can.
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-scaling-comparison.png"
+  alt="PCA on the same data, unscaled vs scaled. Unscaled: classes overlap. Scaled: classes separate cleanly."
+  caption="Same dataset. Left: raw features. Right: standardised. The classes only show up after scaling."
+/>
 
-## The maths sketch — eigenvectors and eigenvalues
+**Skewness.** Variance is a poor summary for skewed data. Log or Box-Cox transform first.
 
-Worth understanding at intuition level even if you never compute it by hand.
+<Image
+  src="/images/blog/ml-from-scratch/pca/skewness-distributions.png"
+  alt="Right-skewed, symmetric, and left-skewed distributions showing mean and median positions."
+  caption="Median is stable under skew; mean drifts. PCA uses variance around the mean — so skewed features fight it."
+/>
 
-PCA is built on the **covariance matrix** of your features. If you have `p` features, this is a `p × p` matrix where each cell `(i, j)` is the covariance between feature `i` and feature `j`. The diagonal is each feature's variance.
+## The maths sketch
 
-The **spectral decomposition theorem** (linear algebra) says: any symmetric matrix can be factored as
+PCA is built on the **covariance matrix** Σ — a `p × p` matrix of feature-pair covariances, with variances on the diagonal.
 
-`Σ = U · Λ · U⁻¹`
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-covariance-matrix.png"
+  alt="A covariance matrix Σ with entries cov(x,x), cov(x,y), cov(y,x), cov(y,y)."
+  caption="Symmetric — cov(x,y) = cov(y,x). That symmetry is what makes the next step possible."
+/>
 
-Where:
+<Callout color="yellow">
+  <strong>Stats refresher.</strong> PCA only really uses two ideas: <strong>variance</strong> (how spread out a feature is, around its mean) and <strong>covariance</strong> (how two features move together). Correlation is just covariance scaled to [−1, 1].
+</Callout>
 
-- **U** is a matrix whose columns are the <KeyTerm>eigenvectors</KeyTerm> of Σ.
-- **Λ** is a diagonal matrix whose entries are the <KeyTerm>eigenvalues</KeyTerm> of Σ.
+<Image
+  src="/images/blog/ml-from-scratch/pca/covariance-correlation.png"
+  alt="Definitions of covariance and correlation."
+  caption="Covariance: direction of the relationship. Correlation: direction and strength, on a comparable scale."
+/>
 
-Now the magic: **the eigenvectors are the principal components**. They're the new axes — the directions in feature space along which the data varies most. **The eigenvalues are the variances along those directions** — how much each PC captures.
+The **spectral decomposition theorem**: any symmetric matrix factors as `Σ = U · Λ · U⁻¹`, where U's columns are the <KeyTerm>eigenvectors</KeyTerm> and Λ's diagonal holds the <KeyTerm>eigenvalues</KeyTerm>.
 
-Sort the eigenvalues from largest to smallest. The corresponding eigenvectors are PC1, PC2, …, PCₚ. Keep as many as you need.
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-eigendecomposition.png"
+  alt="Spectral decomposition: diagonal Λ of eigenvalues equals U inverse times Σ times U."
+  caption="Columns of U are eigenvectors (directions). Λ's diagonal holds the eigenvalues (variance along each direction)."
+/>
 
-You don't need to understand the proof to use PCA. But knowing it's "find eigenvectors of the covariance matrix" demystifies what scikit-learn is doing under the hood.
+**The eigenvectors are the principal components. The eigenvalues are the variance each one captures.**
 
-## How many components do you keep?
+<Callout color="blue">
+  <strong>The mnemonic:</strong> <Highlight>Eigenvector = where to look. Eigenvalue = how much there is to see.</Highlight>
+</Callout>
 
-The decision PCA can't make for you. Three standard criteria:
+## How many components?
 
-**1. The elbow / slope-change criterion.** Plot the eigenvalues in descending order. The plot drops fast at first, then flattens. Pick the number of components at the elbow — the point where adding more components stops adding much variance.
+PCA can't decide for you. Four criteria:
 
-**2. Cumulative variance.** Decide on a target, say 95%. Keep enough components to capture 95% of the total variance. Standard default in many libraries.
+**1. Elbow on the scree plot.** Drop fast, then flatten — keep what's to the left of the bend.
 
-**3. Eigenvalue > 1 (Kaiser criterion).** Keep only components whose eigenvalue exceeds 1. Logic: an eigenvalue ≥ 1 means that component carries more variance than any individual original feature would on average.
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-scree-elbow.png"
+  alt="Scree plot — variance per principal component, descending, with the elbow at PC4."
+  caption="The 'elbow' marks where extra PCs stop buying you much variance."
+/>
 
-**4. Cross-validation.** The most rigorous. Treat the number of components as a hyperparameter. Train a downstream model with K components, measure CV performance, pick the K that gives the best downstream score.
+**2. Cumulative variance.** Pick a target (often 90–95%) and read off how many PCs you need.
 
-In practice I plot the variance explained vs number of components and pick where the curve flattens. If I'm building a downstream model, I'll also try a few values via CV.
+<Image
+  src="/images/blog/ml-from-scratch/pca/pca-cumulative-variance.png"
+  alt="Cumulative explained variance curve rising and asymptoting toward 1."
+  caption="Cumulative variance explained — pick a threshold, count PCs."
+/>
+
+**3. Eigenvalue > 1 (Kaiser).** Keep PCs whose eigenvalue exceeds 1 (they carry more variance than the average original feature did).
+
+**4. Cross-validation.** Treat K as a hyperparameter, train downstream, pick the K with best CV score.
+
+```python
+from sklearn.decomposition import PCA
+pca = PCA(n_components=0.95)   # keep enough PCs to hit 95% variance
+X_reduced = pca.fit_transform(X_scaled)
+```
 
 ## Kernel PCA
 
-The same kernel trick from [Part 9](/blog/ml-from-scratch-09-svm) applies here. By default, PCA finds *linear* combinations of features. Apply a kernel and you get *non-linear* combinations — the data is implicitly projected to a higher-dimensional space before PCA is applied.
+Same kernel trick as [Part 9](/blog/ml-from-scratch-09-svm). By default PCA finds *linear* combinations; a kernel makes them *non-linear*. Rarely worth it in practice — autoencoders are usually a better tool for wild non-linear structure.
+
+## End-to-end on the Wine dataset
+
+13 chemical features, 3 cultivar classes, no labels used by PCA:
 
 ```python
-from sklearn.decomposition import KernelPCA
-KernelPCA(kernel='rbf', n_components=2).fit_transform(X)
+from sklearn.datasets import load_wine
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+X, y = load_wine(return_X_y=True)
+X_scaled = StandardScaler().fit_transform(X)        # 1. scale
+pcs = PCA(n_components=2).fit_transform(X_scaled)   # 2. project to 2D
+
+plt.scatter(pcs[:, 0], pcs[:, 1], c=y, cmap="viridis")
+plt.xlabel("PC1"); plt.ylabel("PC2"); plt.show()
 ```
 
-In practice it's rarely worth it. Kernel PCA makes the model harder to interpret and harder to tune, and for genuinely wild non-linear structure, neural autoencoders are usually a better tool.
+Variance explained: **PC1 ≈ 36%**, **PC1+PC2 ≈ 55%**, **first 7 PCs ≈ 90%**. The three cultivars separate cleanly in PC1–PC2 space — even though PCA never saw the class labels.
 
-## The Wine dataset example
+This *isn't* always the case. When class structure is orthogonal to maximum-variance directions, LDA wins. That's [Part 11](/blog/ml-from-scratch-11-lda-qda).
 
-A concrete illustration. The Wine dataset has 13 chemical features and three cultivar classes. Apply PCA:
+## The workflow
 
-- 13 features → 13 principal components.
-- PC1 explains ~36% of the variance.
-- PC1 + PC2 explain ~55%.
-- First 7 PCs explain ~90%.
+1. Drop the target. PCA is unsupervised.
+2. **Scale on training only.** Fit `StandardScaler` on train, transform train + test.
+3. Fit PCA on the scaled training set.
+4. Pick K — scree, cumulative, or CV.
+5. Transform train + test, fit your downstream model.
 
-Plot the data in PC1-PC2 space — and the three cultivars **separate cleanly into clusters**, even though PCA never saw the class labels. The signal that distinguishes cultivars happens to align with the directions of maximum variance.
+<Callout color="orange">
+  ⚠️ Fit the scaler and PCA on train, then <em>transform</em> validation/test with the fitted objects. Re-fitting on test = leakage.
+</Callout>
 
-This isn't always the case. Sometimes class structure is orthogonal to the maximum-variance directions — which is exactly when LDA ([Part 11](/blog/ml-from-scratch-11-lda-qda)) outperforms PCA for downstream classification.
+## Takeaways
 
-## The key takeaways
-
-- PCA **combines correlated features** into uncorrelated principal components.
-- **PC1 holds the most variance**; each later PC the most remaining variance, uncorrelated with the rest.
-- It needs **correlated, scaled, roughly-normal** data to work well.
-- It **costs explainability** — features become combinations.
-- It's **unsupervised**. The supervised version is LDA.
+- PCA **combines correlated features** into uncorrelated PCs.
+- PC₁ holds the most variance, each later PC the most remaining.
+- Needs **correlated, scaled, roughly-normal** data.
+- Costs **explainability** — features become blends.
+- It's **unsupervised**. Supervised cousin is LDA.
+- It's **preprocessing**, not prediction.
 
 <Callout color="green">
-  <strong>Where I actually use PCA:</strong>
-  <br/><br/>
-  1. <strong>Before clustering or visualisation</strong> on high-dimensional data — k-means in 2D after PCA is way more interpretable than k-means in 50D.<br/>
-  2. <strong>As preprocessing for a downstream model</strong> when I have many correlated features and want a tighter representation. Number of components chosen via CV.<br/>
-  3. <strong>For exploratory data analysis</strong> — plotting PC1 vs PC2 often reveals structure you can't see in the raw features.<br/><br/>
-  <Highlight>Where I don't use PCA: when explainability matters, or when my features aren't correlated</Highlight>.
+  <strong>Where I use PCA:</strong> before clustering or viz on high-D data; as preprocessing when many features are correlated; for EDA — PC1 vs PC2 often shows structure you can't see raw.<br/><br/>
+  <Highlight>Where I don't: when explainability matters, or when features aren't correlated.</Highlight>
 </Callout>
 
 ---
 
-**Next up — [Part 11: LDA & QDA — Supervised Projection](/blog/ml-from-scratch-11-lda-qda).** Same projection idea as PCA, but this time using the class labels. LDA isn't just a preprocessing step — it's an actual classifier.
+**Next — [Part 11: LDA & QDA — Supervised Projection](/blog/ml-from-scratch-11-lda-qda).** Same projection idea, this time using the labels.

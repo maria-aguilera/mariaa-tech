@@ -63,6 +63,11 @@ export default function Navbar() {
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
+    // Individual blog post pages (/blog/<slug>) should highlight the visible "Blog"
+    // pill (href=/projects), not the visible "Projects" pill (href=/blog index).
+    if (pathname.startsWith("/blog/")) {
+      return href === "/projects";
+    }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 

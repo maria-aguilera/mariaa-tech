@@ -154,8 +154,31 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+/* Hide labels early so the nav stays icon-only through the awkward
+   mid-size range. From 1100px+ the labels reappear (matches kozodoi's
+   "icons or icons+text" responsive behavior). */
+@media (max-width: 1099px) {
   .navbar__link span {
     display: none;
   }
+}
+
+@media (max-width: 1099px) {
+  .navbar__link {
+    padding: 6px 8px;
+  }
+
+  .navbar__menu {
+    gap: 0;
+  }
+}
+
+/* Brand never truncates and never breaks layout — clamp width on
+   narrow viewports so the menu always has room. */
+.navbar__brand {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60vw;
 }

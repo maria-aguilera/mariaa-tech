@@ -132,6 +132,11 @@ export const mdxComponents = {
   ul: (props: React.HTMLAttributes<HTMLUListElement>) => (
     <ul className="post-content__list" {...props} />
   ),
+  table: (props: React.HTMLAttributes<HTMLTableElement>) => (
+    <div className="post-content__tableWrap">
+      <table className="post-content__table" {...props} />
+    </div>
+  ),
   pre: Pre,
   code: InlineCode,
   Note,

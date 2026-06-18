@@ -48,8 +48,8 @@ const featuredItems = [
     ],
     cta: { label: "Read More", href: "/blog/ml-what-is-machine-learning", icon: "book-open" },
     image: {
-      src: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-03.jpg",
-      alt: "Page 3 of Session 1 ML notes",
+      src: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/fig-03.jpg",
+      alt: "Underfit vs overfit — Model Prediction Error vs Model Complexity curve with Wealth/Happiness examples",
     },
   },
 ];
@@ -223,6 +223,16 @@ export default function HomeFeatured() {
                 onPointerLeave={handlePointerUp}
                 onPointerCancel={handlePointerUp}
               >
+                <div className="featured-card__media">
+                  <Image
+                    src={item.image.src}
+                    alt={item.image.alt}
+                    fill
+                    sizes="(min-width: 900px) 1200px, 100vw"
+                    priority={false}
+                  />
+                </div>
+
                 <div className="featured-card__content">
                   <p className="featured-card__eyebrow">
                     <Icon name="star" aria-hidden="true" />
@@ -247,16 +257,6 @@ export default function HomeFeatured() {
                     <span>{item.cta.label}</span>
                   </Link>
                 </div>
-
-                <div className="featured-card__media">
-                  <Image
-                    src={item.image.src}
-                    alt={item.image.alt}
-                    width={900}
-                    height={700}
-                    sizes="(min-width: 900px) 40vw, 90vw"
-                  />
-                </div>
               </div>
             ))}
           </div>
@@ -267,7 +267,11 @@ export default function HomeFeatured() {
                 key={item.title}
                 type="button"
                 className={`featured-dot ${index === activeIndex ? "featured-dot--active" : ""}`}
-                onClick={() => goToSlide(index)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSlide(index);
+                }}
                 aria-label={`Show ${item.title}`}
                 aria-current={index === activeIndex}
               />
