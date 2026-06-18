@@ -212,16 +212,16 @@ Realistic expected monthly cost: **€0–2** with the container scaling to zero
 - **Move training out of the deploy workflow.** Right now every push retrains. That's fine while iterating, but in a real system training is its own thing, with its own cadence and its own artifact registry. The deploy workflow should just pick up the latest validated model.
 - **Add structured logging and a `/metrics` endpoint.** Without observability I'm flying blind once the container starts. Even basic request counts and latency p99 would be a big upgrade.
 
-## What I got out of this
+## What this project unlocks
 
-Four engineering competencies I couldn't honestly claim before:
+A handful of things I can now do end-to-end that I couldn't before:
 
-- **MLOps / model deployment.** Full pipeline from data to served model, with CI gating, retrain on every push, and automated rollouts to a live HTTPS endpoint.
-- **Microsoft Azure.** Container Apps, Log Analytics workspace, role assignments, Consumption budgets — and the IAM model that holds it together.
-- **Cloud migration.** End-to-end lift of a local scikit-learn model into a managed cloud service, with the deployment artifact reproducible from `git`.
-- **CI/CD with secret-free auth.** GitHub Actions OIDC-federated to an Azure AD app registration — no long-lived secrets stored anywhere.
+- **MLOps and model deployment.** Train a scikit-learn classifier, package it in Docker, and roll it out to a managed cloud service via a CI gate — without manually copying artifacts or restarting servers.
+- **Microsoft Azure end-to-end.** Container Apps, Log Analytics, role-scoped IAM, and Consumption budgets — provisioned through the Azure CLI and version-controlled in `infra/README.md`.
+- **Cloud migration patterns.** Lifting a local-only artifact into a managed cloud service with reproducible deployments and a clean rollback path.
+- **Secret-free CI/CD.** GitHub Actions federated to an Azure AD app registration via OIDC — no long-lived credentials stored anywhere.
 
-And one personal take-away that won't fit on a CV: **the model is the easy part**. Six minutes of every deploy is spent re-fitting the classifier. The other six weeks of work were getting the model to ship reliably. The bias of ML coursework — that the algorithm is the deliverable — is exactly backwards in practice.
+The non-skill thing I'm taking away: **the model is the easy part**. Six minutes of every deploy is spent re-fitting the classifier. The rest was getting the model to ship reliably. Most ML coursework treats the algorithm as the deliverable, which turns out to be backwards once a real user has to talk to it.
 
 The code, including the `infra/README.md` walkthrough, is on GitHub:
 **[github.com/maria-aguilera/forest-cover-endpoint](https://github.com/maria-aguilera/forest-cover-endpoint)**.
