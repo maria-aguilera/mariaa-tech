@@ -15,7 +15,7 @@ tags:
   - Model deployment
 source: Project
 topic: Data Projects
-coverImage: /images/blog/forest-cover-endpoint/cover.svg
+coverImage: /images/blog/forest-cover-endpoint/architecture.png
 ---
 
 ## Why bother
@@ -46,13 +46,148 @@ I wanted the cheapest, simplest path that ticked the boxes any sensible engineer
 - **Azure Container Apps** for the host. The killer feature: `--min-replicas 0` means the app scales down to nothing when idle. A portfolio endpoint that's hit twice a week costs me roughly nothing.
 - **OIDC federated credentials** instead of stored secrets. GitHub Actions exchanges a workflow token for a short-lived Azure access token. There's no long-lived secret to rotate, leak, or forget about.
 
-## The architecture in one paragraph
+## How it all fits together
 
-A push to `main` triggers the Deploy workflow. The workflow installs the training deps, retrains the model end-to-end on a 50k row sample, runs the FastAPI tests, builds a Docker image containing the freshly trained model, pushes it to `ghcr.io`, logs into Azure via OIDC (no secrets stored), and tells the Container App to roll to the new image tag. The Container App's load balancer drains the old container, starts the new one, runs the health check, and the rollout is done. The whole thing takes about 6 minutes from `git push` to a new model serving real traffic.
+Here's the whole shape of what I built. Eleven labeled blocks, three coloured groups (development, registry/auth, cloud runtime), one outcomes panel — read left-to-right and top-to-bottom following the arrows.
+
+<Image
+  src="/images/blog/forest-cover-endpoint/architecture.png"
+  alt="End-to-end architecture: a Jupyter notebook becomes a training script that emits a joblib model; GitHub Actions trains, tests, dockerises and pushes to GHCR, then deploys to Azure via OIDC; Azure Container Apps serves the model from an HTTPS endpoint with blue/green revisions, scale-to-zero, and observability piped to Logs, Metrics, Traces, and Alerts."
+  caption="The full picture. The path from a Jupyter notebook on my laptop to a public HTTPS endpoint, with every component labelled."
+/>
+
+Walking it block by block — what the box represents, what it actually is in this project, and what arrow connects it to the next one.
+
+### Development (purple, top-left)
+
+- **What it represents.** Where the model started life — a Jupyter notebook on my laptop with exploratory analysis, feature work, and the first Random Forest fit. The three bullets (EDA, Feature Engineering, Model Training) are the three phases the notebook went through.
+- **In this project.** The notebook is the subject of the [earlier forest cover post](/blog/forest-cover-type-prediction). This post starts where that one ends — the moment the notebook produced "a model that works" and the next question became "how do I make this serve real users?"
+- **Arrow out.** Right, into **Data**, because the first thing any reproducible training pipeline needs is a stable data source.
+
+### Data (green)
+
+- **What it represents.** The dataset. Cylinder icon is the classic *"this is a data source"* glyph.
+- **In this project.** The **Roosevelt National Forest** cartographic dataset from UCI — about half a million rows of terrain measurements (elevation, slope, aspect, distances to water and roads, hillshade angles, soil type, wilderness area), labelled with one of seven forest cover types. The training workflow downloads it on every run rather than vendoring a copy in the repo.
+- **Arrow out.** Right, into **Training pipeline**.
+
+### Training pipeline (orange)
+
+- **What it represents.** The transformation from raw rows to a serialised model. Three sub-icons, three sub-steps.
+  - **Data Processing** — the cells that used to live in the notebook for cleaning, encoding, and train/test splitting, now extracted into a function.
+  - **Train Model (Random Forest)** — `RandomForestClassifier` from scikit-learn with 200 estimators on a 50k row sample. Hits ~87% accuracy on a held-out test set; good enough for the demo.
+  - **Trained Model (model.joblib)** — the fitted classifier serialised to disk with `joblib`, which is scikit-learn's recommended serialisation for ML artifacts (handles numpy arrays better than pickle).
+- **In this project.** All of this lives in `train/train.py`, parametrised by `--sample-size` and `--n-estimators` so the same script can be run for quick iteration or full training.
+- **Arrow out.** A long arrow curves down from the trained model into the **Container App** inside Azure Cloud. The model artifact is what every other piece of this diagram exists to serve.
+
+### GitHub Actions · CI / CD (blue, top-right)
+
+- **What it represents.** The automation that takes a git push and turns it into a running service. Six sequential icons, six workflow steps.
+  - **Code Push** — the trigger. Any push to `main` starts the pipeline.
+  - **Run Tests** — `pytest` against the FastAPI app: import smoke, schema validation, `/health` round-trip, `/predict` returns a valid response. If this step fails, nothing downstream runs.
+  - **Retrain Model** — invokes `train/train.py`, producing a fresh `model.joblib` in the runner's filesystem. This is the same Training Pipeline above, only running on a GitHub-hosted Ubuntu VM instead of my laptop.
+  - **Build Docker Image** — `docker build` against the project's `Dockerfile`, which copies the FastAPI app and the freshly-trained model into a `python:3.11-slim` base image.
+  - **Push to GHCR** — pushes the resulting image to GitHub Container Registry, tagged with the commit SHA so any version is reproducible.
+  - **Deploy to Azure** — calls `az containerapp update --image …` against my Container App, telling Azure to roll to the new image tag.
+- **In this project.** All defined in `.github/workflows/deploy.yml`.
+- **Arrows out.** Two: one down into **Container Registry** (from the "Push to GHCR" step), and one right + down through the **Authentication** lock into the **Container App** (from the "Deploy to Azure" step).
+
+### Container Registry (blue)
+
+- **What it represents.** Where the built Docker image is stored. Octocat icon = GitHub.
+- **In this project.** **GitHub Container Registry (`ghcr.io`)**, specifically the path `ghcr.io/maria-aguilera/forest-cover-endpoint:<commit-sha>`. The package is public, so Azure Container Apps can pull it without a registry credential.
+- **Arrow in.** From the "Push to GHCR" step of GitHub Actions.
+
+### Authentication (green)
+
+- **What it represents.** How GitHub Actions proves its identity to Azure when it tries to deploy. Shield + checkmark = "this is the trust boundary."
+- **In this project.** **GitHub OIDC (Federated Identity)**. Instead of storing a long-lived Azure service-principal secret in GitHub, the workflow exchanges its short-lived OIDC token for an Azure access token. Azure trusts that exchange because of a federated credential I attached to the app registration, scoped tightly to `repo:maria-aguilera/forest-cover-endpoint:ref:refs/heads/main` — meaning only pushes to `main` on this exact repo can mint a token.
+- The "No stored secrets" checkmark is literal: the *only* things in GitHub secrets are identifiers (client ID, tenant ID, subscription ID, RG name, container app name). Nothing that can authenticate on its own.
+- **Arrows.** The padlock icon below the AUTHENTICATION card visually shows the trust handshake travelling from this card into the **Container App** in Azure — that's the link that lets the "Deploy to Azure" step actually succeed.
+
+### Azure Cloud (large dashed blue rectangle)
+
+The trust boundary of Azure. Everything inside this rectangle is in the same Azure tenant, subscription, and resource group (`forest-cover-rg`).
+
+#### Container Apps Environment
+
+- **What it represents.** A managed Kubernetes-under-the-hood that Azure provides. You don't see Kubernetes, but it's there.
+- **In this project.** `forest-cover-env`, provisioned in `northeurope` (I tried `westeurope` first; it was closed to new customers). The environment includes a Log Analytics workspace auto-attached at creation time — that's where the application logs end up.
+- **Arrow out.** Right, into **Container App**.
+
+#### Container App (min replicas = 0)
+
+- **What it represents.** The actual running service — your code in a container, exposed to the world. The circular auto-scaling icon shows it knows how to grow and shrink based on traffic.
+- **In this project.** `forest-cover-endpoint`. The `--min-replicas 0` flag is the cost-saving lever: when nobody's hitting the app, it scales to zero replicas and I pay nothing for compute. The first request after idle pays a 20-second cold start; subsequent requests are flat at ~170 ms.
+- **Arrows.** Receives the trained model artifact from the Training Pipeline (via the GitHub Actions Build/Push/Deploy chain). Sends a dashed line down to **Monitoring & Observability** because logs and metrics flow continuously to the workspace. Sends a solid line right into the active **Revision**.
+
+#### Revision (Active) — solid blue cube
+
+- **What it represents.** The currently-serving version of the container. Container Apps' answer to blue/green deployment.
+- **In this project.** Each time GitHub Actions runs `az containerapp update --image ghcr.io/.../forest-cover-endpoint:<sha>`, Azure creates a new revision tagged with that SHA and marks it active. Old revisions stick around long enough to drain in-flight requests.
+
+#### Revision (Previous) — dashed orange cube
+
+- **What it represents.** The previously-active revision, scaled down but not deleted. The dashed border = "exists but isn't serving traffic."
+- **In this project.** This is the rollback lever. If a deploy goes sideways, I can flip traffic back to the previous revision with one CLI call — no rebuild, no redeploy.
+
+#### Ingress (HTTPS) — globe icon
+
+- **What it represents.** The public HTTPS endpoint. TLS is terminated by Container Apps; I never deal with certificates.
+- **In this project.** `https://forest-cover-endpoint.whiteflower-743727a8.northeurope.azurecontainerapps.io`. The `whiteflower-…` subdomain is randomly assigned at environment creation time and shared across all apps in the same environment.
+- **Arrows.** Receives traffic from the active revision (left) and from **Client Applications** (right).
+
+### Client Applications (purple, right)
+
+- **What it represents.** Whatever calls the endpoint. Three icons cover the three common cases.
+  - **Web App** — a browser-based frontend.
+  - **Mobile App** — a native iOS/Android client.
+  - **cURL / API** — direct programmatic calls from a script, a backend, or my terminal.
+- **In this project.** Right now it's `curl` from my terminal and the GitHub Actions smoke-test step. The architecture is ready for anything else to plug in.
+
+### Monitoring & Observability (green, bottom)
+
+- **What it represents.** What's needed to know the service is healthy without ssh'ing into it.
+- **In this project.**
+  - **Logs** — structured JSON, flowing from the container's stdout into the Log Analytics workspace. Queryable by field (level, logger, message, status code) in KQL — Microsoft's Kusto Query Language.
+  - **Metrics** — the FastAPI app exposes a `/metrics` endpoint in Prometheus format: request counters, latency histograms by route, in-flight request gauges, plus baseline Python process info (GC, memory). Scrapable by any Prometheus-compatible collector.
+  - **Traces** — available out of the box from Container Apps but not yet wired to anything I'm reading. Honest gap.
+  - **Alerts** — an Azure Monitor metric alert on the `Requests` metric filtered to `StatusCodeCategory == 5xx`, threshold of 5 errors in 5 minutes, emailing me; plus a €5/month Consumption budget alert at 80% and 100%.
+
+### Outcomes (orange, bottom-right)
+
+The summary panel: three properties this whole setup is designed to deliver.
+
+- **Scalable.** Container Apps auto-scales replicas based on concurrent HTTP requests. One replica per 10 concurrent requests by default, up to a configurable max — I capped at 2 for the demo.
+- **Cost Efficient.** Scale-to-zero + a €5 budget alert means an idle portfolio endpoint costs essentially nothing.
+- **Production Ready.** Federated identity (no leaked-secret risk), HTTPS-only ingress (no plaintext traffic), automated rollouts (no manual `scp`-ing files), live monitoring (no flying blind), revisions for rollback (no "oh no" deploys). All the things a real production service should have, on free or near-free tier.
 
 <Callout color="yellow">
   🔑 <Highlight>The only thing stored in GitHub secrets is identifiers</Highlight> — client ID, tenant ID, subscription ID, resource group name, container app name. Nothing that can authenticate on its own. The actual auth is a short-lived federated token, minted per workflow run.
 </Callout>
+
+## What I actually did, step by step
+
+Provisioning all of that is most of the project. Roughly in the order I did it:
+
+1. **Built the FastAPI service.** `app/main.py` with `/health` and `/predict` endpoints, Pydantic models for the request and response so the contract is machine-checkable. Tested locally with `uvicorn`.
+2. **Pulled the training out of the notebook.** Moved the cell-by-cell work into `train/train.py`, parametrised by `--sample-size` and `--n-estimators`. Output: `models/model.joblib`. Same model, but now reproducible and runnable from CI.
+3. **Wrote the Dockerfile.** Python 3.11-slim base, copy source, install the package, set the uvicorn command. (Got the COPY order wrong twice — see below.)
+4. **Pushed the repo to GitHub.** Two workflows: `ci.yml` (lint + tests on every push) and `deploy.yml` (train + build + push + deploy on `main`). CI was green on the first commit; deploy was blocked on Azure, which I hadn't provisioned yet.
+5. **Created a fresh Microsoft account and Azure subscription.** Personal account using my Gmail, deliberately separated from my IE alumni account so the tenants wouldn't tangle. Free trial signup, card on file, €5 budget alert planned.
+6. **Logged in from the CLI.** `az login --use-device-code` from my terminal, confirmed the right subscription with `az account show`.
+7. **Provisioned the cloud, all from the CLI.** This is the bulk of the infra and it's all in [`infra/README.md`](https://github.com/maria-aguilera/forest-cover-endpoint/blob/main/infra/README.md):
+   - `az group create` for the resource group (had to recreate it in `northeurope` after `westeurope` rejected me with "not accepting new customers").
+   - `az containerapp env create` for the Container Apps environment. Slowest step — about four minutes.
+   - `az containerapp create` for a placeholder container with the helloworld image and `--min-replicas 0`. This is what GitHub Actions will later swap onto the real image.
+   - `az ad app create` + `az ad sp create` for the Azure AD app registration that GitHub Actions will impersonate.
+   - `az role assignment create` to grant the SP Contributor on the resource group only — least privilege.
+   - `az ad app federated-credential create` to attach a federated credential scoped to my repo's `main` branch. This is the trick that lets the workflow log in without a stored secret.
+   - `gh secret set` to push the five identifier-secrets to the GitHub repo (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINERAPP_NAME`).
+   - `az rest --method put` for a €5/month Consumption budget alert at 80% and 100%, emailing me.
+8. **Pushed an empty commit and watched it break.** First deploy died on the Dockerfile layer order. Second on `.dockerignore` hiding `train/`. Third on `azure/CLI@v2` failing to inherit the OIDC session. Fourth deploy went green end-to-end.
+9. **Hit the live endpoint.** `curl https://.../health` came back `{"status":"ok"}`. `curl -X POST .../predict` came back with a real prediction (Lodgepole Pine, 66%) from the real trained model. That's the screenshot at the bottom of this post.
+
+Whole thing fits in an afternoon if you don't hit the regional-capacity wall. With it, double that.
 
 ## The four things that broke along the way
 
@@ -202,15 +337,54 @@ Returns something like:
 
 The `model_version` is the UTC timestamp of when this image was trained. Two different deploys will return different versions even if the predictions are identical — useful for debugging after a rollback.
 
+## How it's doing in production
+
+I hit the endpoint with 30 mixed requests (15 `/health`, 15 `/predict`) right after the first deploy went green, just to see what came out.
+
+| Metric | Result |
+|---|---|
+| **Cold-start latency** (first request after scale-to-zero) | **~22s** |
+| **Steady-state p50 latency** | **~170 ms** |
+| **Steady-state p99 latency** | **~180 ms** |
+| **Error rate** | **0 / 30** |
+| **Replicas spun up** to handle the burst | **2** |
+
+The 22-second first request is the cost of scaling to zero — a fresh container has to start, load the joblib model, and warm uvicorn. Subsequent requests are flat around 170 ms, which is essentially the model's inference cost plus the round-trip from Madrid to North Europe.
+
+Two replicas spun up under load because Container Apps' default scale rule is one replica per ten concurrent HTTP requests. After thirty seconds of idle, both replicas drained back to zero.
+
+What's actually wired up on the observability side:
+
+- **Structured JSON logs** into Log Analytics — queryable by level, message, route, status code.
+- **`/metrics` endpoint** exposing Prometheus-format counters, histograms, and in-flight request gauges.
+- **Azure Monitor alert** on the `Requests` metric filtered to `StatusCodeCategory == 5xx`, threshold of 5 errors in a 5-minute window, emailing me.
+- **Consumption budget** at €5/month with notifications at 80% and 100%.
+
+Nothing fancy, but it's the difference between "running" and "knowable while it runs."
+
+To make this actually inspectable, I built an **Azure Workbook** on top of the Log Analytics workspace — six panels, all live, all backed by KQL queries I version-controlled at [`infra/workbook.json`](https://github.com/maria-aguilera/forest-cover-endpoint/blob/main/infra/workbook.json).
+
+<Image
+  src="/images/blog/forest-cover-endpoint/dashboard-overview.png"
+  alt="Azure Workbook screenshot: header with service URL, region, and scale-to-zero note; request rate timechart showing 40 requests in the most recent 5-minute bucket; status code distribution donut chart showing 100% 2xx (40/40)."
+  caption="Top of the operational dashboard. Request rate over the last hour and the status-code mix. Zero errors over 40 requests."
+/>
+
+<Image
+  src="/images/blog/forest-cover-endpoint/dashboard-replicas.png"
+  alt="Azure Workbook screenshot: bar chart showing 20 requests to /health and 20 requests to /predict; replica count timechart showing scale-to-zero behavior with the count rising to 1 during the traffic burst and dropping back to 0 after."
+  caption="Per-endpoint traffic and replica-count timechart. The single peak in the replica chart is scale-to-zero in action: from 0 → 1 replica when traffic arrived, back to 0 once it stopped."
+/>
+
 ## The cost
 
-Realistic expected monthly cost: **€0–2** with the container scaling to zero. Worst case if scale-to-zero hiccups: maybe €30/month. There's a budget alert at €5 to catch anything weird before it becomes anything more interesting.
+Realistic expected monthly cost: **€0–2** with the container scaling to zero. Worst case if scale-to-zero hiccups: maybe €30/month. The €5 budget alert is there to catch anything weird before it becomes anything more interesting.
 
 ## What I'd do differently next time
 
 - **Pin the Container Apps base image** in the workflow rather than relying on `azurecontainerapps-helloworld:latest` for the placeholder. The placeholder is fine for a first deploy, but `latest` is mutable, which means the "before" state in a rollback isn't reproducible.
 - **Move training out of the deploy workflow.** Right now every push retrains. That's fine while iterating, but in a real system training is its own thing, with its own cadence and its own artifact registry. The deploy workflow should just pick up the latest validated model.
-- **Add structured logging and a `/metrics` endpoint.** Without observability I'm flying blind once the container starts. Even basic request counts and latency p99 would be a big upgrade.
+- **Wire `/metrics` into a real dashboard.** The endpoint exists and the data is there; what's missing is a Grafana or Azure Workbooks board pointing at it. Without it, latency p99 and request rate live in scrape output that nobody's looking at.
 
 ## What this project unlocks
 
