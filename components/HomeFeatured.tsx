@@ -48,8 +48,8 @@ const featuredItems = [
     ],
     cta: { label: "Read More", href: "/blog/ml-what-is-machine-learning", icon: "book-open" },
     image: {
-      src: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/fig-03.jpg",
-      alt: "Underfit vs overfit — Model Prediction Error vs Model Complexity curve with Wealth/Happiness examples",
+      src: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png",
+      alt: "Underfit, good fit, and overfit examples with the bias-variance curve showing where model complexity meets prediction error",
     },
   },
 ];

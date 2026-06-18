@@ -1354,6 +1354,12 @@ body.theme-dark .series-detail__item--soon {
   color: #475569;
   font-size: 0.9rem;
   line-height: 1.5;
+  /* Cap to 3 visible lines (kozodoi-style tight summary). Excerpt
+     stays full in the DOM for SEO/screen readers. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .blog-card__tags {
@@ -1465,22 +1471,25 @@ body.theme-dark .series-detail__item--soon {
 
 .blog-series-panel__image {
   position: relative;
-  height: 180px;
-  background: #e2e8f0;
+  height: 220px;                                    /* taller so contain fits */
+  background: #f8fafc;                              /* page-match light gray */
   overflow: hidden;
 }
 
 @media (min-width: 900px) {
   .blog-series-panel__image {
-    height: 200px;
+    height: 260px;
   }
 }
 
 .blog-series-panel__image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* contain so the cover diagram is shown in full (no awkward crop) */
+  object-fit: contain;
+  object-position: center;
   display: block;
+  padding: 0.75rem;
 }
 
 .blog-series-panel__heroBody {
@@ -1695,21 +1704,25 @@ body.theme-dark .series-detail__item--soon {
 
 .post-card__media {
   position: relative;
-  height: clamp(220px, 40vw, 360px);
+  height: clamp(240px, 42vw, 380px);
   overflow: hidden;
+  background: #f8fafc;
 }
 
 .post-card__media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
+  padding: 1rem;
 }
 
 .post-card__mediaOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.15), rgba(99, 102, 241, 0.2));
+  background: transparent;
+  pointer-events: none;
 }
 
 .post-card__meta {
@@ -5535,10 +5548,10 @@ select:focus-visible,
 
 /* Hero banner image */
 .post-page--navy .post-card__media {
-  background: var(--navy-bg);
+  background: #f8fafc;
 }
 .post-page--navy .post-card__mediaOverlay {
-  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 41, 0.10) 100%);
+  background: transparent;
 }
 
 /* Royal-blue strip carrying byline + subtitle */
