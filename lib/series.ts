@@ -5,6 +5,8 @@ export type SeriesPost = {
   slug: string;
   /** False = greyed out in the dropdown, not yet linked. */
   published: boolean;
+  /** Optional nested sub-posts that expand under this part in the series panel. */
+  children?: SeriesPost[];
 };
 
 export type Series = {
@@ -25,7 +27,21 @@ export const series: Series[] = [
     title: "Machine Learning from Scratch",
     description: "A 12-part walkthrough of the ML II course notes — intuition, math, code.",
     posts: [
-      { part: 1,  title: "What is Machine Learning?",                 slug: "ml-what-is-machine-learning",                published: true  },
+      {
+        part: 1, title: "What is Machine Learning?", slug: "ml-what-is-machine-learning", published: true,
+        children: [
+          { part: 1,  title: "What Machine Learning Actually Is",                slug: "ml-foundations-01-what-machine-learning-actually-is", published: true },
+          { part: 2,  title: "Why Generalization Matters",                       slug: "ml-foundations-02-why-generalization-matters",        published: true },
+          { part: 3,  title: "The Curse of Dimensionality",                      slug: "ml-foundations-03-curse-of-dimensionality",           published: true },
+          { part: 4,  title: "Feature Engineering Is the Key",                   slug: "ml-foundations-04-feature-engineering-is-the-key",    published: true },
+          { part: 5,  title: "More Data, Better Data, and Domain Expertise",     slug: "ml-foundations-05-more-data-better-data",             published: true },
+          { part: 6,  title: "Learn Many Models, Not Just One",                  slug: "ml-foundations-06-learn-many-models",                 published: true },
+          { part: 7,  title: "Types of Machine Learning Systems",                slug: "ml-foundations-07-types-of-ml-systems",               published: true },
+          { part: 8,  title: "Main Challenges in Machine Learning",              slug: "ml-foundations-08-main-challenges-in-ml",             published: true },
+          { part: 9,  title: "How to Evaluate Classification Models",            slug: "ml-foundations-09-evaluate-classification-models",    published: true },
+          { part: 10, title: "Model Selection & Hyperparameter Tuning",          slug: "ml-foundations-10-model-selection-tuning",            published: true },
+        ],
+      },
       { part: 2,  title: "Data Cleaning & Preprocessing",             slug: "ml-from-scratch-02-data-cleaning",           published: true  },
       { part: 3,  title: "Feature Engineering",                        slug: "ml-from-scratch-03-feature-engineering",     published: true  },
       { part: 4,  title: "Classification Metrics",                     slug: "ml-from-scratch-04-classification-metrics",  published: true  },

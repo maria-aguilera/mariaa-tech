@@ -1,0 +1,62 @@
+---
+slug: ml-foundations-04-feature-engineering-is-the-key
+title: "Post 4 — Feature Engineering Is the Key"
+subtitle: "Good features help the model learn better, faster, and generalize well. The ML process is iterative — and the leverage lives in the features."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "Raw columns are rarely the right input. Transforming them into features that carry signal — distance_to_city_centre instead of address, day_of_week instead of timestamp — is where most of the work pays off. The ML process loops: understand, prepare, train, evaluate."
+tags:
+  - Machine Learning
+  - Fundamentals
+  - Feature Engineering
+source: Notes
+series: "ML Foundations"
+seriesPart: 4
+seriesTotal: 10
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+style: navy
+bannerImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+unlisted: true
+---
+
+*ML Foundations · Post 4/10*
+
+## Raw data → useful features
+
+This is the practical implication of the curse of dimensionality. If most of the work in ML is making sure your features carry signal and not noise, then the most leveraged skill in ML is **feature engineering**.
+
+<Callout color="yellow">
+  🔑 <Highlight>FEATURE ENGINEERING IS THE KEY.</Highlight>
+</Callout>
+
+A well-engineered feature can take a problem from impossible to trivial. The classic example: predicting house prices.
+
+- Raw column: `address` — essentially useless to a model.
+- Engineered: `distance_to_city_centre`, `crime_rate`, `school_district_rating` — suddenly the model has signal it can actually use.
+
+Same underlying data; completely different model performance. The transformation is what made the difference.
+
+## The ML process is iterative
+
+Feature engineering doesn't happen once at the start. It loops:
+
+1. **Understand the problem.** Talk to whoever knows the domain. What are they actually trying to predict, and why does it matter?
+2. **Prepare / engineer features.** Clean, transform, derive. Build the columns the model will actually see.
+3. **Train the model.** Pick a representation, fit it.
+4. **Evaluate.** Look at where the model fails. Those failures point back to step 2.
+
+You don't move linearly through the steps. You spend most of your time bouncing between 2 and 4, asking *what would the model need to know to get this case right?*
+
+## GIGO: garbage in, garbage out
+
+Even the best algorithm can't learn from features that don't carry the signal. Conversely, a mediocre algorithm with great features will outperform a fancy algorithm with raw, messy features almost every time.
+
+<Callout color="red">
+  ⚠️ When an ML project isn't working, the first place to look is the features — not the model.
+</Callout>
+
+That's why this post comes before any specific algorithm in the foundations: nothing downstream matters if the input is wrong.
+
+---
+
+**Next up — [Post 5: More Data, Better Data, and Domain Expertise](/blog/ml-foundations-05-more-data-better-data).**

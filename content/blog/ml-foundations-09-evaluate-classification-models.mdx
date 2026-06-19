@@ -1,0 +1,92 @@
+---
+slug: ml-foundations-09-evaluate-classification-models
+title: "Post 9 — How to Evaluate Classification Models"
+subtitle: "Accuracy, precision, recall, F1, and the confusion matrix that holds them all together."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "Accuracy is a trap on imbalanced data. Precision and recall pull in different directions. F1 splits the difference. And underneath all of them sits one small table — the confusion matrix — that makes all four metrics fall out by counting."
+tags:
+  - Machine Learning
+  - Fundamentals
+  - Classification
+  - Metrics
+source: Notes
+series: "ML Foundations"
+seriesPart: 9
+seriesTotal: 10
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+style: navy
+bannerImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+unlisted: true
+---
+
+*ML Foundations · Post 9/10*
+
+A classifier outputs a class. To say whether it's any good, you need a metric. Picking the wrong metric is one of the most common ways an ML project produces "great results" that don't translate to value.
+
+## The confusion matrix
+
+Every classification metric ultimately falls out of one small table.
+
+For a binary classifier (positive class = 1, negative class = 0):
+
+|                       | **Actual Positive (1)** | **Actual Negative (0)** |
+| --------------------- | ------------------- | ------------------- |
+| **Predicted Positive (1)** | True Positive (TP)  | False Positive (FP) |
+| **Predicted Negative (0)** | False Negative (FN) | True Negative (TN)  |
+
+- **TP** — predicted positive, actually positive. Correct.
+- **TN** — predicted negative, actually negative. Correct.
+- **FP** — predicted positive, actually negative. False alarm.
+- **FN** — predicted negative, actually positive. Missed.
+
+Every metric below is just a ratio of these four numbers.
+
+## Accuracy — overall correctness
+
+```
+Accuracy = (TP + TN) / (TP + TN + FP + FN)
+```
+
+The fraction of predictions that were right. Intuitive, easy. Misleading on imbalanced data: a fraud detector that predicts "not fraud" for everyone reaches 99.9% accuracy on a dataset where 0.1% of cases are fraud — and detects no fraud.
+
+## Precision — of predicted positives, how many are correct
+
+```
+Precision = TP / (TP + FP)
+```
+
+When the model says "positive", how often is it right? High precision means few false alarms. Useful when false positives are expensive: flagging an email as spam (a real email lost is worse than a spam slipping through).
+
+## Recall — of actual positives, how many did we find
+
+```
+Recall = TP / (TP + FN)
+```
+
+Of all the positives that exist, what fraction did the model catch? Useful when false negatives are expensive: cancer screening (a missed positive is catastrophic; a false alarm is recoverable).
+
+## Precision and recall pull against each other
+
+Lower your decision threshold to catch more positives → recall up, precision down. Raise it to be more conservative → precision up, recall down. You almost never get both.
+
+## F1-Score — balance between precision and recall
+
+```
+F1 = 2 · (Precision · Recall) / (Precision + Recall)
+```
+
+The harmonic mean. It's harsh on imbalance: if either precision or recall is near zero, F1 is too. Useful when you need a single number that punishes a one-sided model.
+
+## Which to pick
+
+- **Balanced data, errors symmetric** → accuracy is fine.
+- **Imbalanced data** → never trust accuracy alone. Report precision and recall, and pick an F1 or weighted metric.
+- **False positives expensive** → optimise precision.
+- **False negatives expensive** → optimise recall.
+
+The metric you pick is the thing your model will optimise for. Pick it on purpose.
+
+---
+
+**Next up — [Post 10: Model Selection & Hyperparameter Tuning](/blog/ml-foundations-10-model-selection-tuning).**

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -15,6 +16,7 @@ export type SeriesPartCard = {
   title: string;
   slug: string;
   published: boolean;
+  children?: SeriesPartCard[];
 };
 
 export type SeriesCard = {
@@ -117,19 +119,16 @@ export default function TopicSection({
                   <span className="blog-series-panel__partTitle">{p.title}</span>
                 </>
               );
-              if (p.published) {
-                return (
-                  <li key={p.slug} className="blog-series-panel__part">
-                    <Link href={`/blog/${p.slug}`} className="blog-series-panel__partLink">
-                      {content}
-                      <span className="blog-series-panel__partCta" aria-hidden="true">
-                        →
-                      </span>
-                    </Link>
-                  </li>
-                );
-              }
-              return (
+              const row = p.published ? (
+                <li key={p.slug} className="blog-series-panel__part">
+                  <Link href={`/blog/${p.slug}`} className="blog-series-panel__partLink">
+                    {content}
+                    <span className="blog-series-panel__partCta" aria-hidden="true">
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ) : (
                 <li
                   key={p.slug}
                   className="blog-series-panel__part blog-series-panel__part--soon"
@@ -137,6 +136,35 @@ export default function TopicSection({
                   {content}
                   <span className="blog-series-panel__partChip">Coming soon</span>
                 </li>
+              );
+
+              if (!p.children || p.children.length === 0) {
+                return row;
+              }
+
+              const parentNum = String(p.part).padStart(2, "0");
+              return (
+                <Fragment key={`${p.slug}-wrap`}>
+                  {row}
+                  <li className="blog-series-panel__childWrap">
+                    <ol className="blog-series-panel__children">
+                      {p.children.map((c) => {
+                        const childNum = `${parentNum}.${String(c.part).padStart(2, "0")}`;
+                        return (
+                          <li key={c.slug} className="blog-series-panel__part blog-series-panel__part--child">
+                            <Link href={`/blog/${c.slug}`} className="blog-series-panel__partLink">
+                              <span className="blog-series-panel__partNum">{childNum}</span>
+                              <span className="blog-series-panel__partTitle">{c.title}</span>
+                              <span className="blog-series-panel__partCta" aria-hidden="true">
+                                →
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </li>
+                </Fragment>
               );
             })}
           </ol>

@@ -16,143 +16,455 @@ series: "Machine Learning from Scratch"
 seriesPart: 1
 seriesTotal: 12
 coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
-style: navy
 bannerImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
 ---
 
-*Machine Learning from Scratch · Part 1/12*
+## What is Machine Learning?
 
-This is Session 1 of my Machine Learning II course at IE — the foundation everything else in this series rests on. The page images below are scans of my actual notebook. I'm leaving them in because the diagrams and emphasis (highlighted bits, arrows, the messy bits) are where most of the intuition actually lives.
+A field of study that gives computers the ability to learn from data without being explicitly programmed.
 
-I've rewritten the typed prose around them so the post is searchable, skimmable, and complete. If you want the raw notes, those scans *are* the raw notes — just read them top to bottom.
+*ML systems automatically learn programs from data.*
 
-## A machine that "learns"
+- A machine learning algorithm is a piece of code that tries to give computers the ability to learn.
+- Only implement ML if the solution genuinely *is* machine learning — a rule-based system is faster to build, easier to debug, and won't drift on you.
+- ML is the field of study that gives computers the ability to learn without being explicitly programmed to.
 
-A machine learning algorithm is, in the most literal sense, **a piece of code that tries to give computers the ability to learn**. The textbook definition is Tom Mitchell's, and it's still the cleanest formulation anyone has come up with:
+### So how do we make a computer program learn?
 
-> A computer program **learns** from experience **E** with respect to some task **T** and some performance measure **P**, if its performance on T, as measured by P, improves with experience E.
-
-So three ingredients: a task, experience, a way to measure how it's going. The classic example is a spam filter:
-
-- **Task (T):** flag emails as spam or not spam.
-- **Experience (E):** the emails users have already flagged.
-- **Performance measure (P):** the percentage of emails it gets right.
-
-If, the more flagged examples it sees, the better it gets at classifying — *that's* learning.
+<Callout color="blue">
+  💬 A computer program **learns** from experience **E** with respect to a task **T** and a performance measure **P**, if its performance on **T** improves with experience **E**.
+</Callout>
 
 <Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-01.jpg"
-  alt="Page 1 of my Session 1 notes — Mitchell's definition of machine learning and the three components of learning algorithms."
-  caption="✎ Page 1 — Mitchell's definition and the first sketch of representation / evaluation / optimization."
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/spam-filter-clean.png"
+  alt="Spam filter as a canonical ML example, broken into Task (T) — classify spam or not spam, Experience (E) — past flagged emails, and Performance (P) — how often it gets it right, here at 92%. A brain icon in the middle labelled 'Learns from examples' connects all three. Tagline: more experience → better performance."
+  caption="The spam filter as the canonical example of Mitchell's T / E / P breakdown. More useful experience leads to better performance."
 />
 
+For example, your spam filter is an ML program that — given examples of spam emails (flagged by users) and regular emails — can learn to flag spam.
+
+The examples that the system uses to learn are called the **training set**, and each training example is called a **training instance** or **sample**.
+
+In this case:
+
+- The **task T** is to flag spam for new emails.
+- The **experience E** is the training data.
+- The **performance P** needs to be defined — e.g. the ratio of correctly classified emails. This performance measure is called **accuracy**, and it's often used in classification tasks.
+
 <Callout color="yellow">
-  💡 <strong>Heuristic that's saved me hours</strong>: only implement ML if the solution genuinely is machine learning. A rule-based system is faster to build, easier to debug, and won't drift on you. Reach for ML when the rules are too many, too fuzzy, or unknown.
+  💡 If you download a copy of Wikipedia, your computer has a lot more data — but it isn't suddenly better at any task. <Highlight>That isn't machine learning.</Highlight>
 </Callout>
+
+*What is learning? Three different steps — and in this series we focus only on representation.*
 
 ## Learning = Representation + Evaluation + Optimization
 
-Every ML algorithm — every single one we'll cover in this series — decomposes into three pieces. This framing comes from Pedro Domingos's "A Few Useful Things to Know About Machine Learning" paper, and it's the lens I use to compare algorithms.
+Every ML algorithm — every single one we'll cover in this series — decomposes into three pieces. This framing comes from Pedro Domingos's *A Few Useful Things to Know About Machine Learning* paper, and it's the lens I use to compare algorithms.
 
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-02.jpg"
-  alt="Handwritten page expanding the definition with the spam-filter example and breaking learning into representation, evaluation, and optimization."
-  caption="✎ Page 2 — the spam-filter example and the three-piece decomposition. Most of the next 11 posts are about choices for the first two."
-/>
+Think of machine learning as: **choose what kind of solution you allow → decide how to judge it → find the best one.**
 
-### 1. Representation
+### 1. Representation — *"What kind of model are we allowed to use?"*
 
-The first thing every algorithm picks is **what kind of solution it can express**. A linear regression can only fit a straight line. A decision tree can only carve the space into axis-aligned boxes. A neural network can express almost anything — at the cost of needing huge amounts of data and being basically uninterpretable.
+This is the **space of possible solutions**. You're telling the computer: *"You can only search for answers inside this family of models."*
 
-The phrase from the literature: *"choosing the set of classifiers that it can possibly learn. This set is called the hypothesis space of the learner."*
+| Problem | Representation choice |
+|---|---|
+| Data looks like a straight-line relationship | Linear regression |
+| Data has complex curves | Decision tree, Random Forest, neural network |
+| Text classification | Naïve Bayes, SVM, neural network |
+| Image recognition | Convolutional neural network |
 
-In plain terms: you pick the shape of the model first, then you let the training find the best version of that shape.
+That family of allowed models is called the **hypothesis space**. For example, if we choose linear regression, the hypothesis space is *all possible straight lines*. The model can choose different slopes and intercepts, but it cannot suddenly become a decision tree.
 
-### 2. Evaluation
+### 2. Evaluation — *"How do we know if a model is good?"*
 
-You have a model. How do you know it's any good? You need a metric — accuracy, F1, RMSE, whatever fits the problem. <KeyTerm>The metric you pick is the thing your model will optimise for</KeyTerm>, so picking the wrong metric means optimising the wrong thing.
+Once we have a family of possible models, we need a way to **score** them. That's the evaluation metric.
 
-This is why a whole post in this series ([Part 4 — Classification Metrics](/blog/ml-from-scratch-04-classification-metrics)) is dedicated just to picking metrics. Accuracy isn't always the right answer, and on imbalanced data it's actively misleading.
+| Task | Possible evaluation metric |
+|---|---|
+| Predict house price | Mean squared error, mean absolute error |
+| Classify spam / not spam | Accuracy, precision, recall, F1-score |
+| Predict if patient has disease | Recall may be more important than accuracy |
+| Recommend products | Ranking score, click-through rate |
 
-### 3. Optimization
+Evaluation answers *"what are we trying to improve?"* Suppose the real house price is €300,000. Model A predicts €310,000; Model B predicts €500,000. The evaluation metric tells us Model A is better because its error is smaller.
 
-How does the algorithm actually search through the hypothesis space to find the best one? Gradient descent, tree splitting, dual quadratic programming — every algorithm has its own. This is mostly a Machine Learning III topic; in this series we'll mention it but not dwell.
+<KeyTerm>The metric you pick is the thing your model will optimise for</KeyTerm> — so picking the wrong one means optimising the wrong thing. ([Part 4 — Classification Metrics](/blog/ml-from-scratch-04-classification-metrics) goes deeper on this.)
 
-For now: <Highlight>representation chooses the shape, evaluation chooses the goal, optimization does the searching</Highlight>.
+### 3. Optimization — *"How do we find the best model?"*
 
-## The first big idea: it's generalization that counts
+We know the family of allowed models, and we know how to judge them. **Optimization is the search procedure** we use to move through the family and find the one with the best score.
 
-This is the single most important sentence in the entire course. Write it down. Tattoo it.
+| Model / situation | Optimization method |
+|---|---|
+| Linear regression | Gradient descent or closed-form solution |
+| Neural network | Gradient descent / backpropagation |
+| Decision tree | Greedy splitting search |
+| Rule-based models | Combinatorial search |
 
-<Callout color="yellow">
-  🔑 <Highlight>IT'S GENERALIZATION THAT COUNTS.</Highlight>
-</Callout>
+Optimization is **not the score itself** — it's the process used to improve the score. (Your slides might say "optimization metric"; the more accurate term is *optimization method* or *algorithm*.)
 
-Imagine you build a model to predict customer churn and it achieves 99% accuracy. Are you done? Are you happy?
+### A simple analogy: buying a dress
 
-Not yet — you don't know how good the model is until it sees data it has *never* seen before. On your training data, you already know what happened. You don't care about predicting the past; you care about predicting the future. The whole point of the model is to work on new, unseen data.
+| Step | Choice | Maps to |
+|---|---|---|
+| Representation | "I'll only consider black dresses, size M, under €100." | The set of dresses you allow into the search. |
+| Evaluation | "I'll judge each one on comfort, price, style, quality." | The score you use to rank them. |
+| Optimization | "I'll go shop by shop, filter online, sort by rating, try the best ones first." | The procedure for finding the winner. |
 
-<KeyTerm>Generalization</KeyTerm> is how well your model behaves on data it hasn't seen. And it's difficult — because all you ever have is past data.
+### Machine learning example: house prices
 
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-03.jpg"
-  alt="Notes on generalization, overfitting and underfitting, with the classic happiness-vs-wealth example and a bias-variance curve."
-  caption="✎ Page 3 — the wealth-vs-happiness example. Linear underfits, quadratic fits, a complex model overfits. The sweet spot is the bottom of the test-error curve, not the bottom of the training-error curve."
-/>
+Suppose we want to predict house prices.
 
-### The wealth-vs-happiness example
+**Step 1: Representation.** We choose **linear regression**. That means the model has this form:
 
-You're trying to predict someone's happiness from their wealth. You have a scatter plot. You try three models:
+`price = a × size + b`
 
-1. **A linear model** — a straight line through the data. The line goes roughly in the right direction but misses obvious structure. The training error is high. The test error is also high. This is <KeyTerm>underfitting</KeyTerm>: the model is too simple for the relationship.
-2. **A quadratic model** — a gentle curve. Now it captures the bulk of the pattern. Training error drops. Test error also drops. We're in a good place.
-3. **A complex model** (say, a deep neural net) — the curve now snakes through every point. Training error is essentially zero. But it's also memorised the noise. On a new data point, the prediction is wild. The training error is 0; the test error is huge. This is <KeyTerm>overfitting</KeyTerm>.
+The model is only allowed to learn straight-line relationships. So the **space of solutions** is *all possible lines* — for example:
 
-The lesson: **you can always reduce training error by making the model more complex**. That's a one-way knob — turn it up forever. But test error is U-shaped: it goes down at first, hits a minimum, then climbs as the model starts memorising noise instead of pattern.
+```
+price = 2,000 × size + 50,000
+price = 2,500 × size + 20,000
+price = 1,800 × size + 100,000
+```
 
-### Underfitting vs overfitting in one line
+Each one is a possible model.
 
-- **Underfit:** high training error, high test error. The model is too rigid to capture the pattern.
-- **Overfit:** zero (or near-zero) training error, high test error. The model has learned the training data instead of the underlying pattern.
+**Step 2: Evaluation.** We choose an error metric, for example `Mean Squared Error`. This tells us how bad the predictions are. Example:
 
-The whole game is to find the sweet spot in the middle. Cross-validation is the practical tool for that — we'll get to it in [Part 5](/blog/ml-from-scratch-05-cross-validation).
+| Model | Prediction error |
+|---|---|
+| Line A | 50,000 |
+| Line B | 10,000 |
+| Line C | 80,000 |
+
+The evaluation metric says **Line B is better**.
+
+**Step 3: Optimization.** Now the algorithm needs to find the best values of `a` and `b`. It may use **gradient descent**.
 
 <Callout color="blue">
-  💡 <strong>Practical note</strong>: the larger your dataset and the smarter your feature engineering, the less you have to worry about overfitting. Big datasets give the model enough signal that the noise can't dominate. A few thousand examples? Worry. A few million? Less worry.
+  💬 Gradient descent, in one sentence: *"Try a line, calculate the error, adjust the line slightly, check if the error improves, repeat."*
 </Callout>
 
-## Cross-validation, in one sentence
+So optimization is the mechanism that moves from a bad line to a better line.
 
-We'll dedicate a whole post to it later, but the idea fits in a paragraph:
+### Where do these "things" fit?
 
-> Randomly divide your training data into k subsets, hold out each one in turn while training on the rest, test the model on the held-out one, average the k scores.
+Your slides may list these three terms:
 
-This gives you a much more honest estimate of how the model will perform on truly unseen data, because you're testing on data you didn't train on, and you're averaging over k different splits so you don't get tricked by a lucky one. <KeyTerm>Cross-validation is the way you evaluate any ML model in practice.</KeyTerm>
+```
+Space of solutions
+Evaluation metric
+Optimization metric
+```
+
+The last one is slightly misleading. The cleaner mapping:
+
+```
+Space of solutions     →  Representation
+Evaluation metric      →  Evaluation
+Optimization method    →  Optimization
+```
+
+In plain English:
+
+| Thing in your slides | Where it fits | What it really means |
+|---|---|---|
+| Space of solutions | Representation | The possible models the learner can choose from |
+| Evaluation metric | Evaluation | The score/loss used to say if a model is good or bad |
+| Optimization method | Optimization | The algorithm used to search for the best model |
+
+Avoid the phrase *"optimization metric"* unless a professor specifically uses it — the standard terms are **optimization method**, **optimization algorithm**, or **loss function being optimized**. Optimization is the *search procedure*, not the score itself.
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/representation-evaluation-optimization.png"
+  alt="Three side-by-side cards showing what each of Representation, Evaluation and Optimization looks like visually. Card 1 'Representation' shows an oval (the space of solutions) with a straight line, a curve, a tree, and a small neural-network graph inside it — the family of allowed models. Card 2 'Evaluation' shows a 3D wavy blue landscape (the score surface) with dots scattered across hills and valleys — good models in the valleys, bad models on hills. Card 3 'Optimization' shows the same landscape from above as a contour map with a dashed blue path going from a starting dot down to a star at the lowest point — the search procedure. A '+ + =' row connects the three cards to a final navy card labelled 'A learning algorithm' with a brain icon."
+  caption="Representation + Evaluation + Optimization = a learning algorithm. Three shapes, three concepts: the family of models, the score landscape, and the path that finds the best one."
+/>
+
+The diagram above is trying to show one thing:
+
+```
+Representation + Evaluation + Optimization = Learning algorithm
+```
+
+Three shapes, each standing for one of the pieces.
+
+**First shape — Space of solutions.** This is all the possible models. For example:
+
+```
+all possible lines
+all possible trees
+all possible neural networks
+```
+
+That belongs to **representation**.
+
+**Second shape — Evaluation surface.** This represents the error/score landscape. Some models are good, some models are bad. The low points are usually better if we are minimising error.
+
+That belongs to **evaluation**.
+
+**Third shape — Optimization path.** The dashed blue path shows the search process. The model starts somewhere on the surface, then moves step by step toward a better place (the lowest point).
+
+That belongs to **optimization**.
+
+### One-sentence summary
+
+<Callout color="blue">
+  💬 Choose the **kind of model** you allow (**representation**), choose how to **measure if it is good** (**evaluation**), and use a **search procedure** to find the best version of that model (**optimization**).
+</Callout>
+
+## First idea: Generalization is what counts
+
+<Callout color="yellow">
+  🔑 What you care about is how your algorithm works with **new data**. You already know what happened with the training data — what matters is whether the model can learn from that and use it to predict new data.
+</Callout>
+
+### Example: customer churn
+
+Imagine you create a model to predict **customer churn** and it gets **99% accuracy**. Is that really what you want? Not necessarily — you care about how the algorithm works on **new data**. In the training data you already know what happened (which customers left and which stayed); the important thing is whether the model can use that past data to predict what will happen with **future customers**.
+
+### What is generalization?
+
+The fundamental goal of machine learning is to **generalize beyond the examples in the training set**. The model should not only perform well on the data it has already seen — it should also perform well on data it has never seen before.
+
+<KeyTerm>Generalization</KeyTerm> means how well your model behaves on new data. It's difficult because during training you only have past data — you're trying to use past examples to make predictions about future examples. The key thing to avoid: **overfitting**.
+
+### Underfit vs overfit
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/underfit-vs-overfit.png"
+  alt="Three scatter plots in a row: Underfit (a straight orange line that misses most points), Good Fit (a gentle green curve through the cloud), Overfit (a wiggly purple curve passing through every point). Below, a model-complexity x model-error plot with two curves: solid Test/Prediction Error (U-shaped) and dashed Training Error (monotonically decreasing). The lowest point of the test-error curve is labelled 'Best Balance · Low Error' and marked 'Bottom of the test error curve · Best generalization'. The rightmost point of the training-error curve is labelled 'Bottom of the training error curve · Lowest training error'. A vertical 'Generalization Gap' arrow on the right shows the distance between training error and test error at high model complexity. Background regions: red (High Bias / Underfitting) on the left, green (good fit) in the middle, purple (High Variance / Overfitting) on the right. Inline info box: 'We usually care most about the bottom of the test error curve, because it reflects performance on new data.'"
+  caption="The whole game in one picture. The bottom of the test-error curve (green) is the point we actually care about — not the bottom of the training-error curve (rightmost dot), which keeps falling as the model overfits. The vertical gap between the two curves on the right is the generalization gap."
+/>
+
+Two failure modes sit on either side of the sweet spot:
+
+- **Underfitting** — the model is too simple to capture the real relationship. High error on training data *and* on new data. The straight line in the leftmost panel above.
+- **Overfitting** — the model memorises the training data instead of learning the general pattern. Near-zero error on training data, but high error on new data. The wiggly curve in the rightmost panel.
+
+You're hunting for the middle: complex enough to capture the real pattern, not so complex that it starts modelling noise.
+
+### Worked example: predicting happiness from wealth
+
+To make this concrete, imagine you want to predict a person's **happiness** from their **wealth**. The relationship may not be a simple straight line — let's walk through the three model choices from the diagram.
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/wealth-vs-happiness.png"
+  alt="Same diagram as above, but with the axes specifically labelled Wealth (x-axis) and Happiness (y-axis). Three scatter plots in a row: Underfit (a straight red line through the data cloud that misses curvature), Good fit (a green curve that follows the cloud), Overfit (a wiggly blue curve that passes through individual points). Below them, an error-vs-complexity plot with the solid 'Prediction Error for New Data' curve U-shaped, the dashed 'Training Error' curve monotonically decreasing, the 'Best balance · lowest error on new data' point marked in green at the bottom of the U, and the 'Bottom of the training error curve' marked in blue at the rightmost end of the training-error curve. A 'Generalization gap' arrow on the right shows the distance between the two curves. Tagline at the bottom: 'Underfit · Good fit · Overfit → pick the model complexity that minimises error on new data, not training data.'"
+  caption="Same diagram, now with the wealth/happiness axes from the worked example. Notice that the model complexity sweet spot (green) is the bottom of the test-error curve, not the bottom of the training-error curve (blue) — the right-hand side is where overfitting lives."
+/>
+
+### Model complexity
+
+- **A linear model — underfit.** First, you suspect a linear relationship and fit a **straight line**. It captures part of the trend, but misses the actual shape of the data. **High error on training, high error on new data.** That's underfitting — the model is *too simple*.
+- **A quadratic model — good fit.** Then you fit a **gentle curve**. This is flexible enough to capture more of the real pattern but not so flexible that it bends to every point. **Both training error and test error drop.** This is the *sweet spot*.
+- **A complex model (neural net) — overfit.** Now you throw a **deep neural network** at it. The training error may go to zero — the model passes through every point. Looks great. But it has **memorised the noise** and random details, not the underlying relationship. The first new data point it sees, the prediction is wild. That's overfitting.
+
+### Train error vs test error
+
+A good model should have low error on both **training data** and **test data**.
+
+With **overfitting**, you usually see this:
+
+- **Training error:** very low, maybe almost zero.
+- **Test error:** high.
+
+That means the model learned the training examples too specifically and failed to generalize.
+
+### The role of dataset size
+
+The larger your dataset, the less you usually worry about overfitting — the model has more examples to learn from, so it's harder for it to simply memorise every one.
+
+However, overfitting can still happen, especially with very complex models. Even with large datasets, you still need to evaluate the model properly.
+
+<Callout color="blue">
+  💡 <strong>Practical note:</strong> the larger your dataset and the smarter your feature engineering, the less you have to worry about overfitting. Big datasets give the model enough signal that the noise can't dominate. A few thousand examples? Worry. A few million? Less worry.
+</Callout>
+
+### Overfitting has many faces
+
+The same problem shows up in different costumes depending on the learner:
+
+- **A linear learner** has *high bias* — when the frontier between two classes is not a hyperplane, the learner cannot induce it.
+- **Decision trees** don't have this problem because they can represent any Boolean function. But they can suffer from *high variance*: decision trees learned on different training sets generated by the same phenomenon are often very different, when in fact they should be the same.
+- Contrary to intuition, **a more powerful learner is not necessarily better than a less powerful one** — a model that can learn complex patterns can also learn the noise, the outliers and the accidental coincidences in the training data. Sometimes the simpler model generalises better precisely because it *can't* fit the noise.
+
+That's why you need a way to estimate, before you ship, how the model will behave on data it hasn't seen. The standard answer is **cross-validation** — and that's where we go next.
+
+## Cross-validation in one sentence
+
+**Cross-validation** is an evaluation technique to see how good your model is when put to production.
+
+> Randomly dividing your training data into (say) ten subsets, holding out each one while training on the rest, testing each learned classifier on the examples it did not see, and averaging the results.
+
+We'll go deeper into this in [Part 5 of this series](/blog/ml-from-scratch-05-cross-validation), which is dedicated to cross-validation.
 
 ## The curse of dimensionality
 
-Here's a question I used to get wrong:
+<Callout color="blue">
+  💬 **The core idea.** As you add features, the search space grows *very* quickly. If the added features are irrelevant or noisy, the model has more space to search but no more useful signal.
+</Callout>
 
-> Which dataset has more information: **A** (10,000 instances, 100 features) or **B** (10,000 instances, 10,000 features)?
+### The example
 
-The intuitive answer is B — more features should mean more information, right? **Wrong.** The answer is *it depends* — and in practice, B usually has *less* useful information than A.
+Suppose you have two datasets:
+
+- **A:** 10,000 instances and **100 features**.
+- **B:** 10,000 instances and **10,000 features**.
+
+Which one has more information?
+
+Dataset B has more columns, but it does **not** automatically contain more useful information. More features help only when they are **relevant, measured well, and connected to the thing you want to predict**.
+
+<Callout color="yellow">
+  💡 **Corrected wording:** irrelevant features don't *remove* the raw data you already have. But they reduce the **useful signal-to-noise ratio** — they add noise, make distances less meaningful, and spread the same examples through a much larger space.
+</Callout>
+
+### Why extra dimensions hurt
+
+Each feature acts like a new axis. One feature is a **line**, two features are a **plane**, three features are a **volume**, and many features create a high-dimensional search space.
+
+With the same number of rows, adding dimensions makes the data more **sparse** — nearby examples become harder to find, clusters become less obvious, and the model has more opportunities to fit noise instead of real patterns.
+
+> Add irrelevant features → search space gets bigger → data becomes sparse → patterns are harder to learn.
+
+Take house prices. With one informative feature — `size_in_m2` — your model searches along a line. Add `location` and it searches over a plane. Add `owner_name`, `colour_of_the_front_door`, `month_of_purchase` and the search space balloons into a high-dimensional volume — with the **same** number of data points scattered inside it.
 
 <Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-05.jpg"
-  alt="Notes on the curse of dimensionality showing how the same data covers less and less of the feature space as you go from 1D to 2D to 3D."
-  caption="✎ Page 5 — the curse of dimensionality. The same number of points covers less and less of the space as dimensions grow."
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/curse-of-dimensionality-1d-2d-3d.png"
+  alt="Three panels showing the same 30 data points placed in 1D (line), 2D (square), and 3D (cube). In 1D the points are close together and the red target region captures many. In 2D space grows and the data begins to separate — the red square captures fewer. In 3D the data is highly sparse and the red target box is nearly empty."
+  caption="Same 30 data points, three different feature counts. The fixed-width target region captures ~25% of the line, ~6% of the plane, ~1.5% of the cube — same data, exponentially emptier neighbourhoods."
 />
 
-Why? <KeyTerm>The curse of dimensionality.</KeyTerm>
+### How fast does space grow?
 
-Each feature is a new dimension. Adding features makes the space your algorithm has to search **exponentially bigger**. The same number of data points becomes sparser and sparser — and your algorithm has to find a pattern in a much emptier space.
+If each feature is divided into *k* bins and you have *d* features, the number of possible cells is **kᵈ**.
 
-If the new features carry real signal, fine. If they don't, you've made the problem strictly harder without adding any information. You've added noise dimensions that the model now has to learn to ignore.
+| Dimensions *d* | Cells (k = 10) | Intuition |
+|---|---|---|
+| 2 | 100 | Still manageable |
+| 3 | 1,000 | Space grows quickly |
+| 10 | 10,000,000,000 | Most cells empty unless data is huge |
 
-So adding features isn't free. If the features aren't relevant, **you have less information after adding them, not more.**
+Or, more concretely: imagine dropping a coin and having to find it. Along a **10-metre line**, easy. In a **10 × 10 m grid** (100 m²), harder. In a **10 × 10 × 10 m room** (1,000 m³), much worse. In a 100-dimensional space, it's effectively unfindable — even with a huge dataset.
 
-<Callout color="red">
-  ⚠️ When in doubt, fewer features beats more features. Adding a feature should require justification, not the other way around.
+### When "nearest" stops meaning nearest
+
+The most devastating consequence is subtle: in high dimensions, the distance between **any two points becomes almost equal**. The closest pair and the farthest pair end up nearly indistinguishable — which means distance-based methods like **K-Nearest Neighbours**, **k-means**, and Euclidean similarity quietly stop working.
+
+We can prove it ourselves. Generate 500 random points across different dimensions, compute all pairwise Euclidean distances, and plot the histogram:
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.spatial.distance import pdist
+
+np.random.seed(42)
+num_points = 500
+dimensions = [2, 10, 100, 1000]
+
+plt.figure(figsize=(14, 4))
+
+for i, dim in enumerate(dimensions):
+    # Generate 500 random points in 'dim' dimensions
+    data = np.random.rand(num_points, dim)
+
+    # Euclidean distance between every pair of points
+    distances = pdist(data, metric='euclidean')
+
+    # Normalize by the max so we see the relative spread
+    # (absolute distances naturally scale up with sqrt(dim))
+    normalized = distances / np.max(distances)
+
+    plt.subplot(1, len(dimensions), i + 1)
+    plt.hist(normalized, bins=50, color='#1f77b4', edgecolor='k', alpha=0.7)
+    plt.title(f"{dim} Dimensions")
+    plt.xlabel("Relative Distance")
+    if i == 0:
+        plt.ylabel("Frequency")
+    plt.xlim(0, 1)
+
+plt.tight_layout()
+plt.show()
+```
+
+What you see:
+
+- **In 2 dimensions:** distances are widely spread. Some pairs are close (near 0), some far (near 1). KNN works fine.
+- **In 100–1,000 dimensions:** the variance collapses into a sharp spike — **almost every pair of points has a relative distance of roughly 0.8**.
+
+Formally, the failure is the limit theorem:
+
+$$
+\lim_{d \to \infty} \frac{\mathrm{Dist}_{\max} - \mathrm{Dist}_{\min}}{\mathrm{Dist}_{\min}} = 0
+$$
+
+Because the gap between the worst-case outlier and the closest neighbour approaches zero, **"nearest neighbour" loses its meaning** in high-dimensional space.
+
+### Three ways to fight back
+
+**1. Feature selection.** Keep only the variables connected to the target. Drop the rest.
+
+**2. Dimensionality reduction.** Algorithms like **PCA**, **t-SNE**, or learned **embeddings** compress many variables into fewer useful ones while preserving the core information. We'll cover PCA properly in [Part 10](/blog/ml-from-scratch-10-pca).
+
+**3. Use the angle, not the distance.** **Cosine similarity** measures the *angle* between two vectors instead of how far apart they are. While Euclidean distance breaks down as high-dimensional points drift into empty space, cosine similarity only cares about the **direction** they point. It is bounded between **−1** (opposite) and **1** (same direction).
+
+```python
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+vector_a = np.array([[1, 2, 3, 0, 1]])
+vector_b = np.array([[2, 4, 5, 1, 0]])
+
+# 1. Scikit-Learn (most common in ML pipelines)
+sim_sklearn = cosine_similarity(vector_a, vector_b)
+print(f"Sklearn: {sim_sklearn[0][0]:.4f}")
+
+# 2. Pure NumPy (dot product / magnitudes)
+dot = np.dot(vector_a, vector_b.T)
+sim_numpy = dot / (np.linalg.norm(vector_a) * np.linalg.norm(vector_b))
+print(f"NumPy: {sim_numpy[0][0]:.4f}")
+
+# 3. PyTorch (deep learning / GPU)
+import torch
+import torch.nn.functional as F
+ta = torch.tensor([1.0, 2.0, 3.0, 0.0, 1.0])
+tb = torch.tensor([2.0, 4.0, 5.0, 1.0, 0.0])
+sim_torch = F.cosine_similarity(ta, tb, dim=0)
+print(f"PyTorch: {sim_torch.item():.4f}")
+```
+
+Why it fights the curse:
+
+- **Ignores scale.** Two documents with the same word proportions but one ten times longer are treated as identical.
+- **Focuses on signal.** In high dimensions (text, recommender systems), vectors are usually **sparse** — mostly zeros. Cosine evaluates whether the *non-zero* features point the same way.
+
+ML libraries usually want a **distance** (lower = closer), not a similarity. Convert with:
+
+$$
+\text{Cosine Distance} = 1 - \text{Cosine Similarity}
+$$
+
+### The blessing of non-uniformity
+
+The escape hatch: real data is rarely spread uniformly through the whole high-dimensional space. Examples usually concentrate near a **lower-dimensional structure** — a curve, a surface, a *manifold*. Good features help reveal that structure.
+
+So even with 10,000 nominal dimensions, your actual data may live on something much smaller. Your job is to **find the dimensions that matter**.
+
+A note on **decision trees**: they're relatively robust to extra features because they choose features as they split. But they're not immune — too many irrelevant columns still inflate training time, create noisy splits, and encourage overfitting.
+
+### Memory cues
+
+| | |
+|---|---|
+| **More columns ≠ more signal** | Features only help when they're relevant and informative. |
+| **Same data + bigger space = sparsity** | Fixed points spread across an exponentially larger volume. |
+| **Good features bring examples together** | Similar instances cluster, distinct ones separate. |
+| **Bad features add noise** | The model searches directions that don't help prediction. |
+
+<Callout color="yellow">
+  💡 **One-sentence takeaway:** the curse of dimensionality means adding many features can make an ML problem *harder*, unless those features carry real predictive signal.
 </Callout>
 
 ## Feature engineering is the key
@@ -165,11 +477,19 @@ This is the practical implication of the curse of dimensionality. If most of the
   caption="✎ Page 6 — feature engineering is the key, the more-data-beats-algorithm chart, GIGO, and the four ingredients of any ML problem."
 />
 
-<Callout color="yellow">
-  🔑 <Highlight>FEATURE ENGINEERING IS THE KEY.</Highlight>
-</Callout>
+- Some machine learning projects succeed and some fail. What makes the difference? The most important factor is the **features used**.
+- Often, the raw data is not in a form that is amenable to learning — but you can **construct** features from it.
+- Machine learning is not a one-shot process of building a dataset and running a learner. It's an **iterative process** of running the learner, analysing the results, modifying the data and/or the learner, and repeating.
 
-A well-engineered feature can take a problem from impossible to trivial. The classic example: predicting house prices. The raw column `address` is essentially useless to a model. But if you turn it into `distance_to_city_centre`, `crime_rate`, `school_district_rating`, suddenly the model has signal it can actually use.
+### Happy or sad faces
+
+Take a classic example: label images of faces as **happy** or **sad**. The raw pixels are a noisy high-dimensional mess. But with the right hand-engineered features — `mouth_corner_angle`, `eyebrow_position`, `eye_openness` — similar emotions start clustering tightly in the search space. Bad or irrelevant features (`background_colour`, `filename_length`) just spread the same examples randomly across more dimensions.
+
+This is the whole game: **remove the irrelevant, add the relevant** — and the geometry of your problem starts to work *for* you instead of against you.
+
+### House prices, again
+
+Same idea. The raw column `address` is essentially useless to a model. But turn it into `distance_to_city_centre`, `crime_rate`, `school_district_rating`, and suddenly the model has signal it can actually use.
 
 We'll spend a whole post on this — [Part 3 — Feature Engineering](/blog/ml-from-scratch-03-feature-engineering). For now: when an ML project isn't working, the first place to look is the features.
 

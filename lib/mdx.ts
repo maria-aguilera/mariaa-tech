@@ -29,6 +29,10 @@ export type MdxPostMeta = {
   seriesPart?: number;
   /** Total parts in the series. */
   seriesTotal?: number;
+  /** If true, hidden from the flat /blog index but URL still works. */
+  unlisted?: boolean;
+  /** If true, hidden from every index (/blog, /projects, etc.). URL still works. */
+  draft?: boolean;
 };
 
 export type MdxPost = {
@@ -112,6 +116,8 @@ export function getAllMdxPostMeta(): MdxPostMeta[] {
       series: normalizeText(data.series) || undefined,
       seriesPart: typeof data.seriesPart === "number" ? data.seriesPart : undefined,
       seriesTotal: typeof data.seriesTotal === "number" ? data.seriesTotal : undefined,
+      unlisted: data.unlisted === true,
+      draft: data.draft === true,
     };
   });
 }

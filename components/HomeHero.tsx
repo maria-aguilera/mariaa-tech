@@ -63,9 +63,9 @@ export default function HomeHero() {
               <h1 className="hero__title">Maria Aguilera García</h1>
 
               <div className="hero__bullets">
-                <p className="hero__bullet">✨ Data &amp; AI focused on real-world impact</p>
+                <p className="hero__bullet">✨ Data &amp; AI Consultant · Cloud &amp; Solution Delivery</p>
                 <p className="hero__bullet">
-                  🚀 Building ML + analytics solutions that drive business value
+                  🚀 Deployed an ML inference service to Azure — CI/CD, monitoring, scale-to-zero
                 </p>
                 <p className="hero__bullet">🔥 MSc Big Data (AI) • currently at BMC Software</p>
               </div>

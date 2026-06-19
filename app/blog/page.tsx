@@ -22,8 +22,12 @@ export default function BlogPage() {
   const blogSlugs = new Set(blogPosts.map((post) => post.slug));
   const mdxBySlug = new Map(mdxPosts.map((post) => [post.slug, post]));
 
-  const mergedPosts = blogPosts.map((post) => mdxBySlug.get(post.slug) ?? post);
-  const extraMdxPosts = mdxPosts.filter((post) => !blogSlugs.has(post.slug));
+  const mergedPosts = blogPosts
+    .map((post) => mdxBySlug.get(post.slug) ?? post)
+    .filter((post) => !("draft" in post && (post as { draft?: boolean }).draft));
+  const extraMdxPosts = mdxPosts.filter(
+    (post) => !blogSlugs.has(post.slug) && !post.unlisted && !post.draft,
+  );
   const allPosts = [...mergedPosts, ...extraMdxPosts];
 
   const indexPosts: BlogIndexPost[] = allPosts.map((post) => ({

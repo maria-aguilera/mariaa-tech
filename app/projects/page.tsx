@@ -47,8 +47,12 @@ export default function BlogIndexPage() {
   const mdxBySlug = new Map(mdxPosts.map((post) => [post.slug, post]));
 
   // Prefer MDX version when both exist (MDX has the up-to-date metadata).
-  const mergedPosts = blogPosts.map((post) => mdxBySlug.get(post.slug) ?? post);
-  const extraMdxPosts = mdxPosts.filter((post) => !blogSlugs.has(post.slug));
+  const mergedPosts = blogPosts
+    .map((post) => mdxBySlug.get(post.slug) ?? post)
+    .filter((post) => !("draft" in post && (post as { draft?: boolean }).draft));
+  const extraMdxPosts = mdxPosts.filter(
+    (post) => !blogSlugs.has(post.slug) && !post.unlisted && !post.draft,
+  );
   const allPosts = [...mergedPosts, ...extraMdxPosts];
 
   // Group by topic.
@@ -106,6 +110,12 @@ export default function BlogIndexPage() {
                   title: p.title,
                   slug: p.slug,
                   published: p.published,
+                  children: p.children?.map((c) => ({
+                    part: c.part,
+                    title: c.title,
+                    slug: c.slug,
+                    published: c.published,
+                  })),
                 })),
               };
               // Hide individual series posts from the topic grid.

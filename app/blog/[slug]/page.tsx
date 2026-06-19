@@ -7,6 +7,7 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import PageHero from "@/components/PageHero";
+import SeriesPager from "@/components/SeriesPager";
 import { mdxComponents } from "@/components/mdx/MdxComponents";
 import { blogPosts, type BlogPostBlock } from "@/lib/blog-posts";
 import { highlightCode } from "@/lib/code-highlight";
@@ -229,6 +230,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                     },
                   }}
                 />
+
+                <SeriesPager slug={decodedSlug} />
               </div>
             </div>
           </div>

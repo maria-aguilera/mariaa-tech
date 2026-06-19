@@ -1,0 +1,72 @@
+---
+slug: ml-foundations-05-more-data-better-data
+title: "Post 5 — More Data, Better Data, and Domain Expertise"
+subtitle: "Why more data beats a cleverer algorithm — and the GIGO asterisk that decides whether more data actually helps."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "With enough data, simple algorithms catch up to fancy ones. But the rule has a giant asterisk: more bad data is worse, not better. The right combination is good data, domain expertise, and a model that respects both."
+tags:
+  - Machine Learning
+  - Fundamentals
+  - Data Quality
+source: Notes
+series: "ML Foundations"
+seriesPart: 5
+seriesTotal: 10
+coverImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+style: navy
+bannerImage: "/images/blog/ml-from-scratch/ml-what-is-machine-learning/cover.png"
+unlisted: true
+---
+
+*ML Foundations · Post 5/10*
+
+## More data beats a cleverer algorithm
+
+The most counter-intuitive result in the foundations. The classic Banko & Brill experiment (2001, natural-language disambiguation):
+
+> Take four different ML algorithms. Train each on increasing amounts of data. Plot accuracy vs training-set size.
+
+With **little data**, the more sophisticated algorithm wins. So far, expected. But as you keep adding data, the gap shrinks. By the time you've got enough data, **all four algorithms converge** to roughly the same accuracy — around 95%. The fancy algorithm and the simple one perform nearly identically.
+
+<Callout color="yellow">
+  🔑 <Highlight>MORE DATA BEATS A CLEVERER ALGORITHM.</Highlight>
+</Callout>
+
+If you only remember one thing about the relationship between data and algorithms: **more good data almost always beats a fancier model**. Weeks invested in a better algorithm rarely pay off compared to weeks invested in better data.
+
+## When data is rubbish
+
+There's a giant asterisk on the previous point.
+
+<Callout color="red">
+  ⚠️ <strong>Garbage In, Garbage Out (GIGO).</strong> More data only helps if the data is good. Noisy, missing, biased, or unrepresentative samples will produce a worse model the more of it you have, not a better one.
+</Callout>
+
+What "good data" looks like in practice:
+
+- **No errors.** Someone listed as `-1` years old, or `139`. A solar-power reading of `0` that's actually the night-time value, not a missing one. Clean these before the algorithm sees them.
+- **Novel.** Duplicates and near-duplicates don't add information. Discard them.
+- **Relevant.** Data from the wrong domain (training on cats, deploying on dogs) won't help.
+- **Representative.** Training on people from one country and deploying everywhere is the classic trap. Your training set has to look like the data you'll see in production.
+
+## Domain expertise matters
+
+The biggest signal that an ML project will work isn't the algorithm. It's the data scientist sitting down with someone who's been in the industry for 20 years and saying *"so what actually matters to you?"*
+
+Those conversations produce features you'd never invent on your own. The expert knows:
+
+- Which seasonal effects matter.
+- Which weird outliers are real signal vs data-entry errors.
+- Which target variable is the one the business actually cares about — versus the one you've been computing.
+- Which costs are asymmetric (false negatives worse than false positives, or the reverse).
+
+Whenever I work on a new problem, the first thing I do is ask the domain expert what they would *want* to know. Then I figure out how to engineer features that answer their question. It works better than starting from the data.
+
+<Callout color="yellow">
+  ⭐ <Highlight>The right data + domain knowledge + ML = the best results.</Highlight>
+</Callout>
+
+---
+
+**Next up — [Post 6: Learn Many Models, Not Just One](/blog/ml-foundations-06-learn-many-models).**
