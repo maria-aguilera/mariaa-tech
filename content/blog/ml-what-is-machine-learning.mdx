@@ -318,7 +318,7 @@ Which one has more information?
 Dataset B has more columns, but it does **not** automatically contain more useful information. More features help only when they are **relevant, measured well, and connected to the thing you want to predict**.
 
 <Callout color="yellow">
-  💡 **Corrected wording:** irrelevant features don't *remove* the raw data you already have. But they reduce the **useful signal-to-noise ratio** — they add noise, make distances less meaningful, and spread the same examples through a much larger space.
+  💡 **The nuance:** irrelevant features don't *remove* the raw data you already have. But they reduce the **useful signal-to-noise ratio** — they add noise, make distances less meaningful, and spread the same examples through a much larger space.
 </Callout>
 
 ### Why extra dimensions hurt
@@ -337,9 +337,21 @@ Take house prices. With one informative feature — `size_in_m2` — your model 
   caption="Same 30 data points, three different feature counts. The fixed-width target region captures ~25% of the line, ~6% of the plane, ~1.5% of the cube — same data, exponentially emptier neighbourhoods."
 />
 
+How to read the diagram:
+
+- **1 feature:** the model searches along a **line**. A small interval can still contain several examples.
+- **2 features:** the model searches over a **plane**. The same per-feature interval becomes a much smaller square.
+- **3 features:** the model searches through a **volume**. The same per-feature interval becomes an even smaller cube.
+
 ### How fast does space grow?
 
-If each feature is divided into *k* bins and you have *d* features, the number of possible cells is **kᵈ**.
+If each feature is divided into *k* bins and you have *d* features, the number of possible cells in feature space is:
+
+<Callout color="blue">
+  $$\text{number of cells} = k^d$$
+
+  With a fixed number of examples *n*, the **average examples per cell** is *n / kᵈ*. As *d* grows, this average drops very quickly — most cells end up empty.
+</Callout>
 
 | Dimensions *d* | Cells (k = 10) | Intuition |
 |---|---|---|
@@ -464,22 +476,25 @@ A note on **decision trees**: they're relatively robust to extra features becaus
 | **Bad features add noise** | The model searches directions that don't help prediction. |
 
 <Callout color="yellow">
-  💡 **One-sentence takeaway:** the curse of dimensionality means adding many features can make an ML problem *harder*, unless those features carry real predictive signal.
+  💡 **One-sentence takeaway:** the curse of dimensionality is what makes feature engineering matter so much. Adding many features can make an ML problem *harder*, unless those features carry real predictive signal — and finding the ones that do is the next idea.
 </Callout>
 
 ## Feature engineering is the key
 
 This is the practical implication of the curse of dimensionality. If most of the work in ML is making sure your features carry signal and not noise, then the most leveraged skill in ML is **feature engineering**.
 
-<Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-06.jpg"
-  alt="Notes on feature engineering, the more-data-beats-algorithm chart, and the GIGO (garbage in, garbage out) principle."
-  caption="✎ Page 6 — feature engineering is the key, the more-data-beats-algorithm chart, GIGO, and the four ingredients of any ML problem."
-/>
-
 - Some machine learning projects succeed and some fail. What makes the difference? The most important factor is the **features used**.
 - Often, the raw data is not in a form that is amenable to learning — but you can **construct** features from it.
 - Machine learning is not a one-shot process of building a dataset and running a learner. It's an **iterative process** of running the learner, analysing the results, modifying the data and/or the learner, and repeating.
+
+### What that actually looks like
+
+So how do you do it? Four concrete moves on the features themselves:
+
+- **Keep relevant features** — the ones connected to the target variable.
+- **Remove irrelevant or duplicate features** — they add noise, cost, or confusion.
+- **Engineer better features** — combine or transform raw inputs into descriptors that represent the pattern more clearly.
+- **Use dimensionality reduction when needed** — methods like **PCA** or learned **embeddings** summarize many variables with fewer useful dimensions.
 
 ### Happy or sad faces
 
@@ -503,15 +518,27 @@ What do you get? With **little data**, the more sophisticated algorithm (think n
 
 But as you keep adding data, the gap shrinks. And shrinks. By the time you've got enough data, **all four algorithms converge to roughly the same accuracy** — around 95%. The fancy algorithm and the simple one perform nearly identically.
 
-<Callout color="yellow">
-  🔑 <Highlight>MORE DATA BEATS A CLEVERER ALGORITHM.</Highlight>
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/more-data-beats-algorithm.png"
+  alt="Line chart from Banko & Brill (2001) showing four algorithms — Memory-Based, Winnow, Perceptron, and Naïve Bayes — improving in test accuracy as the training set grows from 0.1 to 1,000 million words. The four curves spread out at low data sizes and converge near 95% accuracy at the largest sizes. Annotations highlight that the clever algorithm wins at low data, but the simple one catches up with enough data. Takeaway in bold: 'More data beats a cleverer algorithm.'"
+  caption="Banko & Brill, 2001. Four algorithms on natural-language disambiguation. At 0.1M words the curves are spread; at 1,000M words they sit within a few points of each other near 95%."
+/>
+
+<Callout color="blue">
+  💡 More data beats a cleverer algorithm.
 </Callout>
 
 If you only remember one thing about the relationship between data and algorithms: **more good data almost always beats a fancier model**. Investing weeks in a better algorithm rarely pays off compared to investing those weeks in better data.
 
-## But data alone is not enough
+## Data alone is not enough — GIGO principle
 
 There's a giant asterisk on the previous point, and the asterisk is the entire reason this course is not titled "Just Get More Data".
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/gigo.png"
+  alt="Editorial diagram of the Garbage In, Garbage Out (GIGO) principle. Central equation reads f(🗑️) = 🗑️ — a function applied to a trash can returns a trash can, with a small loop arrow suggesting the rubbish output feeds back in. Margin notes read: 'More data is a good solution — unless the data is rubbish' on the top-left, and 'no errors · novel · relevant' on the top-right as the checklist for good data. Caption below: 'If you feed your model with rubbish, you'll get rubbish out.'"
+  caption="Garbage In, Garbage Out. f(rubbish) = rubbish — no matter how good the algorithm."
+/>
 
 <Callout color="red">
   ⚠️ <strong>Garbage In, Garbage Out (GIGO).</strong> More data only helps if the data is good. Data full of errors, biases, irrelevant features, or unrepresentative samples will produce a worse model the more of it you have, not a better one.
@@ -526,17 +553,30 @@ What "good data" means in practice:
 
 So the full statement, with both halves:
 
-<Callout color="yellow">
-  🔑 <Highlight>MORE DATA IS GOOD, BUT DATA ALONE IS NOT ENOUGH.</Highlight>
+<Callout color="blue">
+  💡 More data is good, but data alone is not enough.
 </Callout>
 
 You also need to **understand the context** of the model. As Domingos puts it: *every learner must embody some knowledge or assumptions beyond the data it's given*. Pure curve-fitting on raw numbers will only get you so far. You need to know what those numbers mean, what your stakeholders care about, and what kind of failures are catastrophic vs tolerable.
 
-## Combine data with expertise
+## More data is good but data alone is not enough
 
 The biggest signal that an ML project is going to work isn't the algorithm. It's the data scientist sitting down with someone who's been in the industry for 20 years and saying *"so what actually matters to you?"*
 
-Those conversations produce features you'd never invent on your own. The expert knows:
+To create an ML model that works in the real world, you need to understand its **context** — four pillars that the domain expert helps you fill in:
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/model-context.png"
+  alt="A four-box horizontal flow diagram titled 'Model context: define the goal before choosing features or algorithms'. The boxes, connected by right-pointing arrows, are: 'Defined objective — what outcome do we want?', 'Levers — inputs we can control', 'Data — what we can collect', 'Models — how inputs affect the objective'."
+  caption="The four pillars of model context. Define the goal before choosing features or algorithms."
+/>
+
+- **Defined objective** — what outcome are we trying to achieve?
+- **Levers** — what inputs can we control or change?
+- **Data** — what can we actually collect, at what cost?
+- **Models** — how do the levers affect the objective?
+
+Those conversations with the domain expert produce features you'd never invent on your own. The expert knows:
 
 - Which seasonal effects matter.
 - Which weird outliers are real signal and which are data-entry errors.
@@ -552,14 +592,16 @@ The last big idea from Session 1, and the one that gives Random Forests their po
 So what's the strongest practical move? **Don't pick one model. Train several, combine them.**
 
 <Image
-  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/session1-page-07.jpg"
-  alt="Notes on the no-free-lunch theorem, ensemble decision boundaries, and the five take-home points of Session 1."
-  caption="✎ Page 7 — ensemble decision boundaries. Three different models, each focusing on a different region; averaging them produces a boundary that captures all three."
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/ensemble-decision-boundary.png"
+  alt="Diagram showing the ensemble decision boundary concept. Top row: three scatter plots labelled Model 1 (teal), Model 2 (amber), Model 3 (slate-blue), each fitting a different curved decision boundary to the same underlying dataset. Their outputs flow into a central Σ aggregator. Bottom row: a plot showing all three model boundaries overlaid on the data, then an arrow pointing right to the final ensemble decision boundary — a single bold red curve that captures the consensus across all three models."
+  caption="Ensemble decision boundary. Three models each see the data differently; averaging their predictions produces a more stable boundary than any single model."
 />
 
 The idea of the **ensemble decision boundary**: imagine three different models trained on the same data. Each model is wrong in a different way (different overfit, different blind spots). If you average their predictions, the random errors tend to cancel out and the real signal reinforces.
 
-<Arrow>Concept of Ensemble Decision Boundary</Arrow>
+<Callout color="blue">
+  💡 **Concept of Ensemble Decision Boundary:** instead of creating a single model, create several models that focus on different aspects of the data. By averaging everything together, you expect the combined result to capture all the aspects no single model could.
+</Callout>
 
 That's exactly the principle that powers Random Forests ([Part 8](/blog/ml-from-scratch-08-random-forest-boosting)): hundreds of decision trees, each trained on a different slice, averaged together.
 
@@ -593,6 +635,98 @@ A useful taxonomy before we close. ML systems get sorted along three axes:
   alt="Handwritten notes summarising the four supervision categories, batch vs online learning, and instance-based vs model-based methods."
   caption="✎ Page 8 — the full taxonomy. Most of this series lives in the upper-left quadrant: supervised, batch, model-based."
 />
+
+## Main challenges of machine learning
+
+Most of the practical failure modes in ML fall into a checklist of six. We've touched on most of them — here's the full picture in one place.
+
+### 1. Insufficient quantity of data
+
+Even simple algorithms work given enough data — but you need *enough*. With too little data, no amount of tuning saves you.
+
+### 2. Non-representative training data
+
+If the training set looks different from the data the model will see in production, all bets are off. The model learns patterns that don't match the real cases — especially for the corners of your data (very poor or very rich, very young or very old, etc.).
+
+Two failure modes worth distinguishing:
+
+- **Sampling noise** — small samples are non-representative *by chance*. The model will swing with whichever random slice you happen to grab.
+- **Sampling bias** — even *large* datasets can be non-representative if the *collection method itself* is flawed. The bigger you make a biased sample, the more confidently wrong your model gets.
+
+The fix in both cases: make sure your training set is **representative of the cases you want to generalise to**.
+
+### 3. Poor-quality data
+
+If training data is full of **errors, outliers, and noise** (e.g., from poor-quality measurements), patterns become harder to detect and the model is less likely to perform well. The GIGO principle, applied to individual data points rather than the dataset shape.
+
+### 4. Irrelevant features
+
+The curse of dimensionality strikes again — too many wrong features hurt more than they help. The fix is **feature engineering**, which has three concrete steps:
+
+1. **Feature selection** — keep only the variables connected to the target; drop the rest.
+2. **Feature extraction** — combine or transform existing features into more informative ones (PCA, embeddings).
+3. **Creating new features** — engineer signals from raw data that the model can use directly.
+
+### 5. Overfitting the training data
+
+The model performs well on training data but fails to generalise to new cases. Happens when the model is too complex relative to the *amount* and *noisiness* of the training data.
+
+**Three fixes:**
+
+1. **Simplify the model** — select one with fewer features, reduce the number of attributes in training data, or constrain the model.
+2. **Gather more training data** — more examples make it harder for the model to memorise noise.
+3. **Reduce noise in the training data** — fix data errors and remove outliers.
+
+Constraining a model to make it simpler — and so reduce the risk of overfitting — is called **regularisation**. The amount of regularisation to apply is controlled by a **hyperparameter**: a parameter of the *learning algorithm itself* (not of the model), set before training and held constant during training.
+
+### 6. Underfitting the training data
+
+The opposite of overfitting: the model is **too simple** to capture the underlying structure of the data.
+
+**Three fixes:**
+
+1. **Select a more powerful model** — more parameters, more capacity.
+2. **Feed it better features** — engineer signals the simpler model can use.
+3. **Reduce the constraints on the model** — e.g., lower the regularisation hyperparameter.
+
+### How do you know which problem you have?
+
+Once you train your model, the only way to know how well it'll generalise is to test it on new cases. Split your data into a **training set** and a **test set**. The error rate on the test set is the **generalisation error** (or **out-of-sample error**) — it tells you how the model will behave on instances it has never seen before.
+
+- **Low training error + high generalisation error** → you're overfitting.
+- **High training error + high generalisation error** → you're underfitting.
+
+We'll go much deeper on each of these throughout the series — see [Part 8 — Main Challenges in Machine Learning](/blog/ml-foundations-08-main-challenges-in-ml) for the full treatment. But this six-item checklist (plus the train/test diagnostic) catches most ML projects going off the rails before they do.
+
+## Hyperparameter tuning and model selection
+
+When you're hesitating between two models, the standard move is to train both and compare how they **generalise** on the test set. Simple enough. But there's a trap.
+
+Imagine your linear model generalises better than the alternative, but you want to apply regularisation to fight overfitting. **How do you choose the value of the regularisation hyperparameter?**
+
+A naive approach: train 100 models with 100 different hyperparameter values, pick the one with the lowest generalisation error on the test set (say, 5%). Ship to production — and it produces a **15%** error in the wild. What happened?
+
+You measured generalisation error on the test set *many times* during tuning. Each measurement nudged your choice of hyperparameter toward what fits the test set well. After 100 iterations, you've effectively **overfit to the test set**. The model is unlikely to generalise to truly new data — your "5% error" was an estimate from the same data you tuned on.
+
+### Hold-out validation
+
+The fix is to **hold out a slice of the training set** as the **validation set** — and use that to compare candidate models. The test set stays untouched until the very end, used *once* for the final performance number.
+
+- **Training set** → train model parameters.
+- **Validation set** → decide which model and which hyperparameters.
+- **Test set** → one final, honest measurement. No going back.
+
+### Cross-validation
+
+If you don't have enough data for a stable validation set, **cross-validation** is the workaround. Instead of one validation set, use *many small ones*: train on most of the data, evaluate on a small held-out fold, rotate. Average the scores across folds — you get a much more accurate measure of model performance from the same dataset.
+
+We sketched the intuition [earlier in this post](#cross-validation-in-one-sentence), and [Part 5 — Cross-Validation & Probability Models](/blog/ml-from-scratch-05-cross-validation) is dedicated to it. The full hyperparameter-tuning playbook lives in [Part 10 — Model Selection & Hyperparameter Tuning](/blog/ml-from-scratch-10-model-selection-tuning).
+
+<Callout color="blue">
+  💡 **Going deeper.** Two practical-stack topics live in their own posts so this overview can stay focused:
+  - **How do you evaluate a classifier?** Accuracy, precision, recall, F1, and when to use each → [Part 4 — Classification Metrics](/blog/ml-from-scratch-04-classification-metrics).
+  - **What does the whole pipeline look like in code?** Data acquisition → cleaning → split → train → evaluate → deploy, using the **scikit-learn** estimator pattern → [Part 2 — Data Cleaning](/blog/ml-from-scratch-02-data-cleaning) for the front of the pipeline, then [Part 4](/blog/ml-from-scratch-04-classification-metrics) and [Part 5](/blog/ml-from-scratch-05-cross-validation) for evaluation.
+</Callout>
 
 ## The five things to remember
 
