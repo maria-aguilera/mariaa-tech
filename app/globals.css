@@ -3500,6 +3500,59 @@ body.theme-dark .post-content i {
   color: #1d4ed8;
 }
 
+/* MDX-emitted ordered + unordered lists — restore markers wiped by Tailwind preflight (v3).
+   Scoped to NOT touch existing custom-bullet lists: .post-content__list (older block-renderer
+   with ::before bullets), .post-links (pill links), .series-pager__list (pager nav). */
+.post-content ol:not(.post-content__list):not(.post-links):not(.series-pager__list),
+.post-content ul:not(.post-content__list):not(.post-links):not(.series-pager__list) {
+  margin: 0.75rem 0 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.post-content ol:not(.post-content__list):not(.post-links):not(.series-pager__list) {
+  list-style: decimal outside;
+}
+
+.post-content ul:not(.post-content__list):not(.post-links):not(.series-pager__list) {
+  list-style: disc outside;
+}
+
+.post-content ol:not(.post-content__list):not(.post-links):not(.series-pager__list) > li,
+.post-content ul:not(.post-content__list):not(.post-links):not(.series-pager__list) > li {
+  margin: 0.35rem 0;
+  padding-left: 0.35rem;
+}
+
+.post-content ol:not(.post-content__list):not(.post-links):not(.series-pager__list) > li::marker,
+.post-content ul:not(.post-content__list):not(.post-links):not(.series-pager__list) > li::marker {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* SeriesPager lives inside .post-content — its links must keep their pill styling,
+   not inherit the prose-link blue underline. Higher specificity than `.post-content a`. */
+.post-content .series-pager__edge,
+.post-content .series-pager__link {
+  text-decoration: none;
+  font-weight: 500;
+  color: #334155;
+}
+
+.post-content a.series-pager__edge:hover,
+.post-content a.series-pager__link:hover {
+  text-decoration: none;
+  color: #1d4ed8;
+}
+
+.post-content .series-pager__item--current .series-pager__link {
+  color: #ffffff;
+}
+
+.post-content .series-pager__item--disabled .series-pager__link,
+.post-content .series-pager__edge--disabled {
+  color: #cbd5e1;
+}
+
 body.theme-dark .post-content a {
   color: #93c5fd;
 }
