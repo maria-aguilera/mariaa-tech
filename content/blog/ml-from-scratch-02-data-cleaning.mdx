@@ -1,7 +1,7 @@
 ---
 slug: ml-from-scratch-02-data-cleaning
-title: "Part 2 — Before You Model, Clean. Before You Clean, Understand."
-subtitle: "The four-stage ML pipeline, the biases that quietly ruin every model, four scalers and when each one wins, the fit/transform contract that protects your test set, and how to handle the categorical features, outliers, and nulls that fill 80% of every project."
+title: "Part 2 — Data Cleaning & Preprocessing"
+subtitle: "The four-stage pipeline, the biases that quietly ruin models, the fit/transform contract that keeps your test set honest, and the discipline that sets every model's ceiling."
 date: "January 2022"
 updated: "June 2026"
 excerpt: "The bulk of any ML project isn't modelling — it's data cleaning and preprocessing. This is the full playbook: pipeline, biases, scaling, categorical encoding, outliers, nulls. Plus the fit/transform discipline that keeps your test set honest, and the personal beats from my own course notes (`CANNOT PUT FIT`, the `-1 years old` example, the solar reading that was actually night time)."
@@ -21,29 +21,49 @@ style: navy
 
 *Machine Learning from Scratch · Part 2/12*
 
-Everyone wants to talk about algorithms. Almost nobody wants to talk about the part of the ML job that actually fills your week: getting the data into a state where an algorithm can learn from it at all.
+## 1. Why data cleaning matters
 
-This is that part. And I'm going to spend a lot of words on it because it's where projects quietly succeed or fail. Two ideas frame everything we'll do here:
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/data-wrangling-quote.png"
+  alt="A tweet from David Robinson (@drob) on a dark Twitter background reading: '90% of data science is wrangling data, the other 10% is complaining about wrangling data.' Attribution: @evelgab at #rstatsnyc. Posted 11:03 p.m. · 20 abr. 2018 · Twitter for iPhone."
+  caption="David Robinson, summarising the whole job."
+/>
 
-- <KeyTerm>Data cleaning</KeyTerm> — removing errors, preparing raw data. Cleaning makes the data *correct*.
-- <KeyTerm>Feature engineering</KeyTerm> — creating meaningful features and removing irrelevant ones. Feature engineering makes the data *useful*. (We'll cover this in depth in [Part 3](/blog/ml-from-scratch-03-feature-engineering).)
+A large part of the data science job is **data wrangling**. Machine learning isn't only about choosing algorithms — in practice, the quality of the model depends heavily on the quality of the data.
 
-Both happen *before* learning. Both set the ceiling on how good your final model can possibly be. If you're going to skim one post in this series, don't make it this one.
+A good model trained on bad data is still a bad solution.
 
-## The four-stage ML pipeline
+### Data cleaning vs feature engineering
 
-A typical ML project moves through four stages, in order:
+Before we go further, two ideas that get used interchangeably but mean different things:
 
-1. **Select data** — choose and collect the inputs your models need.
-2. **Pre-process** — cleanse and reformat: fix errors, handle outliers, drop irrelevant info.
-3. **Transform** — improve quality and model performance through scaling, encoding, derived features.
-4. **Model & train** — build, validate, ship.
+| Concept | What it does | Example |
+|---|---|---|
+| **Data cleaning** | Fixes problems in raw data so the model can use it at all | Removing impossible ages, treating outliers, imputing nulls |
+| **Feature engineering** | Creates better variables from the data so the model learns more from less | Turning dates into `day_of_week`, computing `income_per_capita`, binning continuous variables |
 
-Most of the effort lives in steps 1–3. The modelling everyone romanticises is often the smallest part of the project.
+Data cleaning makes the data *usable and trustworthy*. Feature engineering makes the data *more informative for the model*. Both happen *before* training, and both set the ceiling on how good your final model can possibly be.
 
-This post is about steps 2 and 3. Step 1 is mostly business / domain work. Step 4 is the rest of this series.
+This post is about data cleaning. Feature engineering gets its own post — [Part 3](/blog/ml-from-scratch-03-feature-engineering).
 
-## Step 1 — understand your data before you touch it
+## 2. The ML pipeline — where data cleaning sits
+
+A typical ML project moves through four phases, in order:
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/ml-pipeline.png"
+  alt="The ML pipeline shown as four rounded white cards in a row, grouped by a large slate-blue left curly brace labelled 'The ML pipeline' rotated vertically. Each card has a thin slate-blue line icon at the top, a bold dark-navy title, and a short slate-grey description. Card 1 'Select data' (database icon): Choose and collect the input data your model needs. Card 2 'Pre-processing' (broom with sparkles icon): Clean and reformat — fix errors, drop irrelevant fields. Card 3 'Transform data' (sliders icon): Engineer features and scale values to boost model performance. Card 4 'Modelling' (chemistry flask icon): Train and validate the machine learning model. Thin slate-blue arrows connect each card left to right. Bottom caption: 'Most of the work happens before the model ever sees the data.'"
+  caption="The four-stage ML pipeline. Most of the work happens before the model ever sees the data."
+/>
+
+1. **Select data** — define the prediction problem, identify the sources, decide what each row represents.
+2. **Pre-processing** — this is where data cleaning lives. Detect errors, handle missing values, fix wrong types, remove duplicates, correct impossible values.
+3. **Transform data** — scale numerical values, encode categories, create new features, reduce dimensionality, fix skewed distributions.
+4. **Modelling** — train and validate. Often the smallest part of the project.
+
+Many modelling problems are actually data problems that should have been solved earlier. The rest of this post is about what happens in stages 2 and 3 — which is also why stages 2 and 3 are where careers get made or broken.
+
+## 3. Understand the data before you touch it
 
 Before you transform anything, understand what each feature *means*. This isn't busywork. It's how you catch the failure modes that ruin models silently.
 
@@ -92,7 +112,7 @@ The flip side of bias. To generalise to production, your training data must be *
 
 The takeaway: a million rows of biased data is still biased. Volume doesn't fix selection.
 
-## Step 2 — scaling: when magnitude hijacks your model
+## 4. Scaling — when magnitude hijacks your model
 
 Features in raw data live on wildly different scales. A house dataset might have `bedrooms` (1–5), `bathrooms` (1–4), and `price` (100,000–900,000). Untreated, the `price` column dominates everything else by sheer magnitude.
 
@@ -153,7 +173,7 @@ I wrote it in my notes in capitals: **CANNOT PUT FIT** on test data. You make de
 
 This rule also applies to every other transformer in this post — encoders, imputers, all of it.
 
-## Step 3 — categorical features
+## 5. Categorical features
 
 Most ML algorithms — anything that computes means, distances, dot products — refuse to consume the string `"Manhattan"` or `"red"` directly. You **must encode categories as numbers** before feeding them to the model.
 
@@ -234,7 +254,7 @@ preprocess = make_column_transformer(
 
 One pipeline, scales the numbers, encodes the categories, all under the same fit/transform discipline. This is how you should structure preprocessing in any real project.
 
-## Step 4 — outliers
+## 6. Outliers
 
 <KeyTerm>Outliers</KeyTerm> are data points that don't follow the distribution of the rest. They bias the overall pattern by forcing the model to accommodate extreme behaviour at the cost of fit on the bulk of the data.
 
@@ -274,7 +294,7 @@ These are more robust because they learn the actual distribution of your data, n
 
 The "remove" option breaks down if outliers are spread across many columns of the dataset, because you'll end up dropping most of your rows. Then prefer capping or flagging.
 
-## Step 5 — null values
+## 7. Null values
 
 Most ML algorithms refuse to consume `NaN` directly. You have to decide what `NaN` *means* before you decide what to do with it.
 
@@ -311,7 +331,7 @@ More accurate but slower. Reach for multivariate when the missing volume is larg
   💡 If a column has so many nulls that imputation would hallucinate most of it (say over 50%), drop the column entirely. Bad information is worse than no information. The column isn't telling you anything.
 </Callout>
 
-## Step 6 — the polish that's easy to forget
+## 8. Other preprocessing concepts
 
 A handful of transformations that come up often enough to be worth a section:
 
@@ -323,7 +343,7 @@ A handful of transformations that come up often enough to be worth a section:
 
 **Typing.** Dates should be dates, floats should be floats, categories should be categories. Garbage typing → garbage models. This sounds trivial; in practice it eats hours.
 
-## The whole process, in one summary
+## 9. The whole process, in one checklist
 
 If you read nothing else, read this:
 
