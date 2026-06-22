@@ -15,7 +15,7 @@ export default function PageHero({ title, subtitle, icon }: PageHeroProps) {
         <Link className="page-hero__avatarLink" href="/" aria-label="Home">
           <Image
             className="page-hero__avatar"
-            src="https://raw.githubusercontent.com/maria-aguilera/portfolio-assets/refs/heads/master/maria-headshot.png"
+            src="/maria-headshot.png"
             alt="Maria Aguilera Garcia"
             width={64}
             height={64}

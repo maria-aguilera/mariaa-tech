@@ -48,7 +48,7 @@ export default function HomeHero() {
             <div className="hero__photoFrame">
               <Image
                 className="hero__photo"
-                src="https://raw.githubusercontent.com/maria-aguilera/portfolio-assets/refs/heads/master/maria-headshot.png"
+                src="/maria-headshot.png"
                 alt="Maria Aguilera García"
                 width={256}
                 height={256}
