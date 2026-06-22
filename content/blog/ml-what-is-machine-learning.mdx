@@ -483,6 +483,12 @@ A note on **decision trees**: they're relatively robust to extra features becaus
 
 This is the practical implication of the curse of dimensionality. If most of the work in ML is making sure your features carry signal and not noise, then the most leveraged skill in ML is **feature engineering**.
 
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/feature-engineering-representation.png"
+  alt="Two side-by-side scatter plots demonstrating feature engineering. Left panel labelled 'Raw features: hard to separate' shows two classes (dark navy circles and slate-blue triangles) mixed together along Feature 1 vs Feature 2 with a wavy red dashed boundary failing to separate them — annotated 'Tangled — needs a complex boundary'. Right panel labelled 'After feature engineering: linearly separable' shows the same two classes cleanly split along Engineered Feature 1 vs Engineered Feature 2 with a clean green curve as the boundary — annotated 'Clean — a simple model works'. A slate-blue curved arrow between the panels labelled 'Better features'. Tagline: 'Same labels, different representation → the model's job becomes easy.'"
+  caption="Feature engineering doesn't change the labels — it changes the geometry. The same data becomes trivially separable when you pick the right axes."
+/>
+
 - Some machine learning projects succeed and some fail. What makes the difference? The most important factor is the **features used**.
 - Often, the raw data is not in a form that is amenable to learning — but you can **construct** features from it.
 - Machine learning is not a one-shot process of building a dataset and running a learner. It's an **iterative process** of running the learner, analysing the results, modifying the data and/or the learner, and repeating.
@@ -613,6 +619,12 @@ That's exactly the principle that powers Random Forests ([Part 8](/blog/ml-from-
 
 A useful taxonomy before we close. ML systems get sorted along three axes:
 
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/ml-taxonomy-tree.png"
+  alt="Hierarchy diagram titled 'Three ways to classify any ML system'. Three columns side by side, each headed by a bold dark-navy question with no box around it. Column 1 'How much supervision?' branches via thin dashed slate-blue connectors to five rounded white cards: Supervised (trained on labeled data), Unsupervised (finds patterns without labels), Semi-supervised (uses a few labels and many unlabeled examples), Self-supervised (creates supervision from the data itself), and Reinforcement (learns by trial, reward, and feedback). Column 2 'Do they learn incrementally?' branches to two cards: Batch learning (trained offline on a fixed dataset) and Online learning (updates continuously as new data arrives). Column 3 'How do they generalize?' branches to two cards: Instance-based (compares new cases to stored examples) and Model-based (learns general rules or parameters). Bottom caption: 'Most real systems combine one choice from each column.'"
+  caption="Most real systems combine one choice from each column — e.g. supervised + batch + model-based for a classic neural net."
+/>
+
 ### How much supervision do they get?
 
 - **Supervised** — labelled examples. You know the answer for the training data; the algorithm learns to predict it. Classification, regression. The bulk of what we'll cover.
@@ -690,6 +702,12 @@ Once you train your model, the only way to know how well it'll generalise is to 
 - **Low training error + high generalisation error** → you're overfitting.
 - **High training error + high generalisation error** → you're underfitting.
 
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/overfitting-underfitting-matrix.png"
+  alt="A 2×2 diagnostic matrix titled 'Diagnosing your model from training vs test error'. Y-axis labelled 'Training error' (Low at top, High at bottom). X-axis labelled 'Test error' (Low at left, High at right). Four rounded white cards form the quadrants. Top-left (Low train / Low test): bold green title 'Just right' with green pill annotation 'Best balance — generalizes well' and subtitle 'Model captures the pattern.' Top-right (Low train / High test): bold blue title 'Overfit' with blue pill annotation 'High variance' and subtitle 'Memorized noise — fails on new data.' Bottom-left (High train / Low test): bold dark navy title 'Suspicious' with subtitle 'Likely data leakage or a tiny test set.' Bottom-right (High train / High test): bold red title 'Underfit' with red pill annotation 'High bias' and subtitle 'Too simple to capture the pattern.' Bottom caption: 'Compare the two errors before reaching for hyperparameter tuning.'"
+  caption="The whole train-vs-test diagnostic in one view. Compare both errors before reaching for hyperparameter tuning."
+/>
+
 We'll go much deeper on each of these throughout the series — see [Part 8 — Main Challenges in Machine Learning](/blog/ml-foundations-08-main-challenges-in-ml) for the full treatment. But this six-item checklist (plus the train/test diagnostic) catches most ML projects going off the rails before they do.
 
 ## Hyperparameter tuning and model selection
@@ -713,6 +731,12 @@ The fix is to **hold out a slice of the training set** as the **validation set**
 ### Cross-validation
 
 If you don't have enough data for a stable validation set, **cross-validation** is the workaround. Instead of one validation set, use *many small ones*: train on most of the data, evaluate on a small held-out fold, rotate. Average the scores across folds — you get a much more accurate measure of model performance from the same dataset.
+
+<Image
+  src="/images/blog/ml-from-scratch/ml-what-is-machine-learning/cross-validation-folds.png"
+  alt="A 5-fold cross-validation diagram titled '5-fold cross-validation'. Five horizontal rows stacked vertically, each row inside its own thin rounded card and labelled on the left 'Fold 1' through 'Fold 5' in dark navy. Each row contains 5 equal segments side by side. In each row, one segment is filled solid green (the validation fold) and the other four are filled pale slate-blue (the training folds). The green segment shifts one position to the right each row, diagonal down: row 1 has the leftmost segment green, row 5 has the rightmost segment green. Bottom-right legend: a green square labelled 'Validation' and a pale-blue square labelled 'Training'. A green pill annotation on the right of all five rows reads 'Score = average of the 5 validation errors', with thin dashed connectors to each fold. Bottom caption: 'Every example gets used for both training and validation — once.'"
+  caption="Every example gets used for both training and validation — once. The final score is the average across the five folds."
+/>
 
 We sketched the intuition [earlier in this post](#cross-validation-in-one-sentence), and [Part 5 — Cross-Validation & Probability Models](/blog/ml-from-scratch-05-cross-validation) is dedicated to it. The full hyperparameter-tuning playbook lives in [Part 10 — Model Selection & Hyperparameter Tuning](/blog/ml-from-scratch-10-model-selection-tuning).
 
