@@ -9,6 +9,14 @@ import {
   Callout,
   SubList,
 } from "@/components/mdx/NotesComponents";
+import { Cite } from "@/components/mdx/Cite";
+import {
+  CheatGrid,
+  CheatCard,
+  CheatRule,
+  CheatPills,
+  CheatPill,
+} from "@/components/mdx/CheatComponents";
 
 type PreProps = {
   children: React.ReactElement<{ className?: string; children?: string }>;
@@ -149,4 +157,10 @@ export const mdxComponents = {
   Arrow,
   Callout,
   SubList,
+  Cite,
+  CheatGrid,
+  CheatCard,
+  CheatRule,
+  CheatPills,
+  CheatPill,
 };

@@ -1,0 +1,113 @@
+---
+slug: forest-cover-type-prediction
+title: Forest Cover Type — Cheat Sheet
+subtitle: A practical walkthrough of feature interpretation and sanity checks on the Kaggle Forest Cover Type Prediction dataset. Read the data before you fit the model.
+sourcePost: forest-cover-type-prediction
+sourceLabel: Read the full project
+topic: Machine Learning
+tags:
+  - Kaggle
+  - Feature Engineering
+  - Classification
+  - EDA
+updated: April 2024
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  Before you train a model on the Kaggle Forest Cover Type dataset, you have to <Highlight>read every feature</Highlight> and check if it makes sense. <Highlight>Elevation, aspect, wilderness areas, soil types</Highlight> — they're cartographic, not abstract. The work that matters is the <Highlight>EDA and sanity checks</Highlight>, not the model.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The task" number="1" accent="navy">
+
+Kaggle multi-class classification: predict one of **7 forest cover types** from cartographic features. ~580k training samples, 54 features.
+
+Cover types:
+1. Spruce/Fir, 2. Lodgepole Pine, 3. Ponderosa Pine, 4. Cottonwood/Willow, 5. Aspen, 6. Douglas-fir, 7. Krummholz.
+
+The dataset is **balanced after sampling**, but in nature, classes 4 and 6 are minorities. Watch the leaderboard's evaluation metric.
+
+</CheatCard>
+
+<CheatCard title="The features" number="2" accent="blue">
+
+| Group | Features | Meaning |
+|---|---|---|
+| **Topographic** | `Elevation`, `Aspect`, `Slope` | Where the patch sits. |
+| **Distance** | `Horizontal/Vertical_Distance_To_Hydrology`, `_To_Roadways`, `_To_Fire_Points` | How far from water, roads, fires. |
+| **Hillshade** | `Hillshade_9am`, `_Noon`, `_3pm` | Light cast on the slope. |
+| **Wilderness** | 4 binary columns | Which wilderness area. |
+| **Soil type** | 40 binary columns | Specific soil classification. |
+
+54 features. Forty are one-hot soil types — most are rare.
+
+</CheatCard>
+
+<CheatCard title="Sanity checks" number="3" accent="red">
+
+Before fitting anything, **walk through every feature**:
+
+- **Elevation range?** Should match Rocky Mountain ranges (~1800–4000 m). Anything outside is suspect.
+- **`Aspect` is 0–360°.** It's cyclical — encode `sin`/`cos` for linear models.
+- **`Hillshade` values 0–255.** They're image-like; sometimes one of the three is highly correlated with the others.
+- **Soil type columns sum to 1?** Each row should belong to exactly one soil class.
+- **Wilderness area columns sum to 1?** Same.
+- **Are any features constant?** Drop them.
+- **Class balance?** The dataset is sampled to be balanced — don't assume nature is.
+
+</CheatCard>
+
+<CheatCard title="Feature engineering" number="4" accent="purple">
+
+Cartographic features have natural combinations:
+
+- `Hydrology_Euclidean = sqrt(Horiz² + Vert²)` — true distance to water.
+- `Elevation × Distance_To_Hydrology` — high+far = different ecosystem.
+- **Aspect → sin/cos** to handle circularity.
+- **Bin elevation** into ecological zones (montane, sub-alpine, alpine).
+- **Collapse rare soil types** into a "soil_other" bucket to reduce dimensionality.
+
+Each one is a *hypothesis* about ecology, not just a transformation.
+
+</CheatCard>
+
+<CheatCard title="The model bake-off" number="5" accent="amber">
+
+Tree-based models dominate this task because:
+- Many binary features (soil, wilderness) → trees handle them natively.
+- No scaling needed.
+- Non-linear interactions between elevation × hydrology distance × soil type.
+
+Tried:
+- Random Forest
+- Gradient Boosting (sklearn)
+- XGBoost
+- LightGBM
+
+**LightGBM** typically wins on leaderboard with the right `num_leaves` and `min_child_samples`. RF is the most stable baseline.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Cartographic features deserve domain reading.** "Aspect" isn't abstract — it's the direction the slope faces, and it's cyclical.
+- **One-hot columns that sum to 1** are a sanity check, not just a sparse format.
+- **Tree models don't need scaling**, but they still benefit from engineered features (Euclidean distance to hydrology > horizontal + vertical alone).
+- **Class balance in the Kaggle sample ≠ class balance in reality** — your CV scores can mislead in deployment.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`pandas` · `numpy` · `scikit-learn` (Random Forest, Gradient Boosting) · `xgboost` · `lightgbm` · `matplotlib` · `seaborn` for EDA.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"The Forest Cover Type Kaggle dataset is 54 cartographic features predicting one of 7 forest types. Most people jump to LightGBM. I spent the first half of the project just reading each feature: elevation in metres, aspect in degrees (cyclical!), hillshade values, one-hot soil types. The sanity checks — do the soil columns sum to 1, is aspect actually 0–360 — caught issues before the model did. Then standard tree-based bake-off, LightGBM on top. The headline lesson: cartographic features deserve cartographic reading, not abstract feature treatment."*
+
+</CheatRule>

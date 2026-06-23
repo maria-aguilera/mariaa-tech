@@ -1,0 +1,111 @@
+---
+slug: master-thesis-forecasting
+title: Forecast the Material, Not the Product — Cheat Sheet
+subtitle: An IE MBD Capstone for a Spanish road-safety manufacturer. Aggregating SKUs into raw materials, splitting by purchase volume, and routing series to Prophet or XGBoost based on shape.
+sourcePost: master-thesis-forecasting
+sourceLabel: Read the full project
+topic: Forecasting
+tags:
+  - Forecasting
+  - Time Series
+  - Prophet
+  - XGBoost
+  - Supply Chain
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  A Spanish road-safety manufacturer with a <Highlight>multi-month steel lead time</Highlight> was forecasting at the SKU level — hundreds of noisy series. I collapsed them to <Highlight>raw materials</Highlight> (a few dozen), split by purchase volume, and routed each to <Highlight>Prophet</Highlight> for the heavy regular series or <Highlight>XGBoost</Highlight> for the long tail. The result: fewer models, more stable forecasts, lead-time-compatible planning.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The problem" number="1" accent="navy">
+
+The client (a Spanish road-safety equipment manufacturer) faced two structural facts:
+
+1. **Steel lead time is months.** Procurement decisions had to be made far ahead of order intake.
+2. **Hundreds of finished products** share a few dozen raw materials. Most series at the SKU level were too noisy to forecast reliably.
+
+The intuition: don't forecast every SKU. Forecast at the level where decisions actually get made — **raw material consumption**.
+
+</CheatCard>
+
+<CheatCard title="The aggregation move" number="2" accent="blue">
+
+Each finished product is a known combination of raw materials. So:
+
+`forecast(raw_material) = Σ forecast(SKU) × BOM(SKU)`
+
+— but inverting the order:
+
+`actual_consumption(raw_material) = Σ actual_sales(SKU) × BOM(SKU)`
+
+Aggregate the **history first**, then forecast that. Result: hundreds of noisy SKU series → **dozens of cleaner material series**.
+
+This is the move that made everything tractable.
+
+</CheatCard>
+
+<CheatCard title="The routing" number="3" accent="purple">
+
+Not every material series has the same shape. Two regimes:
+
+| Series type | Examples | Model |
+|---|---|---|
+| **Heavy + regular** | Top 20 % of materials by volume, recurring pattern | **Prophet** |
+| **Long tail** | Sporadic, irregular, intermittent demand | **XGBoost** |
+
+**Why Prophet for the heavy ones:** built-in seasonality, holiday effects, robust to gaps. Fast, interpretable.
+
+**Why XGBoost for the tail:** with lag features + calendar features, it handles the irregularity better than Prophet's smooth additive model.
+
+</CheatCard>
+
+<CheatCard title="Feature engineering" number="4" accent="amber">
+
+For the XGBoost track:
+- **Lag features** — `consumption(t−1)`, `consumption(t−7)`, `consumption(t−28)`.
+- **Rolling stats** — mean, std, max over the past 4 / 8 / 12 weeks.
+- **Calendar features** — month, week-of-year, is-holiday, days-to-next-quarter.
+- **Aggregations across related materials** — leakage-safe via group keys.
+
+For Prophet: just the time series + holiday calendar. Prophet's value is built-in seasonality fitting.
+
+</CheatCard>
+
+<CheatCard title="Validation" number="5" accent="red">
+
+Time-series cross-validation:
+- **Rolling-origin** evaluation — train on `[0, t]`, score on `[t, t+h]`, slide forward.
+- Never shuffle. Never split randomly.
+- Compare each model to a **seasonal-naïve baseline** — many "fancy" forecasts don't beat last-year-same-month.
+
+Metric: **MAPE** for relative comparison, **RMSE** for absolute error in tonnes of steel.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Aggregating before forecasting** is often more valuable than tuning the model.
+- **Hybrid routing** (one tool per series shape) beats forcing one model on everything.
+- **Seasonal-naïve** is a brutal baseline. Half the time it wins. Always include it.
+- The point of forecasting in supply chain isn't *the lowest MAPE*. It's a forecast that planners trust enough to commit budget against. Interpretability matters.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`Prophet` · `XGBoost` · `pandas` · `numpy` · `scikit-learn` (for pipelines and CV utilities) · `matplotlib` (for forecast diagnostics) · `statsmodels` (for seasonal-naïve baseline).
+
+Delivered as a Jupyter pipeline + an executive summary slide deck.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"My MBD Capstone was for a Spanish road-safety manufacturer with a long steel lead time. Forecasting at the SKU level was a mess — hundreds of noisy series. I aggregated up to the raw-material level using each product's bill of materials, then split the resulting series into 'heavy and regular' versus 'long-tail intermittent', routing the first to Prophet and the second to XGBoost with lag features. Time-series CV against a seasonal-naïve baseline. The win wasn't a sexier model — it was matching the model to the series shape and forecasting at the layer where procurement actually buys."*
+
+</CheatRule>

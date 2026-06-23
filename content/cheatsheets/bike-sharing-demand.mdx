@@ -1,0 +1,97 @@
+---
+slug: bike-sharing-demand
+title: Three Ways to Encode an Hour — Cheat Sheet
+subtitle: Forecasting hourly bike-share demand in Washington, D.C. The horse race between numerical, one-hot, and cyclic sin/cos encodings — plus the October 2012 anomaly that broke the dataset.
+sourcePost: bike-sharing-demand
+sourceLabel: Read the full project
+topic: Forecasting
+tags:
+  - Forecasting
+  - Time Series
+  - Feature Engineering
+  - Cyclical Encoding
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  Predicting hourly bike-share demand. The interesting part isn't the algorithm — it's <Highlight>how you encode the hour of day</Highlight>. I compared three encodings (numerical, one-hot, cyclic sin/cos) across three models with time-aware cross-validation. <Highlight>Sin/cos won</Highlight> for tree-based models too — and an Hurricane Sandy week in October 2012 nearly broke the validation.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The problem" number="1" accent="navy">
+
+UCI / Kaggle bike-share dataset: hourly rentals in Washington, D.C., 2011–2012. Target: total rentals per hour.
+
+The challenge is that **hour of day** has a circular structure — `23:00` is one hour before `00:00`, not 23 hours away. How you tell the model this changes the answer.
+
+Goal: cleanly compare three encoding strategies under time-aware validation.
+
+</CheatCard>
+
+<CheatCard title="The three encodings" number="2" accent="blue">
+
+| Encoding | Representation | Implies |
+|---|---|---|
+| **Numerical** | `hour = 0..23` | Linear distance — wrong (23 is not "far" from 0). |
+| **One-hot** | 24 binary columns | No distance between hours. Big sparse columns. |
+| **Cyclic** | `sin(2πh/24)`, `cos(2πh/24)` | True circular distance. Two columns. |
+
+Same trick works for: day-of-week, month, season, wind direction — any cyclical feature.
+
+</CheatCard>
+
+<CheatCard title="The horse race" number="3" accent="purple">
+
+Three models × three encodings = nine cells. Each model trained, validated, scored.
+
+**Linear models** strongly preferred **cyclic** — they can't recover the wrap-around from numerical, and one-hot exploded dimensionality.
+
+**Tree-based models** (Random Forest, Gradient Boosted): cyclic won slightly even though theory says trees should handle numerical OK. The win came from fewer splits needed to express "evening rush hour".
+
+**Bottom line:** cyclic > one-hot > numerical, consistently.
+
+</CheatCard>
+
+<CheatCard title="Time-aware CV" number="4" accent="red">
+
+**Never shuffle time-series data for CV.** I used:
+- **Rolling-origin** evaluation — train on `[0, t]`, score on `[t, t+h]`, slide forward.
+- Strict no-leakage: features that depend on the future of the train window are out.
+
+The naïve k-fold split would have inflated scores by 10+ % and given a model that fails in production.
+
+</CheatCard>
+
+<CheatCard title="The October 2012 anomaly" number="5" accent="amber">
+
+A whole week of October 2012 had zero rentals — Hurricane Sandy shut down the city. A weather event the dataset's weather features didn't fully capture.
+
+If that week falls inside the training window → no problem. If it falls in the validation window → the model looks like garbage.
+
+**Lesson:** always **plot residuals over time**. The biggest errors cluster at the events the model couldn't see coming.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Cyclical features deserve cyclical encoding**, even for trees.
+- **Time-aware CV** is non-negotiable. Shuffle once, lie about your scores forever.
+- **Anomalies + small data = unstable validation.** Always inspect residuals along time.
+- **Domain features beat tuning.** "Is rush hour" was a stronger feature than any hyperparameter change.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`pandas` · `numpy` · `scikit-learn` (Random Forest, Gradient Boosting, Ridge) · `matplotlib` · `seaborn` · custom rolling-CV splitter.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"I was forecasting hourly bike-share demand and ran a head-to-head between three encodings of hour-of-day: numerical, one-hot, and sin/cos cyclic. Cyclic won across three model families — even for trees, because it cuts the splits needed to express 'evening rush hour'. Validation was rolling-origin, not k-fold, and an Hurricane Sandy week in October 2012 showed up clearly in the residuals — a lesson in plotting errors over time, not just summarising them."*
+
+</CheatRule>

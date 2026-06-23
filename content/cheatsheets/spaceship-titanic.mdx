@@ -1,0 +1,116 @@
+---
+slug: spaceship-titanic
+title: Spaceship Titanic — Cheat Sheet
+subtitle: When missing values aren't random. Reading the PassengerID and Cabin schemas to impute relationally, then a 10-model bake-off on the Kaggle classification task.
+sourcePost: spaceship-titanic
+sourceLabel: Read the full project
+topic: Machine Learning
+tags:
+  - Kaggle
+  - Classification
+  - Feature Engineering
+  - Imputation
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  In Spaceship Titanic, the trick wasn't the model — it was reading the <Highlight>schema of the IDs</Highlight>. <Highlight>PassengerID encodes the travel group</Highlight>, <Highlight>Cabin encodes the deck</Highlight>. Once you respect that, missing values stop being random and you can impute them <Highlight>relationally</Highlight> from people travelling together. Then a 10-model bake-off picks the winner.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The task" number="1" accent="navy">
+
+Kaggle binary classification: predict whether a passenger was **transported** to another dimension after a collision in the Spaceship Titanic.
+
+~8,700 train rows, ~4,300 test. Features include passenger demographics, cabin, group bookings, and spend at on-board services.
+
+A standard impute-encode-train task on the surface. The interesting layer is **what the IDs actually mean**.
+
+</CheatCard>
+
+<CheatCard title="The schema reading" number="2" accent="blue">
+
+Two hidden structures:
+
+**`PassengerID = "gggg_pp"`**
+- `gggg` = group / travel-party number.
+- `pp` = position within the group.
+- People with the same `gggg` are **family or friends travelling together**.
+
+**`Cabin = "Deck/Num/Side"`**
+- `Deck` = letter A–G.
+- `Num` = cabin number.
+- `Side` = P (port) or S (starboard).
+
+Both are **categorical structures encoded as strings**. The model can't see them unless you split them out.
+
+</CheatCard>
+
+<CheatCard title="Relational imputation" number="3" accent="purple">
+
+Once `group_id` is exposed:
+
+- **Same group → same Cabin / HomePlanet / Destination.** If one passenger's value is known, fill the rest of the group.
+- **Same group → similar `CryoSleep` status.** Family decisions tend to align.
+- **Spend columns when `CryoSleep = True` → 0.** People in cryo can't shop.
+
+Replacing mean / median imputation with **structural rules** plugged the bulk of the missingness without inventing data.
+
+</CheatCard>
+
+<CheatCard title="Feature engineering moves" number="4" accent="amber">
+
+- `group_size` — count of passengers per `group_id`.
+- `is_solo` — binary, `group_size == 1`.
+- `cabin_deck`, `cabin_num`, `cabin_side` — split out from raw `Cabin`.
+- `total_spend` — sum of RoomService + FoodCourt + ShoppingMall + Spa + VRDeck.
+- `spent_anything` — binary `total_spend > 0`.
+
+Each one came from a hypothesis: *what would make a group behave the same way?*
+
+</CheatCard>
+
+<CheatCard title="The bake-off" number="5" accent="red">
+
+Ten models, same pipeline, same CV scheme:
+
+- Logistic Regression
+- KNN
+- Naïve Bayes
+- Decision Tree
+- Random Forest
+- Gradient Boosting (sklearn)
+- XGBoost
+- LightGBM
+- CatBoost
+- Stacked ensemble
+
+**Stratified 5-fold CV**, accuracy + F1 reported.
+
+**Winner:** Gradient Boosting variants on top, ensemble slightly above each individually. Margin was a few tenths of a percent.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Read the data schema first.** Anything stored as a compound string (`A/137/P`, `0007_02`) is begging to be split.
+- **Structural imputation > statistical imputation.** Use relationships before you reach for the mean.
+- **Bake-offs are useful, but the gap between #1 and #5 is usually smaller than the gap between bad and good features.**
+- **Stratified CV** matters when classes are imbalanced — even slightly.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`pandas` · `numpy` · `scikit-learn` · `xgboost` · `lightgbm` · `catboost` · `matplotlib` · `seaborn`. Pipelines via `make_pipeline` + `ColumnTransformer`.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"Spaceship Titanic was a Kaggle binary classification. The unlock wasn't the model — it was reading the IDs. PassengerID is `gggg_pp` where gggg is the travel group, and Cabin is `Deck/Num/Side`. Once those were split, missing values stopped being random — I could impute most of them relationally from people travelling together. I ran ten model families through the same stratified-CV pipeline; gradient boosting variants topped the table and a small stacked ensemble nudged it slightly above. The headline lesson: structural imputation beats statistical imputation when the schema is telling you the answer."*
+
+</CheatRule>

@@ -1,0 +1,142 @@
+---
+slug: ml-from-scratch-11-lda-qda
+title: "Part 11 · LDA & QDA — Cheat Sheet"
+subtitle: Generative classifiers. Linear and Quadratic Discriminant Analysis, the shared / per-class covariance trade-off, and why LDA also moonlights as dimensionality reduction.
+sourcePost: ml-from-scratch-11-lda-qda
+sourceLabel: Read the full post (Part 11)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - LDA
+  - QDA
+  - Classification
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  LDA and QDA are <Highlight>generative classifiers</Highlight>: they model each class as a Gaussian and pick the class with the highest posterior probability. <Highlight>LDA assumes all classes share a covariance matrix</Highlight> → linear boundaries. <Highlight>QDA lets each class have its own</Highlight> → curved boundaries. Both work well when the Gaussian assumption roughly holds.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="Generative vs discriminative" number="1" accent="navy">
+
+| | Generative | Discriminative |
+|---|---|---|
+| **Models** | `P(X | y)` and `P(y)` | `P(y | X)` directly |
+| **Examples** | LDA, QDA, Naïve Bayes | Logistic Regression, SVM, NN, trees |
+| **Strength** | Works with little data, can sample from `P(X)` | Higher accuracy when assumptions are wrong |
+| **Weakness** | Strong distributional assumptions | Needs more data |
+
+LDA / QDA are **generative**: they fit the *distribution of features within each class*, then use Bayes' theorem to predict the class.
+
+</CheatCard>
+
+<CheatCard title="LDA — the assumption" number="2" accent="blue">
+
+LDA assumes:
+
+- Each class follows a **multivariate Gaussian**: `X | y = k ∼ N(μ_k, Σ)`.
+- **All classes share the same covariance matrix `Σ`** — only the means differ.
+
+Because covariance is shared, the decision boundary between any two classes is **linear** (a hyperplane).
+
+Posterior:
+
+`P(y = k | X) ∝ π_k · N(X; μ_k, Σ)`
+
+Predict the class with the highest posterior.
+
+</CheatCard>
+
+<CheatCard title="QDA — relaxing the assumption" number="3" accent="purple">
+
+QDA drops the shared-covariance assumption:
+
+- Each class has **its own covariance matrix `Σ_k`**.
+- `X | y = k ∼ N(μ_k, Σ_k)`.
+
+Result: the boundary between classes is **quadratic** — ellipses, hyperbolas, parabolas.
+
+QDA has more flexibility but needs more data to estimate `Σ_k` per class. With small data, the per-class covariance estimates are noisy and QDA overfits.
+
+</CheatCard>
+
+<CheatCard title="LDA vs QDA — the trade-off" number="4" accent="amber">
+
+| | LDA | QDA |
+|---|---|---|
+| **Boundary** | Linear | Quadratic |
+| **Parameters** | `K · d` means + 1 covariance | `K · d` means + `K` covariances |
+| **Data hungry?** | No | Yes |
+| **Bias** | Higher (boundary forced linear) | Lower |
+| **Variance** | Lower | Higher |
+| **Good when** | Classes have similar shapes | Classes have different shapes |
+
+Try LDA first. Move to QDA only if classes clearly have different spreads or if LDA underfits visibly.
+
+</CheatCard>
+
+<CheatCard title="LDA as dimensionality reduction" number="5" accent="green">
+
+LDA can also project data to a lower-dim space while **maximising class separability**. It finds axes that:
+
+- Maximise between-class variance
+- Minimise within-class variance
+
+Unlike PCA (unsupervised, max variance), LDA **uses labels**.
+
+- Max output dimensions: `n_classes − 1`.
+- Often beats PCA when downstream task is classification.
+
+```python
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+lda = LinearDiscriminantAnalysis(n_components=2)
+X_proj = lda.fit_transform(X, y)
+```
+
+</CheatCard>
+
+<CheatCard title="When they win" number="6" accent="blue">
+
+- **Roughly Gaussian features within each class.** Real-world: many natural measurements (heights, temperatures, lab values).
+- **Small datasets.** Few parameters to estimate, low variance.
+- **You want a probabilistic output** that's reasonably calibrated.
+- **Classification with > 2 classes.** LDA handles multiclass cleanly — one fit, not one-vs-rest.
+
+</CheatCard>
+
+<CheatCard title="When they lose" number="7" accent="red">
+
+- **Features are far from Gaussian.** Heavy tails, multimodal distributions, sparse text features.
+- **Large datasets** where you can afford a flexible model (boosting, NN).
+- **Boundary is genuinely non-linear and non-quadratic** — kernel SVM or trees would do better.
+- **Correlated features hurt the covariance estimate** — use shrinkage.
+
+</CheatCard>
+
+<CheatCard title="Shrinkage & regularisation" number="8" accent="slate">
+
+When `d` is large relative to `n`, the covariance estimate is noisy or singular.
+
+**Shrinkage**: pull the per-class covariance toward a simpler estimate (e.g., the identity matrix). scikit-learn supports this in LDA:
+
+```python
+LinearDiscriminantAnalysis(solver="lsqr", shrinkage="auto")
+```
+
+- `solver="lsqr"` or `"eigen"` enables shrinkage.
+- `shrinkage="auto"` uses the Ledoit-Wolf formula.
+
+For QDA: regularisation parameter `reg_param` adds `λ · I` to each class covariance.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"LDA and QDA are generative classifiers — they model the within-class feature distribution as a Gaussian and use Bayes' rule to predict the class. LDA assumes all classes share a covariance matrix, giving linear decision boundaries. QDA lets each class have its own covariance, giving quadratic boundaries — more flexible but more data-hungry. LDA also moonlights as a supervised dimensionality reduction (max class separation, unlike PCA's max variance). They win on small, roughly Gaussian datasets and lose to flexible models on large messy data. Always consider shrinkage when features outnumber samples."*
+
+</CheatRule>

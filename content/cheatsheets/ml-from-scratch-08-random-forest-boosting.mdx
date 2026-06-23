@@ -1,0 +1,172 @@
+---
+slug: ml-from-scratch-08-random-forest-boosting
+title: "Part 8 · Random Forest & Boosting — Cheat Sheet"
+subtitle: Bagging vs boosting, why Random Forest wins out of the box, and how XGBoost / LightGBM / CatBoost differ under the hood.
+sourcePost: ml-from-scratch-08-random-forest-boosting
+sourceLabel: Read the full post (Part 8)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Random Forest
+  - XGBoost
+  - LightGBM
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Two ways to ensemble trees: <Highlight>bagging</Highlight> (parallel, average) gives you Random Forest — variance reduction. <Highlight>Boosting</Highlight> (sequential, correct errors) gives you XGBoost / LightGBM / CatBoost — bias reduction. Boosting wins leaderboards; Random Forest wins as a robust default.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="Bagging vs Boosting" number="1" accent="navy">
+
+| | Bagging | Boosting |
+|---|---|---|
+| **Direction** | Parallel — trees independent | Sequential — each tree fixes prior errors |
+| **Goal** | Reduce **variance** | Reduce **bias** |
+| **Aggregation** | Average / vote | Weighted sum |
+| **Example** | Random Forest | XGBoost, LightGBM, CatBoost |
+| **Overfit risk** | Low | Higher — needs early stopping |
+| **Out-of-the-box** | Almost always works | Needs tuning |
+
+</CheatCard>
+
+<CheatCard title="Random Forest" number="2" accent="blue">
+
+The recipe:
+1. Sample **N rows with replacement** (bootstrap) from training data — different sample per tree.
+2. At each split, only consider a **random subset of features** (typically `sqrt(d)` for classification).
+3. Grow deep trees with no pruning.
+4. Average predictions across all trees.
+
+**Why it works:**
+- Each tree overfits *differently*. Averaging cancels the noise.
+- Feature subsetting de-correlates trees → averaging variance reduction works better.
+
+**Knobs:**
+- `n_estimators` (more = smoother, slower)
+- `max_features` (lower = more diversity)
+- `max_depth` (rarely worth limiting)
+
+</CheatCard>
+
+<CheatCard title="Gradient Boosting" number="3" accent="purple">
+
+The recipe:
+1. Start with a constant prediction (mean target).
+2. Compute the **residuals** (errors).
+3. Fit a small tree to predict the residuals.
+4. Add this tree's prediction (× learning rate) to the running prediction.
+5. Repeat.
+
+Each tree corrects what the previous ones got wrong.
+
+**Critical knobs:**
+
+| Knob | Effect |
+|---|---|
+| `learning_rate` | Smaller = more trees needed, more stable. `0.05–0.1` typical. |
+| `n_estimators` | Stop early — use `early_stopping_rounds` on a validation set. |
+| `max_depth` | 4–8 is typical. Shallower than RF. |
+| `subsample` | Stochastic boosting. Adds variance, prevents overfit. |
+| `colsample_bytree` | Like Random Forest's feature subsetting. |
+
+</CheatCard>
+
+<CheatCard title="XGBoost vs LightGBM vs CatBoost" number="4" accent="amber">
+
+| | XGBoost | LightGBM | CatBoost |
+|---|---|---|---|
+| **Tree growth** | Level-wise (breadth-first) | Leaf-wise (depth-first, lowest loss) | Symmetric / oblivious |
+| **Speed** | Solid | **Fastest** on large data | Slower train, fast inference |
+| **Memory** | OK | **Smallest footprint** | OK |
+| **Categoricals** | Basic | Indexed | **Native ordered target encoding** |
+| **Sample efficiency** | High | High | Best |
+| **Overfit risk** | Lowest | Highest (leaf-wise) | Low |
+
+**Default picks:**
+- Big data, tight memory → **LightGBM**
+- Lots of categoricals → **CatBoost**
+- Maximum control & regularisation → **XGBoost**
+
+</CheatCard>
+
+<CheatCard title="Missing values & categoricals" number="5" accent="green">
+
+**Missing values:**
+- **XGBoost, LightGBM**: learn the best default direction at each split for missing values. No imputation needed.
+- **CatBoost**: similar handling.
+- **scikit-learn HistGradientBoosting**: native support too.
+
+**Categoricals:**
+- **CatBoost**: native ordered target encoding — handles high-cardinality without leakage.
+- **LightGBM**: histogram-based categorical splits, pass `categorical_feature=[col_indices]`.
+- **XGBoost**: modern versions support categoricals; older code needed one-hot.
+
+</CheatCard>
+
+<CheatCard title="Overfit & early stopping" number="6" accent="red">
+
+Boosting will happily memorise the training data if you let it. Two safeguards:
+
+1. **Early stopping** — track validation loss, stop when it stops improving.
+
+```python
+model.fit(
+    X_train, y_train,
+    eval_set=[(X_val, y_val)],
+    early_stopping_rounds=50,
+)
+```
+
+2. **Regularisation** — `min_child_samples`, `reg_alpha` (L1), `reg_lambda` (L2), `max_depth`.
+
+**Rule:** lower `learning_rate` + more rounds + early stopping ≫ higher `learning_rate` + fixed rounds.
+
+</CheatCard>
+
+<CheatCard title="When to choose each" number="7" accent="slate">
+
+| Situation | Pick |
+|---|---|
+| Robust default, minimal tuning | **Random Forest** |
+| Need probability calibration | RF (boosting probabilities are uncalibrated) |
+| Want max leaderboard score | **XGBoost** or **LightGBM** |
+| Lots of categorical features | **CatBoost** |
+| Massive dataset, low memory | **LightGBM** |
+| Time-series with lag features | XGBoost / LightGBM with rolling-origin CV |
+| Need interpretability | Single tree or RF with SHAP |
+
+</CheatCard>
+
+<CheatCard title="Feature importance" number="8" accent="purple">
+
+Boosting models offer two flavours:
+
+- **Gain** — total impurity reduction by each feature. Most informative.
+- **Cover** — how many samples a feature affects.
+- **Frequency** — how often it was used in a split.
+
+```python
+model.feature_importances_   # default = gain
+```
+
+For honest importance under correlated features: **SHAP values**.
+
+```python
+import shap
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X)
+```
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"Two ways to ensemble trees: bagging averages parallel trees (Random Forest, variance reduction) and boosting fits trees sequentially to residuals (XGBoost / LightGBM / CatBoost, bias reduction). RF is the robust default — minimal tuning, works out of the box. Boosting wins competitions but needs early stopping and careful `learning_rate` / `max_depth` choices. XGBoost is the conservative pick, LightGBM is fastest on big data, CatBoost is best on high-cardinality categoricals. All three handle missing values natively. For honest feature importance with correlated features, use SHAP."*
+
+</CheatRule>

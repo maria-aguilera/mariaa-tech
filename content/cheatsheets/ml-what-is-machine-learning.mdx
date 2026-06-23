@@ -1,0 +1,175 @@
+---
+slug: ml-what-is-machine-learning
+title: "Part 1 · What is Machine Learning? — Cheat Sheet"
+subtitle: The foundations. Decisions, definitions, and pitfalls that decide whether a model generalises or memorises.
+sourcePost: ml-what-is-machine-learning
+sourceLabel: Read the full post (Part 1)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Foundations
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  <Highlight>Generalisation is what counts.</Highlight> A model's job is not to fit the training data — it's to do well on data it has never seen. Everything else (cross-validation, regularisation, more data) is a tool to enforce this.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="What ML actually is" number="1" accent="navy">
+
+ML = programs that **improve at a task with experience**, instead of being explicitly programmed for every case.
+
+Three components every algorithm has:
+
+| Component | Question it answers |
+|---|---|
+| **Representation** | What kind of model are we allowed to use? *(linear, tree, neural net...)* |
+| **Evaluation** | How do we know if a model is good? *(loss, accuracy, F1...)* |
+| **Optimisation** | How do we find the best model? *(gradient descent, search...)* |
+
+Pick all three. Most of ML engineering is choosing this triple wisely.
+
+</CheatCard>
+
+<CheatCard title="Generalisation > training error" number="2" accent="red">
+
+The whole game.
+
+- **Underfit** — model too simple, misses the pattern. High train + test error.
+- **Overfit** — model too complex, memorises noise. Low train, high test error.
+- **Good fit** — captures pattern, ignores noise. Low train + test error.
+
+**Symptoms of overfitting:**
+- Train accuracy ≫ test accuracy
+- Small data shifts collapse performance
+- Coefficients become huge / unstable
+
+Fight back with: more data, simpler model, regularisation, cross-validation, early stopping.
+
+</CheatCard>
+
+<CheatCard title="Curse of dimensionality" number="3" accent="amber">
+
+In high dimensions:
+- **Space grows exponentially.** A grid of 10 bins per feature needs `10^d` cells.
+- **All points become "far apart".** Nearest-neighbour stops meaning *neighbour*.
+- **Distances concentrate.** Min and max distances converge to similar values.
+
+**Three ways to fight back:**
+1. Reduce dimensions (PCA, feature selection).
+2. Use models that bend to low-dimensional structure (trees, neural nets).
+3. Collect more data — but `n` needs to grow exponentially with `d`.
+
+**The blessing:** real data usually lives near a low-dimensional manifold. The features may be `100`, but the signal lives in `5`.
+
+</CheatCard>
+
+<CheatCard title="Feature engineering is the key" number="4" accent="purple">
+
+> *"At the end of the day, some machine learning projects succeed and some fail. What makes the difference? The most important factor is the features used."* — Pedro Domingos
+
+What this looks like:
+- Encoding `date` → `weekday`, `month`, `is_weekend`
+- Combining `height` and `weight` → `BMI`
+- Log-transforming a skewed price column
+- Replacing a zip code with the average house price in it
+
+Good features make the algorithm's job trivial. Bad features no algorithm can rescue.
+
+This is covered fully in [Part 3](/cheatsheets/ml-from-scratch-03-feature-engineering).
+
+</CheatCard>
+
+<CheatCard title="Data alone is not enough — GIGO" number="5" accent="slate">
+
+**Garbage in, garbage out.**
+
+- More data **beats** a cleverer algorithm — but only if the data is *representative*.
+- Biased data → biased model. No algorithm fixes that.
+- Data with errors, missing values, label noise → the model learns the noise.
+
+The trade-off:
+- **More data, simple model** > less data, fancy model.
+- **Better features, simple model** > raw features, fancy model.
+- **Domain knowledge** > brute compute, almost always.
+
+Cleaning + feature engineering set the **absolute ceiling** on performance. The model just decides how close you get.
+
+</CheatCard>
+
+<CheatCard title="Learn many models, not one" number="6" accent="blue">
+
+The "no free lunch" theorem: **no single model is best for all problems.**
+
+Pragmatic rule of thumb:
+
+| If you have... | Start with... |
+|---|---|
+| Few features, lots of data, linear-ish | Logistic / Linear Regression |
+| Tabular data, mixed types | XGBoost / LightGBM / Random Forest |
+| High-dim continuous, small data | SVM, regularised linear |
+| Images / audio / text | Neural networks |
+| Want interpretability | Decision tree, linear with few features |
+
+Then **ensemble** them — averaging or stacking near-always beats the best single model. Cross-validate everything.
+
+</CheatCard>
+
+<CheatCard title="Types of ML systems" number="7" accent="green">
+
+**By supervision:**
+- **Supervised** — labels given. Regression (continuous) or classification (discrete).
+- **Unsupervised** — no labels. Clustering, dimensionality reduction, anomaly detection.
+- **Semi-supervised** — few labels, many unlabelled examples.
+- **Reinforcement** — agent interacts with environment, gets reward signal.
+
+**By learning style:**
+- **Batch / offline** — train on all data, deploy frozen model.
+- **Online / incremental** — keep learning as new data arrives.
+
+**By generalisation:**
+- **Instance-based** — memorise examples, compare new ones (KNN).
+- **Model-based** — fit a function, throw away examples (linear, NN).
+
+</CheatCard>
+
+<CheatCard title="The main challenges" number="8" accent="red">
+
+The five failure modes every ML engineer should be able to name:
+
+1. **Insufficient data.** Especially for complex models. Bias-variance trade-off.
+2. **Non-representative data.** Sampling bias → model fails on the cases that matter.
+3. **Poor quality data.** Outliers, errors, missing values, mis-labels.
+4. **Irrelevant features.** Garbage features dilute signal. Feature selection matters.
+5. **Overfitting & underfitting.** The eternal trade-off — match model complexity to data size and signal.
+
+**Bonus:** label shift / distribution shift in production. The world doesn't sit still. Monitor.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Hyperparameter tuning — the leakage trap" accent="amber">
+
+- **Train set** → fit model parameters (the weights).
+- **Validation set** → pick hyperparameters and model family.
+- **Test set** → evaluate **once**, at the end, for the honest score.
+
+If you tune on test → your "honest" score is just another training score. The test set is a **one-shot measurement**. Spend it once.
+
+For small data, replace train/val split with **cross-validation** (k-fold), but never replace the held-out test set.
+
+</CheatRule>
+
+<CheatRule label="The five things to remember" accent="navy">
+
+1. **Generalisation is what counts.** Training error is not your goal.
+2. **Data quality > model complexity.** Get the features right first.
+3. **Beware the curse of dimensionality.** More features can hurt.
+4. **No model wins everywhere.** Try several, ensemble them.
+5. **Cross-validate everything.** Including preprocessing, not just the model.
+
+</CheatRule>

@@ -8,6 +8,7 @@ import {
   BookOpen,
   FileText,
   Home,
+  Layers,
   Moon,
   Sun,
 } from "lucide-react";
@@ -145,6 +146,17 @@ export default function Navbar() {
               </ul>
             </div>
           )}
+        </li>
+
+        <li className={`navbar__item ${isActive("/cheatsheets") ? "active" : ""}`}>
+          <Link
+            className="navbar__link"
+            href="/cheatsheets"
+            aria-current={isActive("/cheatsheets") ? "page" : undefined}
+          >
+            <Layers size={iconSize} />
+            <span>Cheat sheets</span>
+          </Link>
         </li>
 
         <li className={`navbar__item ${isActive("/beyond-work") ? "active" : ""}`}>

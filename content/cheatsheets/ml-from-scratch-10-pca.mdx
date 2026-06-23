@@ -1,0 +1,166 @@
+---
+slug: ml-from-scratch-10-pca
+title: "Part 10 · PCA & Dimensionality Reduction — Cheat Sheet"
+subtitle: Principal Component Analysis end-to-end. Why it works, when it breaks, how it differs from LDA, and the practical workflow.
+sourcePost: ml-from-scratch-10-pca
+sourceLabel: Read the full post (Part 10)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - PCA
+  - Dimensionality Reduction
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important rule">
+  <Highlight>Scale your features before PCA, always.</Highlight> PCA finds directions of maximum variance — so a column measured in millions will hijack every component over a column measured in 0–10. Without `StandardScaler`, the algorithm is just measuring units.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="Selection vs Reduction" number="1" accent="navy">
+
+Both shrink the feature space but in different ways:
+
+| | Feature Selection | Dimensionality Reduction |
+|---|---|---|
+| **Method** | Keep a subset of original features | Combine all features into new ones |
+| **Interpretability** | High — you know what each column means | Low — components are linear combinations |
+| **Examples** | Lasso, RFE, mutual info | PCA, LDA, autoencoders, t-SNE, UMAP |
+| **Output** | Subset of original columns | New, transformed features |
+
+Use selection when you need to explain to a stakeholder *which* features matter. Use reduction when you just want a smaller, denser representation.
+
+</CheatCard>
+
+<CheatCard title="Why high dimensions hurt" number="2" accent="red">
+
+The **curse of dimensionality**, in one card:
+
+- **Space grows exponentially.** Volume of a unit cube grows as `1ᵈ` but the corners drift away — all the mass goes to the corners.
+- **Distances concentrate.** Every point becomes "far" from every other; nearest-neighbour stops meaning anything.
+- **Sample density falls.** To keep the same data density, `n` must grow exponentially with `d`.
+- **Overfitting risk explodes.** More features than samples = perfect train fit on garbage.
+
+Symptoms: KNN gets worse, distance-based clustering breaks, models overfit despite regularisation.
+
+</CheatCard>
+
+<CheatCard title="What PCA actually does" number="3" accent="blue">
+
+PCA finds new axes — **principal components** — that:
+
+1. Are **orthogonal** to each other.
+2. Point in the directions of **maximum variance** in the data.
+3. Are **ranked** — PC1 explains the most variance, PC2 the second most, etc.
+
+Each principal component is a **recipe**: a weighted sum of the original features. PC1 might be `0.6 × alcohol − 0.3 × acidity + 0.4 × phenols + ...`.
+
+You then **keep the top `k` components** that explain, say, 90 % of the variance — and throw away the rest.
+
+</CheatCard>
+
+<CheatCard title="When PCA is pointless" number="4" accent="amber">
+
+Don't reach for PCA reflexively. It hurts more than it helps when:
+
+- **Data is already low-dim.** With 5 columns, just use them.
+- **All variances are similar.** No "big" component to extract.
+- **You need interpretability.** Components are messy combinations.
+- **Non-linear structure dominates.** PCA is linear — t-SNE / UMAP / kernel PCA will reveal more.
+- **Class boundary lives in low-variance directions.** PCA optimises for variance, not separability — see card 6.
+
+</CheatCard>
+
+<CheatCard title="PCA vs LDA" number="5" accent="purple">
+
+Both produce new axes. They optimise for **different things**:
+
+| | PCA | LDA |
+|---|---|---|
+| **Goal** | Maximise total variance | Maximise class separability |
+| **Supervised?** | **No** — ignores labels | **Yes** — uses class labels |
+| **Best for** | Compression, visualisation | Classification preprocessing |
+| **Max components** | `min(n − 1, d)` | `n_classes − 1` |
+
+LDA can outperform PCA when downstream task is classification — because PCA's "big variance" direction may not be the "separates classes" direction.
+
+</CheatCard>
+
+<CheatCard title="Two things that quietly break PCA" number="6" accent="red">
+
+**1. Unscaled features.** PCA finds max-variance axes — a column in millions dominates a column in 0–10. **Always `StandardScaler` first.**
+
+**2. Class-relevant info in low-variance directions.** PCA throws away low-variance components. If a tiny but informative feature carries the class signal, PCA can throw the signal away.
+
+Cross-validate **with and without PCA** to be sure it's actually helping the downstream model.
+
+</CheatCard>
+
+<CheatCard title="How many components?" number="7" accent="green">
+
+Three strategies:
+
+1. **Cumulative explained variance.** Plot it; pick the elbow. Common target: keep components that explain **90 % or 95 %** of total variance.
+2. **Kaiser criterion.** Keep components with eigenvalue > 1 (only for correlation-matrix PCA).
+3. **Downstream CV score.** Treat `n_components` as a hyperparameter; cross-validate.
+
+In practice: `n_components=0.95` in scikit-learn lets PCA pick the smallest number that hits the 95 % threshold.
+
+```python
+PCA(n_components=0.95)  # keeps enough PCs to reach 95% variance
+```
+
+</CheatCard>
+
+<CheatCard title="Kernel PCA" number="8" accent="slate">
+
+Plain PCA is linear. Real data often has **non-linear** structure (curved manifolds, twisted clusters).
+
+**Kernel PCA** trick: apply PCA in a **high-dimensional feature space** implicitly via a kernel function (RBF, polynomial), without actually computing the high-dim features.
+
+| Kernel | Use case |
+|---|---|
+| `linear` | Same as plain PCA. |
+| `rbf` | Smooth, curved manifolds. Most common. |
+| `poly` | Polynomial relationships of fixed degree. |
+| `sigmoid` | Neural-net-like transformations. |
+
+Trade-off: slower than vanilla PCA, harder to interpret, but captures structure plain PCA can't.
+
+For visualisation specifically: **t-SNE** and **UMAP** usually beat kernel PCA.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="The maths in three lines" accent="blue">
+
+1. **Centre and scale.** `X_centered = X − mean(X)` → standardised.
+2. **Compute covariance matrix** `C = (1/(n-1)) Xᵀ X`.
+3. **Eigendecomposition** of `C`. The eigenvectors are the principal components; the eigenvalues are the variances explained.
+
+Alternative: **SVD** on `X` directly (more numerically stable). scikit-learn uses SVD under the hood.
+
+</CheatRule>
+
+<CheatRule label="The workflow" accent="navy">
+
+1. **Scale** the data with `StandardScaler` *(non-negotiable)*.
+2. **Fit PCA** on the training set only.
+3. **Decide `n_components`** by cumulative variance or CV.
+4. **Transform** train and test using the *same* fitted PCA.
+5. **Cross-validate** the downstream model with PCA inside the pipeline — never separately, or you leak.
+6. **Compare** to a baseline without PCA. Sometimes the original features win.
+
+```python
+pipe = make_pipeline(
+    StandardScaler(),
+    PCA(n_components=0.95),
+    LogisticRegression(),
+)
+cross_val_score(pipe, X, y, cv=5)
+```
+
+</CheatRule>

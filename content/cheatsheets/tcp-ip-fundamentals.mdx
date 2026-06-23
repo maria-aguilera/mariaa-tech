@@ -1,0 +1,165 @@
+---
+slug: tcp-ip-fundamentals
+title: TCP/IP Fundamentals — Cheat Sheet
+subtitle: The networking layer cake. OSI vs TCP/IP, the journey of a packet, common protocols, and the questions that show up in system-design interviews.
+sourcePost: tcp-ip-fundamentals
+sourceLabel: Read the full post
+topic: Networking
+tags:
+  - Networking
+  - TCP/IP
+  - Systems
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Every byte that leaves your laptop gets <Highlight>wrapped</Highlight> by four protocol layers (application → transport → internet → link) and <Highlight>unwrapped</Highlight> by the same four on the other side. Each layer adds a header, does its job, and trusts the layer below it.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="OSI vs TCP/IP" number="1" accent="navy">
+
+Both are layered models. **OSI is theoretical, TCP/IP is what runs on the internet.**
+
+| OSI (7 layers) | TCP/IP (4 layers) | Examples |
+|---|---|---|
+| Application | Application | HTTP, DNS, SSH, SMTP |
+| Presentation | (folded in) | TLS, encoding |
+| Session | (folded in) | — |
+| Transport | Transport | **TCP**, **UDP** |
+| Network | Internet | **IP**, ICMP |
+| Data link | Link | Ethernet, Wi-Fi |
+| Physical | Link | Cables, radio |
+
+Memorise the four: **Application · Transport · Internet · Link**.
+
+</CheatCard>
+
+<CheatCard title="What each layer does" number="2" accent="blue">
+
+| Layer | Job | Identifies by |
+|---|---|---|
+| **Application** | What the app actually sends (HTTP request, DNS query) | URL / endpoint |
+| **Transport** | Reliable (TCP) or fast (UDP) delivery between processes | **Port** (0–65535) |
+| **Internet** | Route packets across networks | **IP address** |
+| **Link** | Move bits across one physical hop | **MAC address** |
+
+A web request goes: HTTP (app) → TCP (transport) → IP (internet) → Ethernet/Wi-Fi (link), then back up the stack on the server.
+
+</CheatCard>
+
+<CheatCard title="TCP vs UDP" number="3" accent="amber">
+
+| | TCP | UDP |
+|---|---|---|
+| **Connection** | Yes (3-way handshake) | No (fire and forget) |
+| **Reliability** | Guaranteed, retries, ordered | Best-effort, lossy |
+| **Speed** | Slower | Faster |
+| **Header overhead** | 20 bytes min | 8 bytes |
+| **Use for** | HTTP, SSH, email, file transfer | DNS, streaming, gaming, VoIP |
+
+**Pick TCP** when correctness > speed. **Pick UDP** when speed > correctness (live video can drop a frame; a payment cannot drop a digit).
+
+</CheatCard>
+
+<CheatCard title="The 3-way handshake" number="4" accent="purple">
+
+How TCP starts a connection:
+
+```
+Client                   Server
+  │  ─── SYN ─────────────►
+  │  ◄─── SYN + ACK ──────
+  │  ─── ACK ────────────►
+  │                       
+  │      [connected]
+```
+
+- **SYN** — "I want to talk, sequence starts at X."
+- **SYN + ACK** — "OK, I'll talk, my sequence starts at Y, I acknowledge X."
+- **ACK** — "Got it, I acknowledge Y."
+
+Three round-trips before the first byte of payload. This is why connection-heavy protocols (HTTP/1.1) feel slow without keep-alive.
+
+</CheatCard>
+
+<CheatCard title="IP addressing" number="5" accent="green">
+
+**IPv4:** 32-bit, written as four octets (`192.168.1.1`). ~4 billion addresses. Already exhausted.
+
+**IPv6:** 128-bit, written in hex blocks (`2001:0db8::1`). Effectively unlimited.
+
+**Private ranges** (not routable on the internet):
+- `10.0.0.0/8`
+- `172.16.0.0/12`
+- `192.168.0.0/16`
+- `127.0.0.1` — localhost
+
+**NAT** (Network Address Translation) translates between your private LAN and one public IP — that's how multiple devices share one home router's address.
+
+**CIDR** notation: `192.168.1.0/24` = first 24 bits are network, last 8 are host → 256 addresses.
+
+</CheatCard>
+
+<CheatCard title="DNS" number="6" accent="red">
+
+How a name like `mariaa.tech` becomes an IP:
+
+1. Browser checks local cache. Miss.
+2. Asks the **recursive resolver** (your ISP or 8.8.8.8).
+3. Resolver asks the **root server** → "ask .tech".
+4. Resolver asks the **.tech TLD** → "ask Cloudflare's nameserver".
+5. Resolver asks Cloudflare → "it's `76.76.21.X`".
+6. Resolver returns the answer to your browser.
+
+**Record types:**
+- **A** — IPv4 address.
+- **AAAA** — IPv6 address.
+- **CNAME** — alias to another name.
+- **MX** — mail server.
+- **TXT** — arbitrary text (DKIM, SPF, verification).
+- **NS** — nameserver authoritative for the domain.
+
+</CheatCard>
+
+<CheatCard title="HTTP / HTTPS" number="7" accent="slate">
+
+HTTP runs on top of TCP, port 80. HTTPS is HTTP **inside TLS**, port 443.
+
+**TLS handshake** (simplified):
+1. Client says hello + supported ciphers.
+2. Server picks cipher, sends its certificate.
+3. Client verifies the cert against trusted CAs.
+4. Exchange keys, derive a shared session key.
+5. All further traffic is encrypted with that key.
+
+**Latency cost:** ~1 round trip beyond TCP's 3-way handshake. **HTTP/3 over QUIC** (UDP) reduces this further.
+
+</CheatCard>
+
+<CheatCard title="Debugging tools" number="8" accent="blue">
+
+The networking toolbox:
+
+| Tool | Use |
+|---|---|
+| `ping` | Is this host reachable? |
+| `traceroute` / `tracert` | Which hops does my packet take? |
+| `nslookup` / `dig` | Resolve a DNS name. |
+| `netstat -an` | What ports are open / connected on this machine? |
+| `ss` | Modern replacement for `netstat`. |
+| `tcpdump` / Wireshark | Capture and inspect actual packets. |
+| `curl -v` | Inspect HTTP requests, headers, TLS. |
+| `mtr` | Combined ping + traceroute over time. |
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"TCP/IP is a 4-layer stack: application, transport, internet, link. Each layer wraps the payload with its own header and trusts the layer below. TCP is reliable, ordered, slow (3-way handshake); UDP is fast and lossy. IP routes packets across networks using addresses; ports identify processes within a host. DNS turns names into IPs through a recursive walk: root → TLD → authoritative nameserver. HTTPS is HTTP inside TLS, adding ~1 RTT for the cryptographic handshake. The debugging toolbox is ping, traceroute, dig, tcpdump, curl -v — and a mental model of where the packet is when it stops working."*
+
+</CheatRule>

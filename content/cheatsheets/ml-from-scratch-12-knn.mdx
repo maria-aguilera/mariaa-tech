@@ -1,0 +1,140 @@
+---
+slug: ml-from-scratch-12-knn
+title: "Part 12 · KNN & Recommender Systems — Cheat Sheet"
+subtitle: The simplest non-parametric model. K-Nearest Neighbours for classification, regression, and as the core of memory-based recommender systems.
+sourcePost: ml-from-scratch-12-knn
+sourceLabel: Read the full post (Part 12)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - KNN
+  - Recommender Systems
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  KNN doesn't really <em>learn</em>. It just <Highlight>memorises the training set</Highlight> and, for each prediction, looks at the K closest neighbours and votes. <Highlight>Always scale features first</Highlight> — KNN measures distance, and unscaled features hijack it. Simple to understand, slow at inference, surprisingly competitive on the right data.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The algorithm" number="1" accent="navy">
+
+For each new point:
+
+1. Compute its distance to every training point.
+2. Pick the **K closest neighbours**.
+3. **Classify** → majority vote among the K labels.
+4. **Regress** → mean (or weighted mean) of the K target values.
+
+No model is fit at training time — just stored. **All the work happens at inference.**
+
+</CheatCard>
+
+<CheatCard title="The K knob" number="2" accent="amber">
+
+K controls the bias-variance trade-off:
+
+| K | Behaviour |
+|---|---|
+| **K = 1** | Boundary follows every training point. **High variance**, overfits. |
+| **Small K** (3–5) | Local detail, can capture small clusters. |
+| **Large K** (50+) | Smooth boundary. **High bias**, underfits. |
+| **K = N** | Always predicts the majority class. Useless. |
+
+Pick K by **cross-validation**. Use odd values for binary classification to avoid ties.
+
+</CheatCard>
+
+<CheatCard title="Why scale always" number="3" accent="red">
+
+KNN uses Euclidean distance by default:
+
+`d(x, y) = sqrt(Σ (x_i − y_i)²)`
+
+If `income` ranges in 0–200,000 and `age` ranges in 0–80, the income axis dominates every distance. The model becomes "1-NN on income" and ignores age completely.
+
+**`StandardScaler` before KNN. Always. No exceptions.**
+
+Same applies to clustering (KMeans), PCA, and anything else distance-based.
+
+</CheatCard>
+
+<CheatCard title="Distance metrics" number="4" accent="blue">
+
+KNN supports many distance functions:
+
+| Metric | Use for |
+|---|---|
+| **Euclidean** (L2) | Default. Continuous features. |
+| **Manhattan** (L1) | High-dim or robust to outliers. |
+| **Minkowski** (general) | Tune `p` parameter (1=Manhattan, 2=Euclidean). |
+| **Hamming** | Binary / categorical features. |
+| **Cosine** | Text vectors, recommender systems. |
+
+For text and recommenders, **cosine similarity** (1 − cosine distance) usually beats Euclidean.
+
+</CheatCard>
+
+<CheatCard title="Weighted KNN" number="5" accent="purple">
+
+Default: all K neighbours vote equally.
+
+Weighted variant: weight each neighbour by **`1 / distance`** — closer neighbours have more say.
+
+```python
+KNeighborsClassifier(n_neighbors=5, weights="distance")
+```
+
+Helps when K is moderately large and you don't want distant outliers to dilute the vote.
+
+</CheatCard>
+
+<CheatCard title="When KNN wins" number="6" accent="green">
+
+- **Low-dimensional, dense data.** Distances are meaningful.
+- **Decision boundary is locally smooth** but globally complex.
+- **You can't afford to train a model** but inference latency isn't critical.
+- **Recommender systems** — user-user or item-item similarity.
+- **Anomaly detection** — points far from their K nearest neighbours are suspicious.
+
+</CheatCard>
+
+<CheatCard title="When KNN loses" number="7" accent="red">
+
+- **High-dimensional data** — curse of dimensionality. All points are "equally far". See [Part 10 / PCA cheat sheet](/cheatsheets/ml-from-scratch-10-pca).
+- **Massive datasets at inference time.** `O(n)` per prediction. Use ANN libraries (FAISS, Annoy) or just pick another model.
+- **Imbalanced classes.** Majority class wins votes; minority class disappears.
+- **You need interpretability** beyond "these were its 5 nearest neighbours."
+
+</CheatCard>
+
+<CheatCard title="KNN as a recommender" number="8" accent="slate">
+
+Memory-based collaborative filtering:
+
+**User-user CF:** "Find K users similar to you (by past ratings), recommend what they liked."
+
+**Item-item CF:** "Find K items similar to this one (by who rated them), suggest those."
+
+Steps:
+1. Build a user × item rating matrix.
+2. Normalise (mean-centre each row).
+3. Compute pairwise cosine similarities between users (or items).
+4. For each unseen `(user, item)`: weighted average of similar users' ratings of that item.
+
+Pros: simple, no model training.
+Cons: cold start (new users / items), poor scaling.
+
+Modern systems combine KNN with matrix factorisation or embeddings.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"KNN is the simplest non-parametric model — store training data, predict by majority vote of the K closest neighbours. The whole game is picking K (cross-validate) and a distance metric (Euclidean by default, cosine for text and recommenders). Scaling is non-negotiable since distances are scale-sensitive. KNN shines on small, low-dim, locally-smooth data and as the core of memory-based collaborative filtering. It fails in high dimensions because of the curse of dimensionality and at scale because inference is O(n). Modern recommenders often use it as a baseline before moving to matrix factorisation or embeddings."*
+
+</CheatRule>

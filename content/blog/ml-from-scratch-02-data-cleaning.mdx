@@ -20,32 +20,36 @@ coverImage: "/images/blog/ml-from-scratch/data-cleaning/data-wrangling-quote.png
 
 *Machine Learning from Scratch · Part 2/12*
 
-## 1. Why data cleaning matters — and where it fits
+<Callout color="blue">
+  📋 **In a hurry?** Read the [one-page cheat sheet](/cheatsheets/ml-from-scratch-02-data-cleaning) — every decision rule, code pattern, and trap from this post, condensed for fast revision (or `⌘ P` to print it).
+</Callout>
 
-A large part of the data science job is **data wrangling** — as the tweet at the top of this post puts it, *"90% of data science is wrangling data; the other 10% is complaining about wrangling data."* Machine learning isn't only about choosing algorithms — in practice, the quality of the model depends heavily on the quality of the data.
+## 1. Why Data Cleaning Matters — and Where It Fits
+
+A large part of the data science job is **data wrangling**. As a classic tweet by David Robinson puts it: *"90% of data science is wrangling data; the other 10% is complaining about wrangling data."* <Cite url="https://x.com/drob/status/463408069178064896" source="X · drob" title="@drob on Twitter" date="3 May 2014" snippet="The classic tweet by David Robinson, attributing the original quip to @evelgab at #rstatsnyc." />
+
+Machine learning isn't just about selecting algorithms. In practice, the performance of a model depends heavily on the quality of its input data. <Cite url="https://www.geeksforgeeks.org/machine-learning/ml-understanding-data-processing/" source="GeeksforGeeks" title="ML | Understanding Data Processing" date="GeeksforGeeks" snippet="Data preprocessing is a critical step in any ML pipeline — model quality is bounded by data quality." />
 
 <Callout color="yellow">
-  🔑 <Highlight>A good model trained on bad data is still a bad solution.</Highlight>
+  🔑 <Highlight>A good model trained on bad data is still a bad solution.</Highlight> <Cite url="https://towardsai.net/p/machine-learning/how-to-perform-effective-data-cleaning-for-machine-learning" source="Towards AI" title="How to Perform Effective Data Cleaning for Machine Learning" date="12 Aug 2025" snippet="Learn how you can improve your machine learning models by treating the data layer first, before reaching for fancier algorithms." />
 </Callout>
 
-### Data cleaning vs feature engineering
+### Data Cleaning vs Feature Engineering
 
-Before we go further, two ideas that get used interchangeably but mean different things:
+Before going further, let's distinguish between two concepts that are frequently conflated but mean fundamentally different things:
 
-| Concept | Meaning | Example |
+| Concept | Meaning | Practical Example |
 |---|---|---|
-| **Data cleaning** | Fixing or handling problems in raw data. | Removing impossible ages, correcting null values, treating outliers. |
-| **Feature engineering** | Creating better variables from existing data. | Turning dates into weekday/month, encoding categories, binning continuous variables. |
+| **Data cleaning** | Detecting, correcting, or handling structural flaws and errors in raw data. | Removing impossible ages, treating outliers, imputing or flagging null values. |
+| **Feature engineering** | Creating newer, more informative variables from existing clean data. | Extracting weekday/month from dates, bucketising continuous variables, creating interaction terms. |
 
 <Callout color="blue">
-  💡 Data cleaning is mainly about **making the data usable and trustworthy**. Feature engineering is about **making the data more informative for the model**. Both happen *before* training, and both set the ceiling on how good your final model can possibly be.
+  💡 **Data cleaning** makes data usable and trustworthy. **Feature engineering** makes data more informative for the algorithm. Both happen *before* training, and both set the absolute ceiling on your model's capabilities. This post focuses strictly on data cleaning; feature engineering is covered in [Part 3](/blog/ml-from-scratch-03-feature-engineering).
 </Callout>
 
-This post is about data cleaning. Feature engineering gets its own post — [Part 3](/blog/ml-from-scratch-03-feature-engineering).
+### Where Data Cleaning Fits in the ML Pipeline
 
-### Where data cleaning fits in the ML pipeline
-
-A typical ML project moves through four phases, in order. Data cleaning lives in the second one:
+A typical machine learning project progresses through four ordered phases. Data cleaning serves as the **gatekeeper in the second stage**:
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/ml-pipeline-preprocessing-highlighted.png"
@@ -53,18 +57,18 @@ A typical ML project moves through four phases, in order. Data cleaning lives in
   caption="Data cleaning is the pre-processing stage — the green one. That's the focus of this post."
 />
 
-1. **Select data** — define the prediction problem, identify the sources, decide what each row represents.
-2. **Pre-processing** — this is where data cleaning lives. Detect errors, handle missing values, fix wrong types, remove duplicates, correct impossible values.
-3. **Transform data** — scale numerical values, encode categories, create new features, reduce dimensionality, fix skewed distributions.
-4. **Modelling** — train and validate. Often the smallest part of the project.
+1. **Select data** — define the prediction problem, identify ingestion sources, and determine what an individual row represents.
+2. **Preprocessing (data cleaning)** — detect errors, handle missing entries, resolve incorrect data types, eliminate duplicates, and correct impossible boundaries.
+3. **Transform data** — scale numerical values, encode categorical strings, reduce dimensionality, and handle highly skewed distributions.
+4. **Modelling** — train, tune, and validate the algorithm. This is often the smallest codebase in the entire project.
 
-Many modelling problems are actually data problems that should have been solved earlier. The rest of this post is about what happens in stages 2 and 3 — which is also why stages 2 and 3 are where careers get made or broken.
+Many downstream modelling failures are actually data issues that should have been caught in stages 2 and 3. Mastery over these preprocessing steps is what separates entry-level practitioners from seasoned professionals.
 
-## 2. Understanding the data — and the meaning of the features
+## 2. Understanding the Data — and the Meaning of the Features
 
-Before you transform anything, understand what each feature *means*. This isn't busywork. It's how you catch the failure modes that ruin models silently.
+Before executing a single transformation, you must understand the **business logic behind every feature**. Automated scripts cannot catch the silent data anomalies that ruin models.
 
-### Errors with a meaning
+### Errors with a Meaning
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/numbers-with-meaning.png"
@@ -72,52 +76,36 @@ Before you transform anything, understand what each feature *means*. This isn't 
   caption="Same numbers, different meaning once you know what the column represents."
 />
 
-The classic gotchas:
+A number is never just a number; **context dictates its validity**. Consider these classic gotchas:
 
-- A column for `age` containing **`-1`** or **`139`**. Both are technically numbers; both are obviously wrong. `-1` is probably a sentinel for "missing"; `139` is probably a typo or a corrupted record. If you feed these to a model, the model will dutifully learn that some customers are 139 years old.
-- A column for `solar_power_output` containing **`0`** for half the rows. Is it broken? No — those zeros are the **night-time readings**. A model trained without understanding this will think solar panels produce zero power half the time.
-- A column for `purchase_amount` with negative numbers. Refunds? Returns? Just errors? The answer changes how you handle them.
+- **`age` containing `-1` or `139`.** Both are valid integers, both are physically impossible. The `-1` is likely an intentional sentinel used by upstream systems to flag "missing" data; `139` is probably a corrupted entry or typo. Feed these raw values to a model and it will dutifully learn that some customers are 139 years old.
+- **`solar_power_output` containing `0` for half the dataset.** This does not necessarily point to broken sensors. Half of a 24-hour cycle is nighttime. A model trained without this context will misunderstand the panels' baseline efficiency.
+- **`purchase_amount` with negative values.** Refunds, promotional credits, or processing glitches? Your choice of remediation depends entirely on the answer.
 
-You can't auto-detect these. You have to look at the data, ask what each column *means* in the business, and decide what each surprising value represents. This is the work.
+You cannot rely purely on automated anomaly detection here. You must cross-reference data values with **real-world operational definitions**.
 
-### Non-representative training data
+### Non-Representative Training Data
 
-Biases and systematic errors will create biased models, because the algorithm will learn — and likely reproduce and amplify — whatever bias is in the data.
+Algorithms are **mathematical mirrors**: they faithfully replicate — and amplify — whatever structural biases exist in the training data. <Cite url="https://www.ibm.com/think/topics/ai-bias" source="IBM" title="What Is AI Bias?" snippet="A field guide to how training-data bias propagates into model predictions and shapes fairness outcomes." />
 
 <Callout color="red">
-  ⚠️ <strong>Biased data makes biased models.</strong> An ML algorithm learns — and then reproduces and amplifies — whatever bias is baked into the data. Train on biased data and you'll ship a biased model.
+  ⚠️ <Highlight>Biased data yields biased models.</Highlight> To generalise reliably to production, your training set must faithfully represent the statistical distribution of the future unseen data. When training data is skewed or restricted, accuracy collapses — particularly at the tails of the distribution (e.g. ultra-high-net-worth clients, infant medical diagnostics, rare security classes).
 </Callout>
 
-In order to generalise well, it is crucial that your training data be **representative of the new cases you want to generalise to**.
+Ensuring representative samples is difficult due to two primary statistical traps:
 
-By using non-representative training data, the trained model is unlikely to make accurate predictions — especially for extreme values (e.g. very rich or very poor countries, very young or very old patients, very rare classes).
+1. **Sampling noise** — non-representative patterns emerging entirely by chance due to small sample sizes.
+2. **Sampling bias** — systematically excluding segments of a population due to flawed data collection methods.
 
-It is crucial to use a training set that is representative of the cases you want to generalise to. **This is hard**, because:
+Sampling bias typically manifests in three real-world flavours:
 
-1. If your sample is too small, you will have **sampling noise** — non-representative data as a result of chance.
-2. Even large datasets can be non-representative if the sampling method is flawed — this is called **sampling bias**.
+- **Volunteer bias:** Systematic discrepancies introduced because the individuals who *choose* to participate in a study differ fundamentally from those who opt out (e.g., certain demographics volunteering for clinical trials at much higher rates than others).
+- **Selection bias:** Drawing data from a narrow or convenient subgroup that fails to mirror the macro-population (e.g., evaluating general public health trends by analysing only patients who are actively admitted to emergency rooms).
+- **Survival bias:** Focusing exclusively on the entities that successfully passed a historical filtering process while remaining completely blind to the failures that vanished along the way.
 
-This is also closely related to **self-selection bias** — when the sample is non-random because of *who or what ends up in it*. Three classic flavours show up everywhere:
+The textbook example of survival bias occurred during World War II, when analysts mapped shrapnel holes on returning combat aircraft to figure out where to add protective armour plating. A plane had roughly a 50/50 chance of returning. When planes came back, analysts mapped where they had been shot — and the instinct was to reinforce those areas.
 
-### Volunteer bias
-
-A systematic error due to differences between those who *choose* to participate and those who do not.
-
-*Example.* More women volunteer for medical studies than men. A "random" sample of volunteers isn't random.
-
-### Selection bias
-
-The data comes from a selected subgroup that does not represent the full population.
-
-*Example.* Healthy people seldom go to the hospital. If you analyse only patients going to the hospital, there's going to be bias.
-
-### Survival bias
-
-We concentrate on the cases that made it through some selection process — and draw the wrong conclusion because the failures are invisible.
-
-*Example.* During WWII, researchers were analysing aircraft survivability. A plane had roughly a 50/50 chance of returning. When planes came back, analysts mapped where they had been shot — and the instinct was to reinforce those areas.
-
-But those planes were the **survivors**. The right conclusion was the opposite: reinforce the areas where the returned planes had **not** been shot — because planes hit in those areas were the ones that didn't come back.
+But those planes were the **survivors**. The right conclusion was the opposite: reinforce the areas where the returned planes had **not** been shot — because planes hit in those areas were the ones that didn't come back. <Cite url="https://en.wikipedia.org/wiki/Survivorship_bias" source="Wikipedia" title="Survivorship bias" snippet="Abraham Wald's WWII work on bomber armour placement is the canonical illustration of survivorship bias in statistics." />
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/survivorship-bias-plane.png"
@@ -133,31 +121,55 @@ A million rows of biased data is still biased. **Volume doesn't fix selection.**
 
 *One last thing before we move on:* this whole section was about **which rows** you have. The next section is about **what scale** the columns are on — and that matters most exactly when there's a vast difference in range between features.
 
-## 3. Scaling — when magnitude hijacks your model
+## 3. Scaling — When Magnitude Hijacks Your Model
 
-Features in raw data live on wildly different scales. A house dataset might have `bedrooms` (1–5), `bathrooms` (1–4), and `price` (100,000–900,000). Untreated, the `price` column dominates everything else by sheer magnitude.
+Imagine training a model on real estate data containing two independent variables: `bedrooms` (ranging from 1 to 5) and `sqft_living` (ranging from 500 to 5,000). If left unscaled, the raw geometric scale of the square footage feature will mathematically overwhelm the bedroom count, regardless of which feature holds more true predictive power.
 
-Two situations where this matters and one where it doesn't:
+It's not just two features — open any real dataset and the same chaos shows up across the board. Here are the **King County house-sales features** on a log y-axis, the dataset we've been using throughout this post:
 
-**It matters for coefficient-based methods** (linear regression, logistic regression). The big-magnitude feature gets a bigger coefficient just because of its scale — not because it's more important.
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/king-county-feature-scales-boxplot.png"
+  alt="Boxplot of King County house-sales features on a log y-axis from 1 to one million. Features include bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, grade, sqft_above, sqft_basement, yr_built, yr_renovated, lat, long, sqft_living15, sqft_lot15. The boxes sit on wildly different magnitudes: bedrooms and bathrooms cluster near 1-10, sqft_living and sqft_lot reach 10,000 to 1,000,000, yr_built sits around 2,000, lat and long are below 200. Black circles mark heavy outlier tails for sqft_lot and sqft_lot15."
+  caption="Feature ranges across the King County dataset, on a log y-axis. Six orders of magnitude separate the smallest from the largest — that's the gap an unscaled model would see."
+/>
 
-**It matters for distance-based algorithms** (KNN, SVM, PCA). They compute distances between data points, and a 100,000-unit gap on `price` swamps a 4-unit gap on `bedrooms`, even when `bedrooms` is the more informative feature.
+### Where Scaling is Mandatory vs. Optional
 
-**It doesn't matter for tree-based methods** (CART, Random Forest, Gradient-Boosted Trees). Splits are based on *ordering*, not on distance — multiplying a feature by 1000 doesn't change which rows are above or below a threshold.
+Feature scaling is determined entirely by the **underlying mathematics of your chosen algorithm**:
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/scaling-decision-tree.png"
+  alt="Decision-tree diagram titled 'Which models care about feature scaling?' with subtitle 'A quick rule of thumb by model family'. Three cards side by side connected by thin dashed slate-blue lines. Left card: Distance-Based (KNN · K-Means · SVM) with a red 'Usually essential' badge and the line 'Distances get dominated by the largest-scale feature.' Centre card: Gradient-Based (Linear / Logistic Regression · Neural Nets) with a blue 'Strongly recommended' badge and the line 'Keeps cost contours round so optimisation converges.' Right card: Tree-Based (Random Forest · XGBoost · LightGBM) with a green 'Completely optional' badge and the line 'Splits use relative order — scale is invisible.' Bottom caption: 'Scale is crucial for distance and optimisation. Trees usually don't care.'"
+  caption="A quick rule of thumb by model family. Distance and gradient methods need scaling; tree-based methods don't care."
+/>
+
+- **Coefficient and Distance-Based Algorithms (Mandatory).** Algorithms like K-Nearest Neighbors (KNN) and Support Vector Machines (SVM) measure geometric distances between records. Without scaling, a thousand-unit variance along a feature axis like `income` swamps a single-unit variance on an axis like `age`, making the model blind to age differences. For Principal Component Analysis (PCA), unscaled data tricks the algorithm into aligning its primary components purely with the columns possessing the highest raw variance.
+- **Gradient-Descent Optimisation (Highly Recommended).** For Linear Regression, Logistic Regression, and Deep Neural Networks, mismatched feature scales stretch the loss function's cost contours into highly elongated valleys. This forces optimisation paths to oscillate violently, delaying or completely blocking convergence. Scaling standardises these contours, mapping a direct line to the global minimum.
+- **Tree-Based Models (Invariant).** Decision Trees, Random Forests, and Gradient Boosting architectures split nodes by evaluating individual feature cutoffs sequentially (e.g., `if sqft_living > 1500`). Because they never calculate cross-feature distances or weights concurrently, multiplying a column by an arbitrary scalar leaves the resulting tree splits completely unchanged. <Cite url="https://scikit-learn.org/stable/modules/tree.html" source="scikit-learn" title="Decision Trees" snippet="Tree-based models use threshold splits on feature values, so they are invariant to monotonic transformations like scaling." />
 
 <Callout color="blue">
   💡 <strong>Where scaling is non-negotiable:</strong> KNN, SVM, PCA, gradient-descent-based methods. <strong>Where it doesn't matter:</strong> tree-based methods. <strong>Where it can speed things up anyway:</strong> almost everywhere else, because gradient descent converges much faster on scaled features.
 </Callout>
 
-**Why mean 0, std 1 specifically?** Most algorithms are designed assuming features are roughly centered around zero with unit variance. That's the implicit shape they expect. Scaling doesn't *create* that assumption — it just brings your real data into the shape the algorithm was already built for. Skip the step, and you're feeding the algorithm something it was never tuned for.
+### The Distance-Based Case, Made Visual
+
+Any algorithm that learns from the **distance between two data points** is going to be affected by the scale of the features — KNN and SVM are the textbook examples. Picture a classification problem with two classes (red and blue): on the left, the features sit on completely different scales (one runs from `-1` to `6`, the other from `8,000` to `120,000`). On the right, both features have been standardised. KNN looks for the closest neighbours — and "closest" only means something *honest* when the axes are comparable.
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/knn-scaling-comparison.png"
   alt="Two side-by-side classification scatter plots demonstrating how feature scale distorts distance-based algorithms. Left card 'KNN without scaling' shows Feature 1 (huge scale) from 8000 to 12000 on x-axis and Feature 2 from -1 to 6 on y-axis, with red triangles (class B) and dark navy circles (class A) — the decision boundary is a near-vertical line because the big-magnitude feature dominates. Right card 'KNN with scaling' shows both axes scaled to roughly [-2, 2] after StandardScaler — the decision boundary is now horizontal, properly separating the two classes by both features. Red pill under the left card: 'Big feature dominates'. Green pill under the right card: 'Both features count'. Caption: 'KNN and SVM measure distance. If one feature is 1000× the other, that feature is the only one they see.'"
-  caption="The most visceral demonstration of why distance-based algorithms need scaled features."
+  caption="Scale changes what 'close' means. On the left, the big-magnitude axis hijacks every distance. On the right, both features count."
 />
 
-### The four scalers you'll actually use
+<Callout color="green">
+  🎯 <strong>Practical advice from class</strong> (my professor's, and now mine): plot the data — or compare model performance — with the features scaled and unscaled. Real-world problems will almost always need scaling. The exception is tree-based models, where scaling is rarely needed to improve performance.
+</Callout>
+
+### Why Standardising to Mean = 0, Std Dev = 1 Works
+
+Most weight-initialisation strategies and optimisation algorithms are explicitly designed around the mathematical assumption that input features are centered around a zero mean with unit variance. Scaling doesn't *create* that assumption — it brings your real data into the shape the algorithm was already built for. Skip the step, and you're feeding the model an input distribution it was never tuned to process.
+
+### The Four Scalers You'll Actually Use
 
 Scikit-learn ships four scalers worth knowing. Each one is the right answer in a different situation.
 
@@ -168,7 +180,7 @@ Scikit-learn ships four scalers worth knowing. Each one is the right answer in a
 | `MinMaxScaler` | Squishes into the range `[0, 1]` | When you need bounded inputs — neural-net activations, downstream tests like chi-squared that can't accept negatives, or whenever negative values aren't meaningful. |
 | `Normalizer` | Projects each row onto the unit sphere (length 1) | When you care about *direction* not *magnitude* — cosine distance on text vectors, recommender systems. |
 
-The default is `StandardScaler`. The rule of thumb: if `StandardScaler` doesn't work or your data has weird outliers, try `RobustScaler` next.
+The default is `StandardScaler`. The rule of thumb: if `StandardScaler` doesn't work or your data has weird outliers, try `RobustScaler` next. <Cite url="https://scikit-learn.org/stable/modules/preprocessing.html" source="scikit-learn" title="Preprocessing data" snippet="Official scikit-learn guide comparing StandardScaler, MinMaxScaler, RobustScaler, and Normalizer side by side." />
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/four-scalers-comparison.png"
@@ -176,47 +188,11 @@ The default is `StandardScaler`. The rule of thumb: if `StandardScaler` doesn't 
   caption="What each scaler does to the same dataset, side by side."
 />
 
-### The `fit` / `transform` contract (this is where people get burned)
+### A Note Before You `fit` Anything
 
-Every scikit-learn transformer has two methods. **The way you call them is the most important rule in preprocessing**, so I'm going to spell it out carefully.
+Every scikit-learn transformer you've seen so far — `StandardScaler`, `MinMaxScaler`, `RobustScaler` — has to be **fit on your training data only**, never on the test set. The same applies to every encoder, imputer, and detector that comes up later in this post. There's a discipline behind that — the **fit / transform contract** — and it's important enough that I've pulled it out into [Section 8 at the end of the post](#8-the-whole-process-in-one-checklist) where it can sit alongside the rest of the leakage-prevention principles. For now: just remember that the moment you write `scaler.fit(X_test)`, you've broken your evaluation.
 
-- `fit()` — the transformer *learns the transformation from the data*. For `StandardScaler`, this means computing the mean and standard deviation. For `MinMaxScaler`, it's the min and max.
-- `transform()` — the transformer *applies* what it learned.
-- `fit_transform()` — does both in one call. Convenient shortcut for training data.
-
-Now the rule:
-
-<Callout color="red">
-  ⚠️ <Highlight>Fit ONLY on training data. Then transform both train and test.</Highlight> If you `fit` on the test set, you've leaked test statistics into your "unseen" data and your evaluation is no longer honest. You have no idea how the model will behave in production.
-</Callout>
-
-What does that mistake actually look like? Visually:
-
-<Image
-  src="/images/blog/ml-from-scratch/data-cleaning/fit-transform-leakage.png"
-  alt="Three side-by-side scatter plots titled 'The same test data, three different fates'. Each card shows dark navy circles (training set) and red triangles (test set). Card 1 'Original data' shows both sets plotted on their raw scale (Feature 0 from -10 to 15, Feature 1 from -15 to 5), with train and test in overlapping regions. Card 2 'Correctly scaled' shows both sets after scaler.fit_transform(X_train) + scaler.transform(X_test) — both fit inside [0, 1.2] × [-0.2, 1.0] with the same relative positions preserved. Card 3 'Improperly scaled (data leakage)' shows the test set shifted to a completely different location after scaler.fit_transform(X_test) was incorrectly called — the test distribution has been centered around its own mean, breaking the relationship to the training data. Green pill under card 2: 'Same distribution preserved'. Red pill under card 3: 'Test set hallucinated as centered'. Caption: 'fit() learns the mean and std from data. Call it on the test set and you've quietly leaked test statistics into your evaluation.'"
-  caption="Same dataset, three fates. Properly scaled, the test set stays in the same relative position as the training set. fit on the test set, and the relationship breaks."
-/>
-
-In code:
-
-```python
-from sklearn.preprocessing import StandardScaler
-
-scaler = StandardScaler()
-
-# Train: fit + transform
-X_train_scaled = scaler.fit_transform(X_train)
-
-# Test: ONLY transform — the scaler already learned mean and std from train
-X_test_scaled = scaler.transform(X_test)
-```
-
-I wrote it in my notes in capitals: **CANNOT PUT FIT** on test data. You make decisions using training data; you only ever *evaluate* on test data. No inspection, no fitting, no tuning on test. The test set is your one-shot honest measurement of how the model behaves in production, and you only get to spend it once.
-
-This rule also applies to every other transformer in this post — encoders, imputers, all of it.
-
-## 4. Categorical features
+## 4. Categorical Features
 
 Most ML algorithms are designed to deal **only with numerical values** — feed them a string like `"Manhattan"` or `"red"` and they fail.
 
@@ -235,7 +211,7 @@ There are three encoding strategies. Which one you use depends on the cardinalit
 | **One-hot / dummy** | One binary column per category. | Nominal categories with a manageable number of levels. | More columns; possible collinearity; high-cardinality features explode dimensionality. |
 | **Target / impact** | Each category → a statistic of the target computed on training data. | High-cardinality categories like zip code. | Target leakage if not fitted inside training folds. |
 
-### Ordinal encoding
+### Ordinal Encoding
 
 Ordinal encoding turns each category into an integer. It's **only appropriate when the order is real and meaningful** — education levels, satisfaction ratings, t-shirt sizes (S/M/L). Borough names don't have an order. Neither do colours, currencies, or country codes.
 
@@ -255,7 +231,7 @@ df["boro_ordinal"] = df["boro"].astype("category").cat.codes
 
 **Use ordinal encoding only when an order genuinely exists** — `low / medium / high`, `small / medium / large`, education levels, t-shirt sizes. Otherwise reach for one of the next two.
 
-### One-hot (dummy) encoding
+### One-Hot (Dummy) Encoding
 
 One binary column per category. The borough column becomes four columns:
 
@@ -293,7 +269,7 @@ The sklearn version is what you want for any real model. It plugs into `ColumnTr
 
 This is where target encoding comes in.
 
-### Target (impact) encoding
+### Target (Impact) Encoding
 
 For high-cardinality categorical features, instead of 200 sparse columns you get **one** dense column. The value for each category becomes the *average value of the target variable for that category*.
 
@@ -313,7 +289,7 @@ X_train_encoded = te.transform(X_train)
 
 (Not built into scikit-learn — use the `category_encoders` library.)
 
-In benchmarks on the King County house-prices dataset, switching from one-hot to target encoding on `zipcode` lifted R² from around 0.5 to 0.78. That's a huge gap. If the categorical is informative and high-cardinality, target encoding is often the cleanest win in the whole pipeline.
+In benchmarks on the King County house-prices dataset, switching from one-hot to target encoding on `zipcode` lifted R² from around 0.5 to 0.78. That's a huge gap. <Cite url="https://www.kaggle.com/datasets/harlfoxem/housesalesprediction" source="Kaggle" title="House Sales in King County, USA" snippet="~21k home sales from King County, WA (May 2014 – May 2015). The dataset I used for the zipcode encoding benchmark." /> If the categorical is informative and high-cardinality, target encoding is often the cleanest win in the whole pipeline.
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/encoding-score-comparison.png"
@@ -323,7 +299,7 @@ In benchmarks on the King County house-prices dataset, switching from one-hot to
 
 **The trade-off:** you lose direct explainability, but you can recover it. The model is now running on "average price in this zip" instead of raw zipcodes — fine for prediction, awkward when the stakeholder asks "which zips drive the price?" *But you can map back* — every encoded value corresponds to a category, so you can always join back to the original codes to explain which zip codes the model considers expensive.
 
-### Putting it together with `ColumnTransformer`
+### Putting It Together with `ColumnTransformer`
 
 In practice every dataset has a mix of categorical and numerical columns, and you want different transformations on each. `ColumnTransformer` lets you compose them:
 
@@ -345,11 +321,17 @@ preprocess = make_column_transformer(
 )
 ```
 
-One pipeline, scales the numbers, encodes the categories, all under the same fit/transform discipline. This is how you should structure preprocessing in any real project.
+One pipeline, scales the numbers, encodes the categories, all under the same fit/transform discipline. This is how you should structure preprocessing in any real project. <Cite url="https://scikit-learn.org/stable/modules/generated/sklearn.compose.ColumnTransformer.html" source="scikit-learn" title="sklearn.compose.ColumnTransformer" snippet="The official API reference for ColumnTransformer — the canonical way to apply different transformers to different columns." />
 
 ## 5. Outliers
 
 <KeyTerm>Outliers</KeyTerm> are data points that don't follow the distribution of the rest. They bias the overall pattern by forcing the model to accommodate extreme behaviour at the cost of fit on the bulk of the data.
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/outlier-illustration.png"
+  alt="Two-panel comparison illustration showing how a single outlier warps a regression line. Left panel labelled 'Without outlier' shows ~15 dark navy dots forming a clear upward diagonal trend with a clean slate-blue regression line passing through them tightly. Caption below: 'Model fits the majority'. Right panel labelled 'With one outlier' shows the same 15 dark navy dots in the same positions, plus one single red dot far away in the upper-right corner. The slate-blue regression line is now visibly tilted upward, dragged toward the outlier and missing most of the dark-navy cloud. Caption below: 'One point warps the fit'."
+  caption="Same data, one outlier. A single extreme point can drag the regression line away from the bulk of the data."
+/>
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/outliers-regression.png"
@@ -365,7 +347,7 @@ The decision tree:
 2. **Are they a category in their own right?** Sometimes the right move is to add an `is_outlier` boolean feature so the model can learn from their presence without being distorted by their values.
 3. **Are they just errors / noise?** Remove or impute.
 
-### How to detect outliers
+### How to Detect Outliers
 
 Two approaches:
 
@@ -373,6 +355,12 @@ Two approaches:
 
 - **Z-score:** `|x − μ| / σ > 3` flags everything more than 3 standard deviations from the mean. Simple, fast, works on roughly Gaussian features.
 - **Interquartile range (IQR):** anything below `Q1 − 1.5·IQR` or above `Q3 + 1.5·IQR`. More robust because it doesn't assume Gaussian.
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/z-score-bell-curve.png"
+  alt="Bell curve diagram titled 'The Z-score rule for outliers' with subtitle 'Anything more than 3σ from the mean is flagged.' Dark navy normal distribution curve centered on μ, with σ markers from −3σ to +3σ on the x-axis. Dark navy dots scattered inside the curve representing normal observations, and red dots in the tails beyond ±3σ representing flagged outliers. Three nested shaded regions in pale slate-blue showing 68% (within 1σ), 95% (within 2σ), and 99.7% (within 3σ). Bottom caption in slate-grey italic: 'Z-score = (x − μ) / σ. If |Z| > 3, the value lies in the 0.3% tails — flag it.'"
+  caption="The Z-score rule in one picture. Anything beyond ±3σ sits in the 0.3% tails — by convention, that's the cut-off."
+/>
 
 Both are **prone to error** when the data itself isn't roughly normal — they flag legitimate observations as anomalies just because the assumption breaks. My professor's preference (and mine in practice) is **model-based** detection for anything serious.
 
@@ -384,7 +372,29 @@ Both are **prone to error** when the data itself isn't roughly normal — they f
 
 These are more robust because they learn the actual distribution of your data, not a global statistic.
 
-### What to do with them
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/outlier-algorithm-comparison.png"
+  alt="A 2-by-3 grid comparison titled 'How outlier detection algorithms see the same data' with subtitle 'Each algorithm draws a different boundary around what it considers normal.' Three columns one per algorithm: Isolation Forest, One-Class SVM, Elliptic Envelope. Two rows one per data distribution: Gaussian blob (top) and Two moons (bottom). Each cell shows the same dataset with dark navy inlier dots and red outlier dots scattered around them. Isolation Forest draws a jagged polygon boundary that hugs the cluster tightly, working well for both shapes. One-Class SVM draws a smooth curved boundary, also working for both shapes. Elliptic Envelope draws a clean ellipse — perfect for the Gaussian blob but failing badly on the Two moons, wrapping the entire moon shape in one ellipse and missing the curved structure. Bottom caption: 'Elliptic Envelope assumes Gaussian. Isolation Forest and One-Class SVM don't — they generalise to weird shapes.'"
+  caption="Same data, three algorithms. Elliptic Envelope's ellipse works for the Gaussian blob but completely misses the moons shape. Isolation Forest and One-Class SVM follow the data."
+/>
+
+`IsolationForest` is the one I reach for first — it scales well, doesn't assume any specific distribution, and the API is honest about the fit/transform contract: <Cite url="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html" source="scikit-learn" title="sklearn.ensemble.IsolationForest" snippet="Unsupervised anomaly detection that isolates outliers by random partitioning — robust to non-Gaussian distributions and high dimensionality." />
+
+```python
+from sklearn.ensemble import IsolationForest
+
+iso = IsolationForest(
+    contamination=0.02,   # expected fraction of outliers
+    random_state=42,
+).fit(X_train)            # fit ONLY on train
+
+# Predict: -1 means outlier, 1 means inlier
+outlier_mask = iso.predict(X_train) == -1
+```
+
+You can then either drop the outlier rows (`X_train[~outlier_mask]`) or keep them and add an `is_outlier` boolean column for the model to learn from — see the next section.
+
+### What to Do With Them
 
 - **Remove** — if outliers are under 1% of the dataset and clearly errors.
 - **Cap (winsorise)** — clip values to the 1st / 99th percentile. The outlier becomes the boundary value, which most models handle fine.
@@ -393,11 +403,17 @@ These are more robust because they learn the actual distribution of your data, n
 
 The "remove" option breaks down if outliers are spread across many columns of the dataset, because you'll end up dropping most of your rows. Then prefer capping or flagging.
 
-## 6. Null values
+## 6. Null Values
 
 Most ML algorithms refuse to consume `NaN` directly. You have to decide what `NaN` *means* before you decide what to do with it.
 
-### MCAR vs MNAR — the framing that matters
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/imputation-strategy.png"
+  alt="Decision-tree diagram titled 'Imputation strategy' with subtitle 'A quick rule of thumb by data complexity'. Two cards side by side connected by thin slate-blue lines from a dark navy header card. Left card: Univariate imputation with a green outlined 'Fast baseline' badge. Bullet list: 'Mean · Median · Mode' (monospace), 'Fast, simple baseline', 'Best when missingness is small / random', 'Can distort relationships'. Right card: Multivariate imputation with a blue outlined 'More faithful, slower' badge. Bullet list: 'KNNImputer · IterativeImputer' (monospace), 'Uses other features to infer values', 'Preserves structure better', 'Slower, more assumption-heavy'. Bottom caption: 'Univariate is fast and rough. Multivariate is slow and faithful.'"
+  caption="Two ways to fill missing values: lean on the column's own statistics, or model it from the rest of the columns."
+/>
+
+### MCAR vs MNAR — The Framing That Matters
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/mcar-vs-mnar.png"
@@ -405,32 +421,54 @@ Most ML algorithms refuse to consume `NaN` directly. You have to decide what `Na
   caption="The single most important distinction in null-handling: are the missing values random, or systematic?"
 />
 
-Two situations, very different treatment:
+Three situations, very different treatment. This is **Rubin's taxonomy**, and every scikit-learn imputer assumes you've thought about which one you're in:
 
-- **MCAR** (Missing Completely At Random) — the absence carries no signal. The fact that `age` is missing for some rows tells you nothing about the person. The nulls are basically noise.
-- **MNAR** (Missing Not At Random) — the absence *is* signal. People who decline to share their income often share more than the number itself would reveal. Sensor downtime is often correlated with the condition you're trying to detect.
+- **MCAR** (Missing Completely At Random) — the absence carries no signal. The fact that `age` is missing for some rows tells you nothing about the person. The nulls are basically noise. *Example:* a random technical glitch drops a few values.
+- **MAR** (Missing At Random) — the absence is *predictable from other observed variables*, but not from the missing value itself. *Example:* income is missing more often for one age group than another — once you know the age, the missingness is random. Imputing using other features works well here.
+- **MNAR** (Missing Not At Random) — the absence *is* signal. The reason the value is missing depends on the value itself. *Example:* high-income people decline to report income. Sensor downtime correlated with the condition you're trying to detect. <Cite url="https://stefvanbuuren.name/fimd/sec-MCAR.html" source="FIMD" title="Flexible Imputation of Missing Data — MCAR, MAR, MNAR" snippet="Stef van Buuren's reference text on the Rubin taxonomy of missing-data mechanisms. The framework every imputer in scikit-learn assumes you understand." />
 
-How to tell them apart: **look at the distribution of nulls across other features.** If the rows with `null age` look just like the rest of the dataset, it's MCAR. If the rows with `null age` are systematically older / younger / from one country, it's MNAR.
+How to tell them apart: **look at the distribution of nulls across other features.** If the rows with `null age` look just like the rest of the dataset, it's MCAR. If the rows with `null age` are systematically older / from one country, it's MAR or MNAR — and you have to dig to know which.
 
-**For MCAR:** impute (if there are a lot of them) or remove (if there are few).
+**For MCAR:** impute (if many) or remove (if few).
 
-**For MNAR:** add a `MissingIndicator` feature so the model can learn from the presence of nulls. Don't just impute and lose the signal — the *absence* is the signal.
+**For MAR:** impute using the other features that explain the missingness (multivariate methods shine here).
 
-### Imputation strategies
+**For MNAR:** add a `MissingIndicator` feature so the model can learn from the *presence* of nulls. Don't just impute and lose the signal — the absence *is* the signal.
+
+### Imputation Strategies
 
 **Univariate** — uses only information from the column itself.
 
-- For numerical: replace with the column's mean or median.
-- For categorical: replace with the most common value, or with the string `"unknown"`.
+- **Numerical:** mean or median. Prefer median when outliers are present (it's robust).
+- **Categorical:** most-frequent value, or a constant string like `"Missing"`. The constant strategy is often better than imputing the mode, because it lets the model learn that "Missing" itself is a meaningful category.
 
 Fast, simple, good baseline. Use it when nulls are a small fraction of the column.
 
+```python
+from sklearn.impute import SimpleImputer
+
+# Numerical — median is robust to outliers
+num_imputer = SimpleImputer(strategy="median")
+
+# Categorical — two options
+cat_imputer  = SimpleImputer(strategy="most_frequent")
+cat_missing  = SimpleImputer(strategy="constant", fill_value="Missing")
+```
+
+**Want to flag where the imputation happened?** Pass `add_indicator=True` and `SimpleImputer` will append a binary column per imputed feature — free `MissingIndicator` semantics inside any pipeline.
+
+```python
+imputer = SimpleImputer(strategy="median", add_indicator=True)
+```
+
 **Multivariate** — uses information from the other columns.
+
+The intuition: imagine a house dataset where one row is missing `bathrooms`. A univariate imputer fills it with the dataset's median — say, **2 bathrooms**. But if that row describes an **8-bedroom mansion**, two bathrooms is absurd. Multivariate imputers look at the *other* features in that row (8 bedrooms, big lot, expensive zip code) and predict a sensible value from them.
 
 The trick: imagine you have 10 columns and one of them has nulls. **The rows where that column ISN'T null become your training set** — you treat the column you want to fill as the target and the other 9 as features, then learn a model that predicts it.
 
-- `IterativeImputer` — model the missing column as a function of the others, predict the value.
-- `KNNImputer` — find the K most similar rows that aren't missing this column, use their average.
+- `IterativeImputer` — model the missing column as a function of the others, predict the value. <Cite url="https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html" source="scikit-learn" title="sklearn.impute.IterativeImputer" snippet="Multivariate imputer that estimates each feature from the others in a round-robin fashion." />
+- `KNNImputer` — find the K most similar rows that aren't missing this column, use their average. <Cite url="https://scikit-learn.org/stable/modules/generated/sklearn.impute.KNNImputer.html" source="scikit-learn" title="sklearn.impute.KNNImputer" snippet="Imputation by averaging the K nearest neighbours of each row in the feature space." />
 
 More accurate but slower. Reach for multivariate when the missing volume is large enough that mean-imputation visibly biases the column, or when the missingness has clear predictors.
 
@@ -438,19 +476,19 @@ More accurate but slower. Reach for multivariate when the missing volume is larg
   💡 If a column has so many nulls that imputation would hallucinate most of it (say over 50%), drop the column entirely. Bad information is worse than no information. The column isn't telling you anything.
 </Callout>
 
-## 7. Other preprocessing concepts
+## 7. Other Preprocessing Concepts
 
 A handful of transformations that come up often enough to be worth a section:
 
-**Skewness in the target variable.** Many models (linear regression especially) assume roughly normal residuals. If your target is heavily skewed — income, house prices, time-to-event — apply `log(x)` or a Box-Cox transformation to symmetrise it before training. Exponentiate predictions back at inference time. This change alone can shift a model from "broken" to "good".
+**Skewness in the target variable.** Many models (linear regression especially) assume roughly normal residuals. If your target is heavily skewed — income, house prices, time-to-event — apply `log(x)` or a Box-Cox transformation to symmetrise it before training. Exponentiate predictions back at inference time. This change alone can shift a model from "broken" to "good". <Cite url="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.boxcox.html" source="SciPy" title="scipy.stats.boxcox" snippet="Power transformation that finds the lambda value to make a positive-valued distribution as Gaussian as possible." />
 
 **Binning (bucketisation).** Reduce the cardinality of categorical features by grouping similar levels. `Country` with 200 distinct values → `Continent` with 6. The model has less to learn, you have less of a sparsity problem, and the underlying signal is usually still there.
 
-**Discretisation.** Turn a continuous feature into a categorical one. `KBinsDiscretizer` carves a column into K equal-width or equal-population bins. Useful when you suspect the relationship between the feature and the target is non-linear and bin-by-bin — `age` → `age_bucket` often beats raw `age` in linear models.
+**Discretisation.** Turn a continuous feature into a categorical one. `KBinsDiscretizer` carves a column into K equal-width or equal-population bins. Useful when you suspect the relationship between the feature and the target is non-linear and bin-by-bin — `age` → `age_bucket` often beats raw `age` in linear models. <Cite url="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.KBinsDiscretizer.html" source="scikit-learn" title="sklearn.preprocessing.KBinsDiscretizer" snippet="Bins continuous features into K discrete buckets using uniform, quantile, or k-means strategies." />
 
 **Typing.** Dates should be dates, floats should be floats, categories should be categories. Garbage typing → garbage models. This sounds trivial; in practice it eats hours.
 
-## 8. The whole process, in one checklist
+## 8. The Whole Process, in One Checklist
 
 If you read nothing else, read this:
 
@@ -462,8 +500,116 @@ If you read nothing else, read this:
 6. **Fit-transform on train, transform-only on test.** Every transformer, every time, no exceptions. `CANNOT PUT FIT` on test data.
 7. **Now you can model.**
 
+### Why You Should Always Build a Pipeline
+
+`Pipeline` and `ColumnTransformer` aren't just code aesthetics — they're how you make leakage **structurally impossible**:
+
+- **Cross-validation stays honest.** Each CV fold fits preprocessing only on that fold's training portion. No statistics from the validation fold ever leak in.
+- **The same transformations apply at prediction time.** `pipe.predict(new_data)` runs the exact same steps `pipe.fit(...)` saw — no chance of forgetting one in production.
+- **You can tune preprocessing and model together** with `GridSearchCV` over the whole pipeline.
+- **Less code, fewer bugs.** One `pipe.fit(X_train, y_train)` instead of orchestrating eight transformers by hand.
+
+### The Complete Leakage-Free Pipeline
+
+```python
+from sklearn.compose import make_column_transformer
+from sklearn.pipeline import make_pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+
+numeric_features     = ["age", "salary", "sqft_living"]
+categorical_features = ["boro", "zipcode"]
+
+numeric_pipe = make_pipeline(
+    SimpleImputer(strategy="median", add_indicator=True),
+    StandardScaler(),
+)
+
+categorical_pipe = make_pipeline(
+    SimpleImputer(strategy="constant", fill_value="Missing"),
+    OneHotEncoder(handle_unknown="ignore"),
+)
+
+preprocess = make_column_transformer(
+    (numeric_pipe, numeric_features),
+    (categorical_pipe, categorical_features),
+)
+
+pipe = make_pipeline(preprocess, LogisticRegression(max_iter=1000))
+
+# Cross-validate the ENTIRE pipeline, not just the model
+scores = cross_val_score(pipe, X, y, cv=5, scoring="accuracy")
+print(scores.mean())
+
+# Fit once on all training data, evaluate once on held-out test
+pipe.fit(X_train, y_train)
+print(pipe.score(X_test, y_test))
+```
+
+<Callout color="red">
+  ⚠️ <Highlight>Cross-validate the entire pipeline, not just the model.</Highlight> If you preprocess <em>before</em> calling <code>cross_val_score</code>, your validation folds leak into the training folds and your scores are inflated. The whole point of <code>Pipeline</code> is to push preprocessing inside the CV loop.
+</Callout>
+
+### The Golden Rule: Fit on Train, Transform Everything
+
+Every scikit-learn transformer in this post — scalers, encoders, imputers, anomaly detectors — has two methods. **The way you call them is the single most important rule in preprocessing**, so I'll spell it out carefully:
+
+- `fit()` — the transformer *learns the transformation from the data*. For `StandardScaler`, this means computing the mean and standard deviation. For `MinMaxScaler`, it's the min and max. For `OneHotEncoder`, it's the list of categories. For `SimpleImputer`, it's the median or mode.
+- `transform()` — the transformer *applies* what it learned. It doesn't re-learn anything.
+- `fit_transform()` — does both in one call. Convenient shortcut for training data.
+
+Now the rule:
+
+<Callout color="red">
+  ⚠️ <Highlight>Fit ONLY on training data. Then transform both train and test.</Highlight> If you <code>fit</code> on the test set, you've leaked test statistics into your "unseen" data and your evaluation is no longer honest. You have no idea how the model will behave in production.
+</Callout>
+
+What does that mistake actually look like? Visually:
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/fit-transform-leakage.png"
+  alt="Three side-by-side scatter plots titled 'The same test data, three different fates'. Each card shows dark navy circles (training set) and red triangles (test set). Card 1 'Original data' shows both sets plotted on their raw scale (Feature 0 from -10 to 15, Feature 1 from -15 to 5), with train and test in overlapping regions. Card 2 'Correctly scaled' shows both sets after scaler.fit_transform(X_train) + scaler.transform(X_test) — both fit inside [0, 1.2] × [-0.2, 1.0] with the same relative positions preserved. Card 3 'Improperly scaled (data leakage)' shows the test set shifted to a completely different location after scaler.fit_transform(X_test) was incorrectly called — the test distribution has been centered around its own mean, breaking the relationship to the training data. Green pill under card 2: 'Same distribution preserved'. Red pill under card 3: 'Test set hallucinated as centered'. Caption: 'fit() learns the mean and std from data. Call it on the test set and you've quietly leaked test statistics into your evaluation.'"
+  caption="Same dataset, three fates. Properly scaled, the test set stays in the same relative position as the training set. fit on the test set, and the relationship breaks."
+/>
+
+In code:
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+
+# Train: fit + transform
+X_train_scaled = scaler.fit_transform(X_train)
+
+# Test: ONLY transform — the scaler already learned mean and std from train
+X_test_scaled = scaler.transform(X_test)
+```
+
+I wrote it in my notes in capitals: **CANNOT PUT FIT** on test data. You make decisions using training data; you only ever *evaluate* on test data. No inspection, no fitting, no tuning on test. The test set is your one-shot honest measurement of how the model behaves in production, and you only get to spend it once.
+
+### Common Traps That Quietly Wreck Models
+
+I keep a mental checklist of mistakes I've made — and seen others make — at least once. <Cite url="https://scikit-learn.org/stable/common_pitfalls.html" source="scikit-learn" title="Common pitfalls and recommended practices" snippet="Official guide to the leakage, scoring, and fit/transform mistakes that quietly inflate your scores or break your production model." />
+
+- **Fitting `StandardScaler` on the whole dataset before `train_test_split`.** Test statistics leak into training. Your CV looks great, production tanks.
+- **Using test data to decide which outliers to remove.** You can't peek at test data to make preprocessing choices — that's still leakage.
+- **Target encoding before cross-validation.** The category means already contain `y`. Either put the encoder inside the pipeline or use cross-fold target encoding.
+- **Treating zip codes as numbers.** `98004` isn't quantitatively bigger than `98001`. Always treat numeric-looking IDs as categories unless the magnitude really means something.
+- **Ordinal-encoding nominal categories.** Borough names don't have an order. Encoding them as 0/1/2/3 fabricates a fake distance the model will happily learn.
+- **Dropping every row with a `NaN` without asking why.** If missingness is meaningful (MNAR), you just erased the signal.
+- **One-hot encoding a 200-level zip code feature.** You've added 200 sparse columns and broken your linear model. Use target encoding.
+- **Assuming tree models need scaling.** They don't. Splits use relative order, not magnitude.
+- **Cross-validating only the model.** If preprocessing leaks, the CV score lies. Wrap everything in a `Pipeline`.
+
 <Callout color="yellow">
   🔑 Preprocessing isn't glamorous, but it's where models quietly succeed or fail. Get this right and the fanciest algorithm gets easier. <Highlight>Get it wrong and the algorithm just learns your mistakes faster.</Highlight>
+</Callout>
+
+<Callout color="blue">
+  💡 **The single sentence that survives every exam, code review, and production incident:** <Highlight>whatever you do to training data, you must be able to do to future data using only what was learned from training data.</Highlight> If you can't, you've leaked.
 </Callout>
 
 ---

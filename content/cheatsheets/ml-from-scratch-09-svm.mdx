@@ -1,0 +1,143 @@
+---
+slug: ml-from-scratch-09-svm
+title: "Part 9 · Support Vector Machines — Cheat Sheet"
+subtitle: The margin maximiser. Linear vs kernel SVMs, the kernel trick, the C / γ trade-off, and when SVM still beats trees.
+sourcePost: ml-from-scratch-09-svm
+sourceLabel: Read the full post (Part 9)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - SVM
+  - Kernels
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  SVMs find the <Highlight>widest possible margin</Highlight> separating classes. The points that touch the margin — the <Highlight>support vectors</Highlight> — are the only ones that matter for the decision boundary. With kernels, SVMs can carve <Highlight>non-linear boundaries</Highlight> without ever computing the high-dimensional feature space explicitly.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The margin idea" number="1" accent="navy">
+
+Classification = find a hyperplane that separates two classes.
+
+Many hyperplanes can do it. **SVM picks the one with the maximum margin** — the largest possible buffer to the nearest training points.
+
+Why? **More margin → better generalisation**. A boundary that *just* squeaks between classes is more likely to fail on slightly shifted test data.
+
+The points that sit on the margin are the **support vectors** — they alone define the boundary. Remove a non-support-vector point: the boundary doesn't move.
+
+</CheatCard>
+
+<CheatCard title="Soft margin (the C knob)" number="2" accent="amber">
+
+Real data isn't linearly separable. The soft-margin SVM allows some points to violate the margin, with a penalty controlled by **`C`**:
+
+| `C` | Behaviour |
+|---|---|
+| **Large `C`** | Hard-margin-ish. Few violations allowed. **High variance**, overfits. |
+| **Small `C`** | Many violations allowed. **High bias**, smoother boundary. |
+
+Tune `C` by cross-validation. Typical range: `0.1` to `100`, log-spaced.
+
+`C` is the **inverse of regularisation strength** — bigger `C` = less regularisation.
+
+</CheatCard>
+
+<CheatCard title="The kernel trick" number="3" accent="purple">
+
+Linear SVMs find linear boundaries. But many problems need curves.
+
+The trick: **map data to a higher-dimensional space** where it *is* linearly separable, then find the hyperplane there.
+
+The deeper trick: you never actually compute the high-dimensional features. The whole SVM math depends only on *dot products* between points — so you replace `x_i · x_j` with `K(x_i, x_j)`, a **kernel function** that returns the dot product in the high-dim space.
+
+`K(x, y) = φ(x) · φ(y)` — compute the dot product without computing `φ`.
+
+</CheatCard>
+
+<CheatCard title="Kernels you'll meet" number="4" accent="blue">
+
+| Kernel | Formula | Use when |
+|---|---|---|
+| **Linear** | `x · y` | High-dim, sparse data (text). Often fine. |
+| **Polynomial** | `(γ x·y + r)^d` | Polynomial decision boundaries of known degree. |
+| **RBF (Gaussian)** | `exp(−γ ‖x−y‖²)` | The default non-linear kernel. Local, smooth. |
+| **Sigmoid** | `tanh(γ x·y + r)` | NN-like, rarely useful in practice. |
+
+**RBF is the default for non-linear problems.** It maps points based on distance — closer = more similar.
+
+</CheatCard>
+
+<CheatCard title="The γ knob (RBF)" number="5" accent="red">
+
+For RBF: `γ` controls how far the influence of a single training point reaches.
+
+| `γ` | Effect |
+|---|---|
+| **Large `γ`** | Narrow influence. Boundary wiggles around each point. **Overfit risk.** |
+| **Small `γ`** | Wide influence. Boundary smoother. **Underfit risk.** |
+
+`γ` and `C` interact strongly. Always grid-search both together:
+
+```python
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+
+params = {"C": [0.1, 1, 10, 100], "gamma": [0.001, 0.01, 0.1, 1]}
+grid = GridSearchCV(SVC(kernel="rbf"), params, cv=5)
+```
+
+</CheatCard>
+
+<CheatCard title="When SVM wins" number="6" accent="green">
+
+- **Small to medium datasets** (≤ 100k samples).
+- **High-dimensional features** with clear separability (text TF-IDF, gene expression).
+- **Clear margin between classes.**
+- **Non-linear but smooth decision boundary** with RBF.
+- **Need a stable model** that doesn't depend on random seeds (no randomness in the optimisation).
+
+</CheatCard>
+
+<CheatCard title="When SVM loses" number="7" accent="red">
+
+- **Large datasets** (> 100k–1M samples). Training is `O(n²)` to `O(n³)` — painful.
+- **Probabilistic output needed.** SVM doesn't naturally give probabilities; `probability=True` uses an extra calibration pass.
+- **Mixed feature types** with messy preprocessing. Trees handle this better.
+- **Streaming / online learning.** SVMs need full batch.
+- **Highly imbalanced classes.** Use `class_weight="balanced"` or switch model family.
+
+</CheatCard>
+
+<CheatCard title="Preprocessing for SVM" number="8" accent="slate">
+
+**Scaling is non-negotiable** — SVM uses distances. Without scaling, the largest-magnitude feature dominates.
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+
+pipe = make_pipeline(
+    StandardScaler(),
+    SVC(kernel="rbf", C=1.0, gamma="scale"),
+)
+```
+
+Other tips:
+- For text: `LinearSVC` is faster than `SVC(kernel='linear')`.
+- For multiclass: SVC uses one-vs-one by default; `LinearSVC` uses one-vs-rest.
+- For probability: set `probability=True` (slower, calibrates via Platt scaling).
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"SVMs maximise the margin between classes — the widest buffer between the boundary and the nearest support vectors. Real data isn't linearly separable, so you soften the margin with the `C` knob, and use the kernel trick to find non-linear boundaries without computing the high-dim feature space. The default non-linear kernel is RBF, controlled by `γ`. SVMs win on small-to-medium high-dim datasets with smooth boundaries — text classification, gene expression. They lose to boosting on big tabular data and to trees on messy mixed-type features. Always scale before fitting, always grid-search `C` and `γ` together."*
+
+</CheatRule>

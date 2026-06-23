@@ -1,0 +1,102 @@
+---
+slug: mercedes-hackathon
+title: Mercedes Hackathon — Cheat Sheet
+subtitle: 268,000 rows of UK used-car listings, seven messy tables, and the case for domain knowledge in data cleaning. You don't clean what you don't recognise.
+sourcePost: mercedes-hackathon
+sourceLabel: Read the full project
+topic: Data Cleaning
+tags:
+  - Data Cleaning
+  - Domain Knowledge
+  - Feature Engineering
+  - Hackathon
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  A 24-hour hackathon with a <Highlight>268,000-row UK used-car dataset</Highlight> split across seven messy tables. The interesting story isn't the model — it's that <Highlight>every cleaning decision turned on domain knowledge</Highlight>: knowing that "1.6" in engine size means litres, that a "transmission" string of "Auto" can also mean automatic and semi-auto, that "electric" in fuel ≠ "EV". You don't clean what you don't recognise.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The brief" number="1" accent="navy">
+
+Mercedes hackathon, sponsored by IE. 24 hours.
+
+- **Seven tables** about used-car listings in the UK — vehicle specs, prices, locations, options, condition reports.
+- **268,000 rows** in the main table after the first join.
+- **No documentation.** Column names like `transmission`, `engine_size`, `electrics`, `trim` — and you have to guess what each one means.
+
+The goal was *predicting price*, but most of the day went into cleaning.
+
+</CheatCard>
+
+<CheatCard title="Domain reads" number="2" accent="blue">
+
+Things that look like garbage but aren't, once you know cars:
+
+- **`engine_size = 1.6`** is **litres**, not arbitrary numbers. `0.0` means "electric, no combustion engine".
+- **`transmission` strings:** "Auto", "Automatic", "Semi-Auto", "CVT", "Tiptronic" → all need normalising to `auto / manual / semi-auto`.
+- **`electrics`** is a feature pack column ("heated seats, sat-nav"), **not** "electric vehicle".
+- **`fuel_type` "Electric"** means EV. `"Hybrid"` is partial. `"Plug-in"` is a third thing.
+- **`trim`** is a marketing-spec label ("Sport Edition", "AMG Line") — high-cardinality, but groupable.
+
+None of this is in the data dictionary. All of it is obvious if you've ever looked at a car ad.
+
+</CheatCard>
+
+<CheatCard title="Cleaning moves" number="3" accent="purple">
+
+- **Normalise transmission strings** with a domain-informed lookup table.
+- **Encode `engine_size`:** keep numeric, but add an `is_electric` flag for `engine_size = 0`.
+- **Collapse fuel_type** into `petrol / diesel / hybrid / EV / other`.
+- **Group `trim`** by brand into `standard / premium / luxury` tiers.
+- **Drop `electrics`** for the price model (it was a noisy multi-value field) OR explode it into individual binary feature flags.
+- **Outlier prices** — UK used-car prices follow a long right tail. Log-transform target.
+
+</CheatCard>
+
+<CheatCard title="Feature engineering" number="4" accent="amber">
+
+After cleaning:
+- `age = current_year - manufacture_year`
+- `mileage_per_year = mileage / age` (handles odd "1995 with 30k miles" cases)
+- `price_per_litre = price / engine_size` (premium markers)
+- One-hot for `make`, `fuel_type`, transmission tier
+- Target-encode `model` (high cardinality) inside CV folds
+
+</CheatCard>
+
+<CheatCard title="The model" number="5" accent="red">
+
+- **Random Forest** for a quick robust baseline.
+- **XGBoost** with target-encoding of `model` for the leaderboard submission.
+- **Log-transformed target** (`log1p(price)`) to handle skew. Exponentiate at predict time.
+
+Honest CV with **GroupKFold** by `make` to prevent leakage — otherwise the model learns "BMW always £30k" and looks falsely strong on random splits.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Domain knowledge is a force multiplier in data cleaning.** Anyone can normalise strings; not everyone knows which strings mean the same thing.
+- **Compound-meaning columns** (`electrics`, `trim`) need a decision: drop, simplify, or explode.
+- **Group-aware CV** matters when a categorical feature dominates (here, `make`).
+- **Log-transform skewed targets.** R² improves, residuals stop fanning out, predictions stop crashing on luxury cars.
+- The hackathon judges noticed the **cleaning narrative** more than the model accuracy.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`pandas` · `numpy` · `scikit-learn` · `xgboost` · `category_encoders` (for target encoding) · `matplotlib` for residual plots.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"The Mercedes hackathon was a 24-hour exercise on 268k rows of UK used-car listings across seven undocumented tables. The 'machine learning' was 90 % data cleaning. The point I made in the write-up: you don't clean what you don't recognise. Knowing `engine_size = 0` means electric, knowing `electrics` is a feature-pack column not an EV flag, knowing `trim` is brand marketing — each saved a round of bad imputation. Then a target-encoded XGBoost with log-transformed price and GroupKFold by make. The lesson: domain knowledge is a force multiplier in the cleaning stage, and the cleaning stage is where most of the leaderboard delta actually lives."*
+
+</CheatRule>

@@ -1,0 +1,112 @@
+---
+slug: corporate-data-breaches
+title: Corporate Data Breaches — Cheat Sheet
+subtitle: 645 U.S. corporate data breaches, 29,000+ 10-K filings, and what changes in the language of an annual report once a company has been hacked. Bachelor's thesis at Universidad Carlos III (9.75/10, INNCYBER award).
+sourcePost: corporate-data-breaches
+sourceLabel: Read the full thesis
+topic: Econometrics
+tags:
+  - Computational Linguistics
+  - Econometrics
+  - Text Analysis
+  - Bachelor's thesis
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  My bachelor's thesis. After a data breach, corporate <Highlight>10-K filings get more optimistic in tone</Highlight>, less ambiguous in word choice, and significantly longer — a pattern consistent with <Highlight>strategic obfuscation</Highlight>. The headline result: an <Highlight>abnormally positive tone predicts worse future earnings</Highlight>, meaning the language contains information the numbers don't.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The question" number="1" accent="navy">
+
+After a public company is hacked, how does the **language of its annual report** change — and does that change carry information about future performance?
+
+- Companies signal calm to markets.
+- Disclosure rules force them to mention the breach.
+- They have an incentive to mention it in the **softest possible language**.
+
+The hypothesis: **language reveals what the numbers hide**.
+
+</CheatCard>
+
+<CheatCard title="The data" number="2" accent="blue">
+
+- **645 confirmed U.S. corporate data breaches** between 2005 and 2019.
+- **29,000+ 10-K annual reports** filed with the SEC over the same window (matched on CIK).
+- Breach data: Privacy Rights Clearinghouse + manual cross-references.
+- 10-K texts: SEC EDGAR full-text downloads.
+
+Sampling design: each breached firm gets a **matched control** firm — same sector, similar size, no recorded breach in the window.
+
+</CheatCard>
+
+<CheatCard title="Linguistic features" number="3" accent="purple">
+
+Standard finance-NLP measures from the **Loughran–McDonald** financial-tone dictionaries:
+
+| Measure | Captures |
+|---|---|
+| **Positive / negative tone** | Optimism vs pessimism vocabulary. |
+| **Uncertainty** | "Maybe", "approximately", "uncertain"... |
+| **Litigious** | Legal-defensive vocabulary. |
+| **Modal-weak** | "Could", "might", "perhaps". |
+| **Modal-strong** | "Must", "will", "definitely". |
+| **Document length** | Total words. Longer = more obfuscation per some lit. |
+
+Each year-firm filing → a vector of these scores.
+
+</CheatCard>
+
+<CheatCard title="The methodology" number="4" accent="amber">
+
+A **difference-in-differences** design:
+
+- **Pre-period:** filings before the breach.
+- **Post-period:** filings after the breach.
+- **Treated group:** breached firms.
+- **Control group:** matched non-breached firms.
+
+Difference in language change (post − pre) between treated and control = the causal effect of the breach on tone, controlling for time trends and industry shifts.
+
+Then a second regression: does **abnormal positive tone** predict future ROA / stock returns?
+
+</CheatCard>
+
+<CheatCard title="The headline findings" number="5" accent="red">
+
+After a breach, treated firms' 10-Ks:
+- **More positive tone** (+ significantly).
+- **Less uncertainty language.**
+- **Longer** documents overall.
+- More **litigious** language *(this is forced — they have to disclose lawsuits)*.
+
+Consistent with **strategic obfuscation** — drowning the bad news in softer, longer prose.
+
+**The kicker:** abnormally positive tone **predicts worse future earnings**. The language contains information the numbers don't yet show.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Match-and-difference designs** are how you get causal claims from observational financial data.
+- **Loughran–McDonald** is the right dictionary for finance — general-purpose sentiment (VADER, etc.) underperforms.
+- **Document length is a feature**, not a control. Long 10-Ks correlate with bad outcomes.
+- **Awards opened doors** — INNCYBER Innovation Award 2019 + 2020. The methodology mattered more than the headline.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`Python` · `pandas` · `numpy` · `nltk` for tokenisation · **Loughran–McDonald financial dictionaries** · `statsmodels` for diff-in-diff regressions · `matplotlib` and `seaborn` for diagnostics · SEC EDGAR full-text scraping.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"My bachelor's thesis was a difference-in-differences study on 645 corporate data breaches between 2005 and 2019. I scraped 29,000+ 10-K filings from SEC EDGAR, scored each one on six Loughran–McDonald linguistic dimensions, matched each breached firm to a same-sector non-breached control, and tested the change-in-language post-breach. Three findings: tone gets more positive, uncertainty drops, documents get longer — all consistent with strategic obfuscation. And abnormally positive tone predicts worse future earnings, meaning the language contains information the numbers don't yet. Grade 9.75/10, INNCYBER Innovation Award two years running."*
+
+</CheatRule>

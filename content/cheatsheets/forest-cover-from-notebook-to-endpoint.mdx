@@ -1,0 +1,113 @@
+---
+slug: forest-cover-from-notebook-to-endpoint
+title: From Notebook to Endpoint — Cheat Sheet
+subtitle: An MLOps end-to-end on Microsoft Azure. From a Kaggle scikit-learn model to a live FastAPI inference endpoint with CI/CD, scale-to-zero, and a budget alert.
+sourcePost: forest-cover-from-notebook-to-endpoint
+sourceLabel: Read the full project
+topic: MLOps
+tags:
+  - MLOps
+  - Azure
+  - FastAPI
+  - Docker
+  - GitHub Actions
+updated: June 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  I took a scikit-learn forest cover classifier trained in a Kaggle notebook and shipped it to <Highlight>Azure Container Apps</Highlight> as a FastAPI inference endpoint — Docker image, OIDC-federated GitHub Actions deploy, scale-to-zero, budget alert at €5/month. Live URL, health check, /predict route. End-to-end MLOps on the Azure stack without the AWS resume cliché.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The problem" number="1" accent="navy">
+
+A trained model in a Kaggle notebook is **not** a product. To use it from anywhere, it needs to be:
+- Packaged into a reproducible artefact (Docker image).
+- Served over HTTP with a stable contract (FastAPI).
+- Deployed on infrastructure that scales when called, sleeps when idle.
+- Re-deployable safely on every code change (CI/CD).
+- Monitored so you don't wake up to a €300 cloud bill.
+
+This project ticks all five — on **Microsoft Azure** specifically, because the CV signal I needed was Azure / MLOps / cloud / CI-CD.
+
+</CheatCard>
+
+<CheatCard title="The model" number="2" accent="blue">
+
+- **Dataset:** Forest Cover Type Prediction (Kaggle / UCI). 581k samples, 54 features. 7 forest cover classes.
+- **Algorithm:** Random Forest (scikit-learn). Tuned with `RandomizedSearchCV`.
+- **Accuracy:** ~87 % on held-out test set.
+- **Serialisation:** `joblib.dump()` → loaded by FastAPI on startup.
+
+The model itself is intentionally simple — the project is about the **infrastructure around it**, not the algorithm.
+
+</CheatCard>
+
+<CheatCard title="The architecture" number="3" accent="purple">
+
+```
+Code (GitHub) → GitHub Actions
+   ├─ Train + test (pytest)
+   ├─ Lint (ruff)
+   ├─ Build Docker image
+   ├─ Push to GHCR
+   └─ Deploy to Azure Container Apps
+                       ↓
+       https://<endpoint>.azurecontainerapps.io
+            /health · /predict
+```
+
+- **FastAPI** — `/health` for liveness, `/predict` for inference.
+- **Docker** — `python:3.11-slim`, copy model + code, run `uvicorn`.
+- **GitHub Actions** — two workflows: CI on every push, deploy on merge to main.
+- **OIDC federated credential** — no long-lived secrets stored in GitHub.
+- **Azure Container Apps** — managed, scale-to-zero, autoscale on traffic.
+
+</CheatCard>
+
+<CheatCard title="The cost discipline" number="4" accent="red">
+
+Cloud bills are the silent risk. Three guardrails:
+
+1. **Scale-to-zero** — `--min-replicas 0`. Idle cost: €0.
+2. **Budget alert** at **€5/month**. Email + Slack on spend.
+3. **GHCR public package** — Container Apps pulls without registry credentials, no extra ACR cost.
+
+Real monthly cost: **€0–2**. Worst case (scale-to-zero fails): ~€30/month.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="5" accent="amber">
+
+- The **IE alumni Microsoft account** is a mess — IE tenant, blocked trial. Used a personal Gmail-tied account instead.
+- OIDC federated credentials > stored secrets. Setting it up takes 20 min, saves you from a leaked key every quarter.
+- **`scale-to-zero` is non-negotiable** for portfolio projects. Without it, your "live endpoint" is a slow bleed.
+- The model serialisation is the boring part. The boring part is what breaks in production.
+
+</CheatCard>
+
+<CheatCard title="Tech stack" number="6" accent="slate">
+
+| Layer | Tool |
+|---|---|
+| Model | scikit-learn (Random Forest) |
+| Serving | FastAPI + Uvicorn |
+| Container | Docker, `python:3.11-slim` |
+| Registry | GitHub Container Registry (ghcr.io) |
+| CI/CD | GitHub Actions (CI + Deploy workflows) |
+| Auth | OIDC federated credential (Azure AD ↔ GitHub) |
+| Hosting | Azure Container Apps |
+| Cost mgmt | Azure budget alerts |
+| Test | pytest |
+| Lint | ruff |
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"I trained a forest-cover classifier in a Kaggle notebook, then built the production envelope around it: FastAPI service, Docker image pushed to GHCR via GitHub Actions, deployed to Azure Container Apps with OIDC-federated credentials and scale-to-zero. The endpoint costs €0 when idle, has a €5/month budget alert, and re-deploys cleanly on every commit to main. The point wasn't the model — it was the discipline around it: no secrets in env vars, no manual `az` commands, no surprise bills."*
+
+</CheatRule>

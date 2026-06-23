@@ -1,0 +1,125 @@
+---
+slug: ml-from-scratch-06-naive-bayes
+title: "Part 6 · Naïve Bayes — Cheat Sheet"
+subtitle: The probabilistic baseline. Bayes' theorem, the conditional-independence assumption, Gaussian / Multinomial / Bernoulli variants, and when to actually use it.
+sourcePost: ml-from-scratch-06-naive-bayes
+sourceLabel: Read the full post (Part 6)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Naive Bayes
+  - Probability
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Naïve Bayes is <Highlight>shockingly good despite a wrong assumption</Highlight>. It treats every feature as independent given the class — which is almost never true — but the resulting probabilities are still good enough to rank the classes correctly. Use it as a baseline that's fast, interpretable, and often hard to beat on text.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="Bayes' theorem" number="1" accent="navy">
+
+The formula every classifier secretly wants:
+
+`P(class | features) = P(features | class) · P(class) / P(features)`
+
+Where:
+- **`P(class)`** — prior. How common is the class overall?
+- **`P(features | class)`** — likelihood. How likely is this feature combination given the class?
+- **`P(features)`** — evidence. Same for all classes, so often ignored when comparing.
+
+You pick the class with the highest **posterior** `P(class | features)`.
+
+</CheatCard>
+
+<CheatCard title="Why 'naïve'?" number="2" accent="red">
+
+The trick that makes it tractable: **assume all features are conditionally independent given the class**.
+
+`P(x1, x2, ..., xn | class) = P(x1 | class) · P(x2 | class) · ... · P(xn | class)`
+
+In reality, features are usually correlated — your "naïve" model is wrong about the dependencies. But the *ranking* of classes is often still correct, which is all classification needs.
+
+</CheatCard>
+
+<CheatCard title="The three variants" number="3" accent="blue">
+
+| Variant | Likelihood model | Use for |
+|---|---|---|
+| **Gaussian NB** | Each feature is a normal distribution per class. | Continuous numeric features. |
+| **Multinomial NB** | Features are counts. Probabilities from frequency. | Text classification (TF or word counts). |
+| **Bernoulli NB** | Features are binary (present / absent). | Text with binary presence, fraud flags. |
+
+Picking the wrong variant for your feature type tanks accuracy. Numeric → Gaussian. Counts → Multinomial. Binary → Bernoulli.
+
+</CheatCard>
+
+<CheatCard title="Laplace smoothing" number="4" accent="amber">
+
+A single zero in a likelihood `P(word | class) = 0` collapses the whole product to zero. The fix: **add 1 (or `α`)** to every count.
+
+`P(word | class) = (count + α) / (total + α · V)`
+
+Where `V` is the vocabulary size. Default `α = 1` (Laplace) or `α < 1` (Lidstone).
+
+Without smoothing, any unseen word in test data breaks the prediction.
+
+</CheatCard>
+
+<CheatCard title="When NB wins" number="5" accent="green">
+
+- **Text classification.** Spam, sentiment, topic. Hard to beat with a simple model.
+- **Very high-dimensional sparse features.** Word counts, n-grams.
+- **Small training data.** NB is data-efficient — it estimates per-feature, per-class.
+- **You need a fast baseline.** Train + predict are nearly free.
+- **You need probability outputs**, not just a class label.
+
+</CheatCard>
+
+<CheatCard title="When NB loses" number="6" accent="red">
+
+- **Features are heavily correlated** and the dependence carries signal (medical, financial).
+- **Numeric features with non-Gaussian distributions** — Gaussian NB assumes normality.
+- **You need calibrated probabilities** — NB's outputs are confident but often *miscalibrated* (close to 0 or 1).
+- **You have lots of data** and can afford gradient-boosted trees or neural networks.
+
+</CheatCard>
+
+<CheatCard title="Practical workflow" number="7" accent="purple">
+
+1. **Pick a variant** matching your feature types.
+2. **Apply smoothing** (default `α = 1`).
+3. **Cross-validate.** NB's main hyperparameter is `α`.
+4. **Compare against a baseline** — `DummyClassifier`, logistic regression.
+5. **If you need probabilities for downstream decisions**, calibrate with `CalibratedClassifierCV`.
+
+```python
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import make_pipeline
+
+pipe = make_pipeline(
+    TfidfVectorizer(),
+    MultinomialNB(alpha=1.0),
+)
+```
+
+</CheatCard>
+
+<CheatCard title="The honest take" number="8" accent="slate">
+
+Naïve Bayes is **the linear regression of classification**: a baseline that's almost always too dumb but almost never embarrassing. If a fancier model can't beat NB by a clear margin, the fancier model probably isn't the right tool.
+
+Common pattern: NB hits ~85 % on text in 3 lines of code. The team spends a week to push BERT to 88 %. Sometimes that's worth it. Sometimes it isn't.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"Naïve Bayes treats every feature as conditionally independent given the class, which is almost never true — but it's enough to rank classes correctly. Three variants: Gaussian for continuous, Multinomial for counts, Bernoulli for binary. Always apply Laplace smoothing or unseen tokens break the product. It's the right baseline for text classification, small datasets, and any time you need a fast probability output. It's wrong about dependencies but right about the ranking — and that's what classification cares about."*
+
+</CheatRule>

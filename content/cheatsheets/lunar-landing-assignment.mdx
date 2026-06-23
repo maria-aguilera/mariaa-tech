@@ -1,0 +1,112 @@
+---
+slug: lunar-landing-assignment
+title: Lunar Lander PPO — Cheat Sheet
+subtitle: Training a PPO agent to land between two flags. Reward shaping for accuracy, stability over speed, and what the actor-critic split actually does.
+sourcePost: lunar-landing-assignment
+sourceLabel: Read the full project
+topic: Reinforcement Learning
+tags:
+  - Reinforcement Learning
+  - PPO
+  - OpenAI Gym
+  - Reward Shaping
+updated: January 2026
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  A <Highlight>PPO agent</Highlight> trained to land a lunar module precisely between two flags in the OpenAI Gym <code>LunarLander-v2</code> environment. The interesting part: <Highlight>reward shaping</Highlight> — the default reward gives you a lander that <em>survives</em>; a shaped reward gives you a lander that <em>parks</em>.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The environment" number="1" accent="navy">
+
+OpenAI Gym `LunarLander-v2`:
+- **State:** 8 continuous values — position (x, y), velocity, angle, angular velocity, leg-touching booleans.
+- **Action:** 4 discrete — do nothing, fire main engine, left engine, right engine.
+- **Reward:** approach landing pad (+), use fuel (−), crash (−100), land safely between flags (+100), legs touching (+10 each).
+
+The goal: maximise cumulative reward → land between the flags without exhausting fuel.
+
+</CheatCard>
+
+<CheatCard title="Why PPO" number="2" accent="blue">
+
+**Proximal Policy Optimisation** is the default modern RL algorithm because:
+
+- **On-policy** — uses fresh rollouts, more stable than off-policy DQN.
+- **Clipped surrogate objective** — prevents the policy from jumping too far each update.
+- **Actor-Critic architecture:**
+  - **Actor** — the policy network. Decides actions.
+  - **Critic** — value network. Estimates state value as a baseline.
+- **Discrete or continuous** action spaces. Works on Lunar Lander out of the box.
+
+Implementation: Stable-Baselines3.
+
+</CheatCard>
+
+<CheatCard title="Reward shaping" number="3" accent="purple">
+
+The default reward leads to *surviving* landings. To get *precise* landings:
+
+- **Penalise distance** from the target zone *(positive accuracy)*.
+- **Penalise angular velocity** at touchdown *(no wobble)*.
+- **Penalise vertical speed** at touchdown *(soft landing)*.
+- **Bonus** for being well-centred when both legs touch.
+
+Each shaping term shifts the policy's gradient toward "park nicely", not "survive".
+
+</CheatCard>
+
+<CheatCard title="Hyperparameters" number="4" accent="amber">
+
+Worth tuning:
+
+| Parameter | Sane default |
+|---|---|
+| `learning_rate` | `3e-4` |
+| `gamma` (discount) | `0.99` |
+| `n_steps` per rollout | 2048 |
+| `batch_size` | 64 |
+| `n_epochs` per update | 10 |
+| `clip_range` | 0.2 |
+| `ent_coef` (entropy) | 0.0–0.01 |
+
+Bigger `n_steps` = smoother gradient, slower wall-clock learning.
+
+</CheatCard>
+
+<CheatCard title="Training pattern" number="5" accent="red">
+
+1. Wrap env in `Monitor` to log episode returns.
+2. Train PPO for `1M` timesteps as a baseline.
+3. Plot **rolling mean episode return** — a clean upward curve means learning, a flat one means stuck.
+4. Eval on **20+ deterministic episodes** at the end. Single episodes lie.
+5. Compare shaped vs default reward — same algorithm, different policy.
+
+**Bug-prone areas:** off-by-one in reward shaping (reward should be a *delta*, not a *level*), missing `done` flags, normalisation drift between train and eval.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **The reward function is the model.** PPO just optimises whatever you wrote.
+- **Smooth landings ≠ accurate landings.** They need different reward terms.
+- **Eval over many episodes.** RL returns are wildly noisy; one good episode doesn't mean a good policy.
+- **PPO is slow to win and slow to lose.** If your loss curve is flat, the reward is probably wrong — not the algorithm.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`gymnasium` (formerly `gym`) · `stable-baselines3` (PPO implementation) · `numpy` · `matplotlib` for return curves · `tensorboard` for live training metrics.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"I trained a PPO agent on Lunar Lander to land precisely between two flags, not just to survive. The point of the project was reward shaping — the default reward gets you a lander that touches down somewhere safe; a shaped reward with terms for centre-distance, angular velocity, and vertical speed gets you a lander that parks. I used Stable-Baselines3 for PPO with a standard actor-critic setup, evaluated over many deterministic episodes at the end. The headline lesson: in RL the reward function IS the model — the algorithm is just an optimiser."*
+
+</CheatRule>

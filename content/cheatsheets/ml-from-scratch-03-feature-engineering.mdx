@@ -1,0 +1,167 @@
+---
+slug: ml-from-scratch-03-feature-engineering
+title: "Part 3 · Feature Engineering — Cheat Sheet"
+subtitle: Picking the features that actually matter. Filter, wrapper, embedded methods and the regularisation maths behind Ridge / Lasso / Elastic Net.
+sourcePost: ml-from-scratch-03-feature-engineering
+sourceLabel: Read the full post (Part 3)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Feature Engineering
+  - Regularisation
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The mental model">
+  <Highlight>Cleaning makes the data correct. Feature engineering makes it useful.</Highlight> A great model on bad features will lose to a simple model on great features — every time.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="What makes a 'good' feature" number="1" accent="navy">
+
+Three properties — a good feature is all three at once:
+
+- **Informative** — actually correlates with the target. The feature *carries signal*.
+- **Discriminating** — varies enough to separate classes / predict the target.
+- **Independent** — adds something the other features don't already give you.
+
+Bad features:
+- Constant column → no information.
+- Perfectly correlated with another → redundant.
+- High cardinality unique IDs → memorisation risk.
+- Leaky features that contain the target → too good to be true.
+
+</CheatCard>
+
+<CheatCard title="The iterative loop" number="2" accent="blue">
+
+Feature engineering is **not a one-shot transformation**. It's a loop:
+
+1. **Brainstorm** features from domain knowledge.
+2. **Decide** which to create.
+3. **Implement** transformations.
+4. **Train** a model with them.
+5. **Evaluate** — did they help? did they leak?
+6. **Repeat** with new ideas / removals.
+
+Each iteration narrows down to a feature set that genuinely helps the model. **Domain knowledge** is the engine of step 1 — and it's irreplaceable.
+
+</CheatCard>
+
+<CheatCard title="Feature creation patterns" number="3" accent="purple">
+
+Common recipes:
+
+| Pattern | Example |
+|---|---|
+| **Datetime extraction** | `date` → `weekday`, `month`, `hour`, `is_weekend` |
+| **Numeric ratios** | `height` + `weight` → `BMI` |
+| **Binning** | `age` → `young / mid / senior` |
+| **Log transform** | `price` → `log(price)` to fix skew |
+| **Polynomial** | `x` → `x², x³` (interaction terms) |
+| **Aggregations** | `customer_id` → `avg_order`, `n_purchases` |
+| **Encoding categoricals** | One-hot, ordinal, target *(see [Part 2](/cheatsheets/ml-from-scratch-02-data-cleaning))* |
+| **Text** | TF-IDF, embeddings, char n-grams |
+
+Each new feature is a *hypothesis* about what helps prediction. Test it.
+
+</CheatCard>
+
+<CheatCard title="Selection: 3 families" number="4" accent="amber">
+
+| Family | How it works | Pros | Cons |
+|---|---|---|---|
+| **Filter** | Score each feature *in isolation* with a stat (correlation, chi², ANOVA, mutual info). | Fast. Model-agnostic. Cheap to run. | Ignores interactions. Univariate blindness. |
+| **Wrapper** | Wrap a model; add/drop features greedily (RFE, forward/backward). | Captures interactions. | Slow — fits model many times. Overfit-prone. |
+| **Embedded** | Selection happens *during* training (Lasso, tree importances). | Best balance of speed + accuracy. | Coupled to the chosen model. |
+
+Default: start with **filter** for sanity, then **embedded** (Lasso or tree importances) for the real selection.
+
+</CheatCard>
+
+<CheatCard title="Regularisation — Ridge vs Lasso" number="5" accent="red">
+
+Embedded methods are mostly **regularised regressions**. They penalise large weights to prevent overfitting:
+
+| Method | Penalty | Effect |
+|---|---|---|
+| **Ridge (L2)** | $\lambda \sum w_j^2$ | Shrinks weights toward 0, **never to 0**. Keeps all features. |
+| **Lasso (L1)** | $\lambda \sum \|w_j\|$ | Shrinks weights and **zeroes some out**. Acts as feature selector. |
+| **Elastic Net** | $\alpha\|w\|_1 + (1-\alpha)\|w\|_2^2$ | Best of both. Use when features are correlated. |
+
+**Why Lasso zeros coefficients but Ridge doesn't:** the L1 penalty's diamond shape has corners on the axes. The optimisation lands on those corners, where some weights = 0. The L2 penalty's circle has no corners.
+
+</CheatCard>
+
+<CheatCard title="Parameters vs hyperparameters" number="6" accent="slate">
+
+Confusing the two is a classic interview trap.
+
+| | Parameter | Hyperparameter |
+|---|---|---|
+| **What** | Internal value the model **learns** | Setting you **choose** before training |
+| **Examples** | Weights `w`, biases `b`, tree splits | `λ` in Ridge, `k` in KNN, `max_depth` in trees, learning rate in NN |
+| **Tuned by** | Optimisation on training data | Cross-validation on validation data |
+
+**How to find optimal `λ`?**
+1. Pick a grid of `λ` values (often log-spaced: 0.001, 0.01, 0.1, 1, 10).
+2. For each `λ`, cross-validate the model.
+3. Pick the `λ` with the best mean validation score.
+4. Re-fit on the full train set with that `λ`.
+5. Evaluate **once** on the held-out test set.
+
+Tools: `GridSearchCV`, `RandomizedSearchCV`, Optuna.
+
+</CheatCard>
+
+<CheatCard title="The practical strategy" number="7" accent="green">
+
+In real projects, follow this order:
+
+1. **Clean the data first** ([Part 2](/cheatsheets/ml-from-scratch-02-data-cleaning)).
+2. **Engineer 10–20 candidate features** from domain knowledge.
+3. **Run a filter pass** — drop constants, low-variance, highly-correlated pairs.
+4. **Fit a Lasso or a tree** to get embedded importances.
+5. **Drop features below a sensible threshold** (importance > 0 for trees, weight ≠ 0 for Lasso).
+6. **Cross-validate** the model on the reduced feature set.
+7. **Iterate.** New domain ideas → new features → re-rank.
+
+Embedded methods inside a pipeline + cross-validation = leakage-proof selection.
+
+</CheatCard>
+
+<CheatCard title="When NOT to drop features" number="8" accent="amber">
+
+Resist the urge to be aggressive — sometimes a feature looks weak alone but matters in combination.
+
+- **Tree models** handle redundant features fine. Don't pre-prune aggressively.
+- **Interactions** — two weak features can be strong together. Filter methods miss this.
+- **Domain-critical** features — keep them even if statistically borderline.
+- **Cost-of-collection** features — if it's free to keep, keep it.
+
+**Drop confidently when:** the feature is constant, leaky, derived from the target, or generates more noise than signal in CV.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Key formula to remember" accent="blue">
+
+**Lasso objective:**
+$$\min_{w} \; \frac{1}{2n} \|y - Xw\|_2^2 + \lambda \|w\|_1$$
+
+**Ridge objective:**
+$$\min_{w} \; \frac{1}{2n} \|y - Xw\|_2^2 + \lambda \|w\|_2^2$$
+
+As `λ` ↑: more regularisation, simpler model, lower variance, higher bias.
+As `λ` → 0: back to plain linear regression.
+
+</CheatRule>
+
+<CheatRule label="Big-picture takeaway" accent="navy">
+
+Feature engineering is where **domain knowledge** and **statistics** meet. The model is the easy part. The features are the hard part — and they decide everything.
+
+</CheatRule>

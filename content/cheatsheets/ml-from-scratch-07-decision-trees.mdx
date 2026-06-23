@@ -1,0 +1,148 @@
+---
+slug: ml-from-scratch-07-decision-trees
+title: "Part 7 · Decision Trees — Cheat Sheet"
+subtitle: How trees actually split, why Gini vs entropy barely matters, how depth controls overfitting, and the interpretability trade-off.
+sourcePost: ml-from-scratch-07-decision-trees
+sourceLabel: Read the full post (Part 7)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Decision Trees
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Decision trees ask <Highlight>one question at a time</Highlight> to split the data into purer and purer subsets. They're <Highlight>interpretable</Highlight> (you can read the rules), <Highlight>fast at inference</Highlight>, and <Highlight>massively overfit</Highlight> unless you bound their depth. Almost every modern tabular winner is just trees ensembled.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="How a split is chosen" number="1" accent="navy">
+
+At every node, the tree:
+
+1. Considers each feature.
+2. For each feature, tries possible split points (thresholds for numeric, group splits for categorical).
+3. Scores each candidate by how much **impurity** it removes.
+4. Picks the split with the **largest impurity reduction**.
+
+Recursively splits until a stopping rule fires (max depth, min samples, no impurity gain).
+
+</CheatCard>
+
+<CheatCard title="Impurity measures" number="2" accent="blue">
+
+For **classification** (smaller = purer node):
+
+- **Gini impurity** — `1 − Σ p²`. Probability of misclassifying a random sample if you label it by class distribution.
+- **Entropy** — `−Σ p · log(p)`. Information-theoretic measure of disorder.
+
+Truth: **Gini and entropy almost always pick the same splits.** Gini is slightly faster; entropy slightly favours balanced splits. Don't lose sleep over it.
+
+For **regression**:
+- **MSE** — mean squared error within the node. Splits minimise variance.
+
+</CheatCard>
+
+<CheatCard title="Why trees overfit" number="3" accent="red">
+
+A decision tree with no depth limit will keep splitting until every leaf is **pure** — one sample per leaf if needed. Train accuracy = 100 %. Test accuracy = wherever the noise sends it.
+
+**Knobs to control overfitting:**
+
+| Hyperparameter | Effect |
+|---|---|
+| `max_depth` | Hard cap on tree depth. Smaller = more bias, less variance. |
+| `min_samples_split` | Need ≥ N samples to consider a split. |
+| `min_samples_leaf` | Each leaf must have ≥ N samples. Strong regulariser. |
+| `max_features` | Only consider a subset at each split. Adds variance to bagging. |
+| `ccp_alpha` | Cost-complexity pruning. Penalty per leaf. |
+
+</CheatCard>
+
+<CheatCard title="Categorical handling" number="4" accent="purple">
+
+scikit-learn's `DecisionTreeClassifier` treats numeric splits only — you have to encode categoricals first.
+
+| Encoding | Tree behaviour |
+|---|---|
+| **Ordinal** | Tree splits at a number, but only matches if the order is meaningful. |
+| **One-hot** | Tree picks "is category X" or "not". Each cat = one binary feature. |
+| **Target / mean** | Tree splits at a threshold of the mean target — works well, watch leakage. |
+
+LightGBM and CatBoost can handle categoricals natively without these workarounds — see Part 8.
+
+</CheatCard>
+
+<CheatCard title="What trees don't need" number="5" accent="green">
+
+The list of things trees **don't care about**:
+
+- **Scaling.** Splits use thresholds; multiplying a feature by 1000 doesn't change which rows are above or below.
+- **Outliers.** A single weird value only affects its own leaf.
+- **Feature distributions.** No Gaussian assumption.
+- **Correlated features.** Trees just pick one of the correlated pair.
+
+This makes trees a *fast* first choice on messy tabular data — minimal preprocessing.
+
+</CheatCard>
+
+<CheatCard title="Interpretability" number="6" accent="amber">
+
+A small tree (depth ≤ 4) is the most interpretable model in ML:
+
+```
+if age > 50:
+    if blood_pressure > 140:
+        → "high risk"
+    else:
+        → "low risk"
+else:
+    → "low risk"
+```
+
+A doctor can read it and audit it. A deep tree loses this — by depth 20, the rules are gibberish to humans.
+
+The trade-off: **shallow trees are interpretable but biased.** Use a small tree for explanation, a forest / boosting for performance.
+
+</CheatCard>
+
+<CheatCard title="Feature importance" number="7" accent="slate">
+
+Trees can rank features by **how much impurity they remove across all splits**:
+
+```python
+clf.feature_importances_
+```
+
+Caveats:
+- **Biased toward high-cardinality** features (more thresholds to try).
+- **Splits credit only one of correlated features** — the other looks useless.
+- **Not the same as causal importance.**
+
+For more honest importance: **permutation importance** (`sklearn.inspection`).
+
+</CheatCard>
+
+<CheatCard title="When to use a single tree" number="8" accent="red">
+
+Mostly: **don't**. Single trees overfit too easily and lose to forests / boosting in pure performance.
+
+**Exceptions:**
+- **You need to explain the model** to a stakeholder.
+- **Inference must be < 1 ms** on a constrained device.
+- **You want a quick visualisation** of which features split where.
+- **Baseline before ensembles** to see what depth-2 already gets you.
+
+For real prediction tasks → jump straight to Random Forest / XGBoost / LightGBM ([Part 8](/cheatsheets/ml-from-scratch-08-random-forest-boosting)).
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"Decision trees split data recursively on the feature + threshold that reduces impurity most. Gini vs entropy almost never matters; max_depth and min_samples_leaf do. They don't need scaling, don't care about outliers, and handle mixed types — but they overfit hard without regularisation. A shallow tree is the most interpretable model in ML. For prediction performance, you almost always want them ensembled — Random Forest or gradient boosting — but a single small tree is still the cleanest way to explain a model to a non-technical stakeholder."*
+
+</CheatRule>

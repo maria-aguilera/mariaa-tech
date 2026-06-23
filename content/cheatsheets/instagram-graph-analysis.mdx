@@ -1,0 +1,113 @@
+---
+slug: instagram-graph-analysis
+title: Instagram Influencer Graph — Cheat Sheet
+subtitle: Network analysis on a 70k-node Instagram shoe community. Reducing the graph, ranking influence with centrality + community detection, and simulating diffusion with SIR.
+sourcePost: instagram-graph-analysis
+sourceLabel: Read the full project
+topic: Graph Analytics
+tags:
+  - Graph Analysis
+  - Community Detection
+  - Network Science
+  - Centrality
+updated: December 2023
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  A team project for a fictional shoe brand picking an Instagram influencer. The interesting work isn't the marketing pitch — it's <Highlight>reducing a 70,000-node graph</Highlight> down to something analysable without flattening it, then <Highlight>ranking influence by structure</Highlight> (centrality + community detection) and <Highlight>simulating spread</Highlight> with an SIR model.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The problem" number="1" accent="navy">
+
+Pick an influencer for a shoe brand. The naïve heuristic (most followers) ignores:
+
+- Followers can be **bought**.
+- A 1M-follower generic celeb may have **lower engagement** in your niche than a 50k niche expert.
+- **Structural position** (bridging communities) matters more than raw size.
+
+We needed a measurement of *influence by network structure*, not by follower count.
+
+</CheatCard>
+
+<CheatCard title="The data" number="2" accent="blue">
+
+- **~70,000 nodes** scraped from the shoe-collector / sneakerhead community on Instagram.
+- Edges = following relationships.
+- **Sparse + scale-free** — most nodes have few connections, a few have thousands.
+- Standard graph problems: visualising 70k nodes is meaningless; computing centrality on the full graph is slow.
+
+</CheatCard>
+
+<CheatCard title="Graph reduction" number="3" accent="purple">
+
+You can't just sample randomly — it destroys structural properties (community structure flattens, hubs disappear).
+
+Approach:
+1. **K-core decomposition** — peel off low-degree nodes until you keep only the "engaged core".
+2. **Snowball sampling** from a seed → keeps neighbourhood structure of the seed's community.
+3. **Subgraph by tag / hashtag affinity** — narrow to nodes posting about the relevant niche.
+
+Result: a reduced graph that **preserved community structure** instead of looking like a random Erdős–Rényi.
+
+</CheatCard>
+
+<CheatCard title="Centrality measures" number="4" accent="amber">
+
+Each measures a different "influence":
+
+| Measure | What it captures | Use case |
+|---|---|---|
+| **Degree** | Raw connections | First-pass popularity. |
+| **Betweenness** | Sits on shortest paths | Bridge between communities. |
+| **Closeness** | Average shortest path to all others | Speed of broadcast. |
+| **Eigenvector** | Connected to other influential nodes | Quality of network, not just quantity. |
+| **PageRank** | Random-walk stationary distribution | Authority. |
+
+A good influencer scores **high on betweenness + eigenvector**, not just degree.
+
+</CheatCard>
+
+<CheatCard title="Community detection" number="5" accent="red">
+
+We used **Louvain** to find communities — modularity-based, fast, multi-level.
+
+Why it matters for influencer choice:
+- Some influencers sit **inside one community** (deep but narrow reach).
+- Some sit **at the boundary between communities** (broad reach, high diffusion).
+- Brands usually want the **boundary** type — content spreads further.
+
+Visualised with **Gephi** + ForceAtlas2 layout. Coloured by community.
+
+</CheatCard>
+
+<CheatCard title="SIR diffusion simulation" number="6" accent="green">
+
+To test "if X posts about our brand, who sees it?":
+
+- **S — Susceptible** (could be exposed).
+- **I — Infected** (has seen the post and shared).
+- **R — Recovered** (saw it, didn't re-share, moves on).
+
+Parameters:
+- `β` (infection rate) — engagement-rate proxy.
+- `γ` (recovery rate) — speed of moving past the post.
+
+Simulate from each candidate's seed node and count **final R** — total reach. Repeat across candidates, pick the highest expected reach.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+`NetworkX` for graph manipulation and centrality · `python-louvain` (Louvain community detection) · `Gephi` for visualisation · custom SIR simulator in NumPy · `pandas` for the seed sampling.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"A team project picking an Instagram influencer for a shoe brand on a 70k-node graph. The point was that follower count is a bad proxy — you need to look at structural position. I used k-core decomposition and snowball sampling to reduce the graph without destroying community structure, then ranked candidates by betweenness and eigenvector centrality, ran Louvain community detection in Gephi to find the boundary nodes (best for diffusion), and finally simulated an SIR spread from each candidate to estimate expected reach. The recommendation was the betweenness winner, not the degree winner — they bridged two big communities and the simulated reach was 3× higher."*
+
+</CheatRule>

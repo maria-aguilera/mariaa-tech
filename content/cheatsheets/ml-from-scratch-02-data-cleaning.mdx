@@ -1,0 +1,194 @@
+---
+slug: ml-from-scratch-02-data-cleaning
+title: "Part 2 · Data Cleaning & Preprocessing — Cheat Sheet"
+subtitle: Decisions, code patterns, and traps. Designed for fast exam-style revision and quick lookup during interviews.
+sourcePost: ml-from-scratch-02-data-cleaning
+sourceLabel: Read the full post (Part 2)
+topic: Machine Learning
+tags:
+  - Machine Learning
+  - Data Cleaning
+  - Preprocessing
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important rule">
+  <Highlight>Whatever you do to training data, you must be able to do to test/future data using only training-learned parameters.</Highlight> If you can't, you've leaked. Cross-validate the full pipeline, not just the model.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="ML Process" number="1" accent="navy">
+
+| Step | Meaning |
+|---|---|
+| **Select data** | Choose and collect input for future cases you want to generalise to. |
+| **Preprocess** | Clean errors, nulls, outliers, formats, irrelevant info. |
+| **Transform** | Scale, encode, bin, log-transform, build features. |
+| **Model** | Train and validate. Use CV for tuning, test only at the end. |
+
+**Before you touch data:** Is ML even the right tool? If a deterministic rule works, ML may be unnecessary.
+
+</CheatCard>
+
+<CheatCard title="Understanding the data" number="2" accent="blue">
+
+- **Feature meaning first.** `-1` may be impossible age but a valid code elsewhere.
+- **Representative data.** Small samples → sampling noise. Flawed sampling → sampling bias.
+- **Biases** *(biased data → biased model):*
+  - **Volunteer** — participants differ from non-participants.
+  - **Selection** — sample drawn from a narrow subgroup.
+  - **Survival** — looking only at what passed the filter (the WWII planes).
+- **Supervised** = target given (regression / classification). **Unsupervised** = no target labels.
+
+</CheatCard>
+
+<CheatCard title="Scaling — when it matters" number="3" accent="amber">
+
+<CheatPills>
+  <CheatPill title="Mandatory" accent="red">
+    KNN · SVM · PCA · gradient descent · regularised linear/logistic
+  </CheatPill>
+  <CheatPill title="Recommended" accent="amber">
+    Neural nets · Linear/Logistic regression
+  </CheatPill>
+  <CheatPill title="Optional" accent="green">
+    Decision trees · Random Forest · Gradient Boosted Trees
+  </CheatPill>
+</CheatPills>
+
+| Scaler | Use when |
+|---|---|
+| `StandardScaler` | Default. Mean 0, std 1. No strong outliers. |
+| `RobustScaler` | Outliers present. Uses median + IQR. |
+| `MinMaxScaler` | Need bounded range `[0, 1]` or non-negative. |
+| `Normalizer` | Each row is a vector; angle/cosine matters (text, recommenders). |
+
+```python
+scaler = StandardScaler()
+scaler.fit(X_train)                   # train only
+X_train_s = scaler.transform(X_train)
+X_test_s  = scaler.transform(X_test)  # NEVER fit on test
+```
+
+</CheatCard>
+
+<CheatCard title="Categorical features" number="4" accent="purple">
+
+| Encoding | Use when | Main trap |
+|---|---|---|
+| **Ordinal** | Real order: `low < medium < high`. | Fake distance/order on nominal categories. |
+| **One-hot** | Nominal, manageable cardinality. | More columns + collinearity. |
+| **Target** | High cardinality (zip code). | Uses `y` → leakage if outside CV. |
+
+- Zip code / product ID = **category**, even when stored as a number.
+- Binary `Yes/No` → **one** dummy column is enough.
+- Use `OneHotEncoder` (not `pd.get_dummies`) inside pipelines — safer for ML workflow.
+- Tree models tolerate correlated dummies better than linear models.
+
+```python
+preprocess = make_column_transformer(
+    (StandardScaler(), numeric_cols),
+    (OneHotEncoder(handle_unknown="ignore"), cat_cols),
+)
+```
+
+</CheatCard>
+
+<CheatCard title="Outliers" number="5" accent="red">
+
+**Ask first, then act:**
+
+| Question | Action |
+|---|---|
+| Is it an error? | Correct, remove, or impute. |
+| Valid and meaningful? | Keep. Use robust scaler / log / add indicator. |
+| Target of interest (fraud, failure)? | **Do not remove** — model needs it. |
+| Tiny and non-representative? | Remove if it won't bias. |
+
+**Detection:**
+- **Z-score** — `|z| > 3`. Assumes ~Gaussian.
+- **IQR** — outside `[Q1 − 1.5·IQR, Q3 + 1.5·IQR]`. No distribution assumption.
+- **Model-based** — `IsolationForest`, `OneClassSVM`, `LocalOutlierFactor`, robust covariance. Best for high-dim / non-Gaussian.
+
+</CheatCard>
+
+<CheatCard title="Null values" number="6" accent="slate">
+
+| Type | Meaning | Action |
+|---|---|---|
+| **MCAR** | Random missingness. | Remove if few; impute if many. |
+| **MAR** | Depends on observed vars. | Impute with multivariate (KNN/Iterative). |
+| **MNAR** | Missingness itself is signal. | Add `MissingIndicator` + impute. |
+
+| Situation | Best start |
+|---|---|
+| Numerical missing | Median (robust to outliers). |
+| Categorical missing | Most frequent **or** constant `"Missing"`. |
+| Missingness meaningful | `add_indicator=True`. |
+| Need relationships | `KNNImputer` / `IterativeImputer`. |
+| > 50 % missing, no meaning | Drop column. |
+
+```python
+num_pipe = make_pipeline(SimpleImputer(strategy="median"), StandardScaler())
+cat_pipe = make_pipeline(
+    SimpleImputer(strategy="most_frequent"),
+    OneHotEncoder(handle_unknown="ignore"),
+)
+```
+
+</CheatCard>
+
+<CheatCard title="Other preprocessing" number="7" accent="green">
+
+- **Skewness** — Log / Box-Cox on long right tails (prices, income, time).
+- **Binning** — Group levels to reduce cardinality.
+- **Discretisation** — Continuous → categories via `KBinsDiscretizer`.
+- **Typing** — Dates as `datetime64`, IDs as category, currency strings → numeric.
+- **`0` ≠ missing.** Always check the domain meaning before treating zeros.
+
+</CheatCard>
+
+<CheatCard title="Pipeline template" number="8" accent="blue">
+
+```python
+numeric_features     = ["age", "salary"]
+categorical_features = ["boro", "zipcode"]
+
+num_pipe = make_pipeline(SimpleImputer(strategy="median"), StandardScaler())
+cat_pipe = make_pipeline(
+    SimpleImputer(strategy="most_frequent"),
+    OneHotEncoder(handle_unknown="ignore"),
+)
+
+preprocess = make_column_transformer(
+    (num_pipe, numeric_features),
+    (cat_pipe, categorical_features),
+)
+
+pipe = make_pipeline(preprocess, LogisticRegression(max_iter=1000))
+
+# Cross-validate the WHOLE pipeline
+scores = cross_val_score(pipe, X, y, cv=5)
+pipe.fit(X_train, y_train)
+pipe.score(X_test, y_test)
+```
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Final exam traps" accent="red">
+
+1. Fitting a scaler/imputer/encoder **before** `train_test_split` → leakage.
+2. Fitting **anything** on the test set → biased score.
+3. Target encoding **outside** CV → `y` leakage.
+4. Ordinal encoding nominal categories → fake distances.
+5. One-hot encoding high-cardinality features → dimensionality explosion.
+6. Deleting outliers/nulls **before** asking what they mean.
+7. Assuming `0` means missing without checking domain.
+8. Cross-validating the model only, not the pipeline.
+9. For RMSE and most errors: **lower is better**.
+
+</CheatRule>

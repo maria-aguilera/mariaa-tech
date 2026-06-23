@@ -1,0 +1,121 @@
+---
+slug: aws-deepracer-training
+title: Training AWS DeepRacer — Cheat Sheet
+subtitle: A 1/18-scale autonomous car, a reward function, and the gap between simulator and a real track. The SageMaker + RoboMaker stack, PPO vs SAC, and sim-to-real strategies.
+sourcePost: aws-deepracer-training
+sourceLabel: Read the full project
+topic: Reinforcement Learning
+tags:
+  - Reinforcement Learning
+  - AWS
+  - SageMaker
+  - PPO
+  - Sim-to-real
+updated: October 2023
+---
+
+<CheatRule label="The pitch — 30 seconds">
+  AWS DeepRacer = a 1/18-scale autonomous car you train in a simulator (RoboMaker + Gazebo) on AWS, then deploy to a real physical track. The training is <Highlight>reinforcement learning</Highlight> with a Python reward function and a choice of PPO or SAC. The interesting problem isn't the model — it's <Highlight>sim-to-real transfer</Highlight>: the gap between a clean simulator and a real track with lighting, glare, and wheel slip.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The architecture" number="1" accent="navy">
+
+```
+SageMaker (RL training job)
+        ↑
+        │ policy update
+        │
+RoboMaker (simulation)
+   └─ Gazebo (physics)
+   └─ ROS (state messages)
+        ↓
+Redis (state + reward storage)
+```
+
+- **SageMaker** holds the RL algorithm (PPO or SAC) + neural-net policy.
+- **RoboMaker** runs the simulated track in **Gazebo** with the **ROS** robotics framework.
+- **Redis** mediates state and reward signals between them.
+
+</CheatCard>
+
+<CheatCard title="The reward function" number="2" accent="blue">
+
+The single Python function that decides whether the car learns to drive or learns to spin.
+
+Parameters available at every step:
+
+| Parameter | Meaning |
+|---|---|
+| `progress` | % of track completed (0–100). |
+| `speed` | Current car speed. |
+| `steering_angle` | −30° to +30°. |
+| `all_wheels_on_track` | Boolean. |
+| `distance_from_center` | Distance from track centreline. |
+| `closest_waypoints` | Indices of nearest waypoints. |
+| `is_offtrack` | Boolean — terminal failure. |
+
+Reward functions are **shaping** problems — too sparse and nothing learns, too dense and you overfit to the simulator.
+
+</CheatCard>
+
+<CheatCard title="PPO vs SAC" number="3" accent="purple">
+
+| | PPO | SAC |
+|---|---|---|
+| **Type** | On-policy | Off-policy |
+| **Action space** | Discrete or continuous | Continuous |
+| **Exploration** | Stochastic policy | Entropy-regularised |
+| **Sample efficiency** | Lower | Higher |
+| **Stability** | More stable | Sometimes brittle |
+| **DeepRacer default** | ✅ | Option |
+
+**Use PPO** for first runs — it converges reliably with discrete action spaces. **Use SAC** when you need smoother continuous steering / throttle and have the compute budget.
+
+</CheatCard>
+
+<CheatCard title="Hyperparameters that matter" number="4" accent="amber">
+
+- **Learning rate** — too high and the policy oscillates, too low and it stalls. `3e-4` is a sane default.
+- **Batch size** — bigger = smoother gradient, slower per step.
+- **Discount factor `γ`** — closer to 1 = longer-term thinking. `0.999` for racing, since reward is sparse until lap end.
+- **Entropy coefficient** — knob for exploration vs exploitation.
+- **Number of epochs per update** — too many → over-optimised against current rollouts → instability.
+
+</CheatCard>
+
+<CheatCard title="Sim-to-real transfer" number="5" accent="red">
+
+The hardest part. The simulator is clean; the real track is messy. Three strategies:
+
+1. **Domain randomisation** — train across many simulated track conditions (lighting, friction, slight track shifts). The policy learns the *invariants*.
+2. **Robust reward shaping** — penalise behaviours that are fragile in physical space (sharp turns at high speed, hugging track edges).
+3. **Conservative deployment** — cap maximum speed in the deployed model below the simulator best, expecting real-world to underperform.
+
+The car always drives *worse* on the real track. The question is by how much, and whether it finishes the lap.
+
+</CheatCard>
+
+<CheatCard title="What I learned" number="6" accent="green">
+
+- **Reward shaping is 80 % of the project.** The same RL algorithm with two different rewards produces wildly different drivers.
+- **PPO is the right default.** Don't reach for SAC unless you've exhausted PPO tuning.
+- **Sim-to-real underperforms by 10–30 %.** Plan for it.
+- **The simulator's pretty visuals are the trap.** Optimising for the sim's leaderboard ≠ optimising for the real track.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Tech stack" accent="slate">
+
+**AWS DeepRacer** · **SageMaker** (RL job) · **RoboMaker** + **Gazebo** + **ROS** (simulation) · **Redis** (state) · **PPO** / **SAC** (algorithms) · Python reward function.
+
+</CheatRule>
+
+<CheatRule label="Interview soundbite" accent="navy">
+
+*"DeepRacer is AWS's reinforcement learning car — you train a policy in a Gazebo simulator orchestrated by SageMaker and RoboMaker, then deploy to a 1/18-scale physical track. The technical work is mostly reward shaping and PPO hyperparameter tuning. The deeper problem is sim-to-real: the simulator is too clean. I used domain randomisation and conservative deployment speeds to close the gap. The lesson I took away is that in RL, the reward function is the model — the algorithm just optimises whatever you've written down."*
+
+</CheatRule>
