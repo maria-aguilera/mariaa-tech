@@ -1,0 +1,135 @@
+---
+slug: tower-of-hanoi-python
+title: "Tower of Hanoi in Python — The Recursion That Doubles"
+subtitle: "Eight lines of Python solve a puzzle that doubles in difficulty with every disk. A walkthrough of the recursive solution, the maths behind it, and the iterative pattern that makes it human-solvable."
+date: "June 2026"
+updated: "June 2026"
+excerpt: "A short Python notebook on the Tower of Hanoi. Eight lines of recursion solve any number of disks; 2^n − 1 moves is the minimum; and there's an iterative pattern based on disk parity that makes it solvable by hand. Plus a link to the interactive game on this site."
+tags:
+  - Python
+  - Recursion
+  - Algorithms
+source: Notes
+topic: Algorithms
+coverImage: "/featured-media.svg"
+---
+
+*All opinions are my own.*
+
+## Why this puzzle keeps me coming back
+
+The Tower of Hanoi is the kind of problem that looks trivial at three disks, feels manageable at five, and turns into a wall at eight. The number of moves **doubles** every time you add a disk — from 7 moves to 15 to 31 — but the recursive Python solution doesn't get any longer.
+
+This post walks through the standard recursive solution, why it works, and the iterative pattern that lets you solve any number of disks by hand without backtracking. <Cite url="https://gallery.selfboot.cn/en/algorithms/hanoitower" source="selfboot" title="Tower of Hanoi — algorithms gallery" snippet="An interactive playground for the puzzle with manual + automatic modes, and a hint system that suggests optimal next moves even when you deviate from the recursive pattern." />
+
+If you want to play it interactively, there's a working version on this site at the bottom of [Beyond Work](/beyond-work).
+
+## The puzzle, in one paragraph
+
+Three rods (let's call them **A**, **B**, **C**) and `n` disks of different sizes stacked in ascending order on rod **A** — the smallest on top, the largest on the bottom. The goal is to move all `n` disks to rod **C** following three rules:
+
+1. Only **one disk** moves at a time.
+2. A move means taking the **top disk** off one rod and placing it on another rod (or an empty rod).
+3. A disk may **never sit on top of a smaller one**.
+
+The middle rod **B** is the spare — sometimes called the auxiliary.
+
+## The recursive solution in 8 lines of Python
+
+```python
+def tower_of_hanoi(n, source, auxiliary, target):
+    if n == 1:
+        print(f"Move disk 1 from {source} to {target}")
+        return
+    tower_of_hanoi(n - 1, source, target, auxiliary)
+    print(f"Move disk {n} from {source} to {target}")
+    tower_of_hanoi(n - 1, auxiliary, source, target)
+```
+
+Run it on three disks:
+
+```python
+print("Solving Tower of Hanoi for 3 disks:")
+tower_of_hanoi(3, "A", "B", "C")
+```
+
+```text
+Solving Tower of Hanoi for 3 disks:
+Move disk 1 from A to C
+Move disk 2 from A to B
+Move disk 1 from C to B
+Move disk 3 from A to C
+Move disk 1 from B to A
+Move disk 2 from B to C
+Move disk 1 from A to C
+```
+
+Seven moves. That's the minimum for 3 disks.
+
+## Why it works
+
+The recursion captures the **mental trick** behind solving the puzzle by hand. To move `n` disks from **source** to **target** using **auxiliary** as a spare, you do three things:
+
+1. **Move `n−1` disks** from source to auxiliary. Use target as the temporary spare.
+2. **Move the largest disk** (the `n`-th one) from source straight to target.
+3. **Move the `n−1` disks** from auxiliary onto target. Use source as the temporary spare.
+
+The trick is that **steps 1 and 3 are the same problem with one fewer disk**. The recursion delegates them to a smaller version of itself.
+
+At the smallest case, `n == 1`, the function stops recursing and just prints the single move. Everything above that is a chain of these three-step operations folding back through the call stack.
+
+### The arguments matter
+
+Look closely at the three function calls:
+
+```python
+tower_of_hanoi(n - 1, source, target, auxiliary)   # use target as spare
+print(f"Move disk {n} from {source} to {target}")  # the big move
+tower_of_hanoi(n - 1, auxiliary, source, target)   # use source as spare
+```
+
+In the recursive calls, **the roles of the rods swap**. In step 1, `target` plays the role of the spare; in step 3, `source` does. Getting that right is the only place this code can break.
+
+## The maths: 2ⁿ − 1 moves
+
+For `n` disks, the minimum number of moves is exactly:
+
+`T(n) = 2 × T(n − 1) + 1   with T(1) = 1`
+
+Solving this recurrence gives:
+
+`T(n) = 2ⁿ − 1`
+
+| Disks | Minimum moves |
+|---|---|
+| 3 | 7 |
+| 5 | 31 |
+| 8 | 255 |
+| 16 | 65,535 |
+| 64 | 18,446,744,073,709,551,615 |
+
+The 64-disk version is the original legend: a temple where monks move 64 golden disks one at a time. Even at one move per second, finishing the puzzle would take about **585 billion years** — long after the universe has ended.
+
+## The iterative pattern (no recursion needed)
+
+The recursive solution is elegant, but it's not how you solve the puzzle by hand. There's an iterative pattern based on disk parity that lets a human play optimally without ever having to think:
+
+**Rule 1.** The smallest disk (disk 1) moves **every other turn**. The other moves are forced — there's exactly one legal move that doesn't undo the previous one.
+
+**Rule 2.** Which direction does disk 1 move?
+- If `n` is **odd**, disk 1 moves **directly to the target** rod on its first move.
+- If `n` is **even**, disk 1 moves **to the spare** rod first.
+
+**Rule 3.** After its first move, disk 1 always moves in the **same direction** (cycle: A → C → B → A → C → B, or the reverse for even `n`).
+
+That's it. Two rules, no recursion, optimal solution.
+
+Try it on five disks: 5 is odd → disk 1 goes A → C first. Then alternate disk 1 with the forced move until you finish. You'll do it in 31 moves.
+
+## Closing thought
+
+Recursion is the kind of pattern that looks magical the first time and obvious the tenth. Tower of Hanoi is a clean example because the recursive structure of the algorithm mirrors the recursive structure of the puzzle — each subproblem is a smaller copy of the original.
+
+The other thing I like about it: the eight lines of Python work for `n = 3` and `n = 64` exactly the same way. The compiler doesn't know or care that one finishes instantly and the other outlives the universe.
+
+The full notebook is on [Google Colab](https://colab.research.google.com/drive/1WTM19SFWez7830vD18tPnpZ-ulV2IFsO). The interactive version lives at the bottom of [Beyond Work](/beyond-work).

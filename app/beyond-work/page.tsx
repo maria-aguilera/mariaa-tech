@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import AIPerspectiveCards from "@/components/AIPerspectiveCards";
 import BeyondWorkJourney from "@/components/BeyondWorkJourney";
 import IdentityStrip from "@/components/IdentityStrip";
+import TowerOfHanoi from "@/components/TowerOfHanoi";
 import PageHero from "@/components/PageHero";
 import PinterestCarousel, { type PinSlide } from "@/components/PinterestCarousel";
 import StatStrip from "@/components/StatStrip";
@@ -122,19 +122,13 @@ export default async function BeyondWorkPage() {
               languages={LANGUAGES_SPOKEN}
             />
 
+            <TowerOfHanoi />
+
             <PinterestCarousel slides={slides} />
 
             <AIPerspectiveCards />
 
             <BeyondWorkJourney items={timelineItems} />
-
-            <section className="bw-closing" aria-label="Closing note">
-              <p>
-                Life is still in motion — more chapters will be added as they happen. For
-                the work side of things, head over to{" "}
-                <Link href="/about">About →</Link>
-              </p>
-            </section>
           </div>
         </div>
       </section>
