@@ -6,10 +6,12 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import CheatsheetCTA from "@/components/CheatsheetCTA";
 import PageHero from "@/components/PageHero";
 import SeriesPager from "@/components/SeriesPager";
 import { mdxComponents } from "@/components/mdx/MdxComponents";
 import { blogPosts, type BlogPostBlock } from "@/lib/blog-posts";
+import { getAllCheatsheetMeta } from "@/lib/cheatsheets";
 import { highlightCode } from "@/lib/code-highlight";
 import { getAllMdxPostMeta, getMdxPostBySlug } from "@/lib/mdx";
 import { extractTocFromMdx } from "@/lib/toc";
@@ -136,6 +138,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     const toc = extractTocFromMdx(content);
     const isNavy = meta.style === "navy";
     const heroBanner = meta.bannerImage || meta.coverImage;
+    const cheatsheet = getAllCheatsheetMeta().find(
+      (cs) => cs.sourcePost === decodedSlug,
+    );
+    const cheatsheetTitle = cheatsheet
+      ? cheatsheet.title.replace(/\s*—\s*Cheat Sheet\s*$/i, "")
+      : null;
 
     return (
       <main
@@ -230,6 +238,15 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                     },
                   }}
                 />
+
+                {cheatsheet && cheatsheetTitle ? (
+                  <CheatsheetCTA
+                    slug={cheatsheet.slug}
+                    title={cheatsheetTitle}
+                    subtitle={cheatsheet.subtitle}
+                    imageUrl={cheatsheet.image}
+                  />
+                ) : null}
 
                 <SeriesPager slug={decodedSlug} />
               </div>

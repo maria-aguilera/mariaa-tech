@@ -18,6 +18,7 @@ const TOPIC_ORDER = [
   "Graph Analytics",
   "Data Cleaning",
   "Networking",
+  "Algorithms",
   "Econometrics",
 ];
 

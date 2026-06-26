@@ -14,6 +14,8 @@ export type CheatsheetMeta = {
   sourceProject?: string;
   /** Free-form label shown next to the source link. */
   sourceLabel?: string;
+  /** Path to a printable PNG version of the cheatsheet. */
+  image?: string;
   topic?: string;
   tags: string[];
   updated?: string;
@@ -62,6 +64,7 @@ export function getCheatsheetBySlug(slug: string): Cheatsheet | null {
       sourcePost: normalizeText(data.sourcePost) || undefined,
       sourceProject: normalizeText(data.sourceProject) || undefined,
       sourceLabel: normalizeText(data.sourceLabel) || undefined,
+      image: normalizeText(data.image) || undefined,
       topic: normalizeText(data.topic) || undefined,
       tags: normalizeTags(data.tags),
       updated: normalizeText(data.updated) || undefined,

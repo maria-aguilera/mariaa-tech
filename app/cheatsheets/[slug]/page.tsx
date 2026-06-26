@@ -87,6 +87,32 @@ export default async function CheatsheetPage({ params }: CheatsheetPageProps) {
         </div>
       </header>
 
+      {meta.image && (
+        <section className="cheat-preview" aria-label="Printable cheat sheet">
+          <figure className="cheat-preview__figure">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="cheat-preview__image"
+              src={meta.image}
+              alt={`${meta.title} — printable cheat sheet`}
+              loading="eager"
+            />
+          </figure>
+          <div className="cheat-preview__actions">
+            <a
+              className="cheat-preview__download"
+              href={meta.image}
+              download
+            >
+              ⬇ Download PNG
+            </a>
+            <p className="cheat-preview__hint">
+              Or read the searchable version below.
+            </p>
+          </div>
+        </section>
+      )}
+
       <article className="cheat-body">
         <MDXRemote
           source={content}

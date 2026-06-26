@@ -1,17 +1,18 @@
 ---
 slug: tower-of-hanoi-python
 title: "Tower of Hanoi in Python — The Recursion That Doubles"
-subtitle: "Eight lines of Python solve a puzzle that doubles in difficulty with every disk. A walkthrough of the recursive solution, the maths behind it, and the iterative pattern that makes it human-solvable."
+subtitle: "Eight lines of Python solve a puzzle that doubles in difficulty with every disk. The recursive solution, the iterative hand-pattern (odd vs even, disk 1's cycle), and how to actually play it without backtracking."
 date: "June 2026"
 updated: "June 2026"
-excerpt: "A short Python notebook on the Tower of Hanoi. Eight lines of recursion solve any number of disks; 2^n − 1 moves is the minimum; and there's an iterative pattern based on disk parity that makes it solvable by hand. Plus a link to the interactive game on this site."
+excerpt: "A short Python notebook on the Tower of Hanoi. Eight lines of recursion solve any number of disks; 2^n − 1 moves is the minimum; and there's an iterative pattern based on disk parity that makes any size puzzle solvable by hand. Plus a link to the interactive game on this site."
 tags:
   - Python
   - Recursion
   - Algorithms
-source: Notes
+source: Blog
 topic: Algorithms
-coverImage: "/featured-media.svg"
+coverImage: "/images/blog/tower-of-hanoi/cover.png"
+bannerImage: "/images/blog/tower-of-hanoi/cover.png"
 ---
 
 *All opinions are my own.*
@@ -20,7 +21,7 @@ coverImage: "/featured-media.svg"
 
 The Tower of Hanoi is the kind of problem that looks trivial at three disks, feels manageable at five, and turns into a wall at eight. The number of moves **doubles** every time you add a disk — from 7 moves to 15 to 31 — but the recursive Python solution doesn't get any longer.
 
-This post walks through the standard recursive solution, why it works, and the iterative pattern that lets you solve any number of disks by hand without backtracking. <Cite url="https://gallery.selfboot.cn/en/algorithms/hanoitower" source="selfboot" title="Tower of Hanoi — algorithms gallery" snippet="An interactive playground for the puzzle with manual + automatic modes, and a hint system that suggests optimal next moves even when you deviate from the recursive pattern." />
+This post walks through the standard recursive solution, why it works, and the iterative pattern that lets you solve any size puzzle by hand without backtracking. <Cite url="https://gallery.selfboot.cn/en/algorithms/hanoitower" source="selfboot" title="Tower of Hanoi — algorithms gallery" snippet="An interactive playground for the puzzle with manual + automatic modes, and a hint system that suggests optimal next moves even when you deviate from the recursive pattern." />
 
 If you want to play it interactively, there's a working version on this site at the bottom of [Beyond Work](/beyond-work).
 
@@ -66,7 +67,7 @@ Move disk 1 from A to C
 
 Seven moves. That's the minimum for 3 disks.
 
-## Why it works
+## Why it works: the recursive insight
 
 The recursion captures the **mental trick** behind solving the puzzle by hand. To move `n` disks from **source** to **target** using **auxiliary** as a spare, you do three things:
 
@@ -76,9 +77,15 @@ The recursion captures the **mental trick** behind solving the puzzle by hand. T
 
 The trick is that **steps 1 and 3 are the same problem with one fewer disk**. The recursion delegates them to a smaller version of itself.
 
+<Image
+  src="/images/blog/tower-of-hanoi/recursive-checkpoint.png"
+  alt="Two-state Tower of Hanoi diagram. Top row 'Start state' shows all 8 disks stacked on tower A (red 1 on top through blue 8 at the bottom), towers B and C empty. Bottom row 'Checkpoint before disk 8 moves' shows tower A with just disk 8 alone, tower B with the 7 smaller disks (1-7) stacked on it (highlighted with slate-blue border), tower C empty. Caption explains: 'To move N disks A → C, you first move N−1 disks A → B. This subproblem repeats itself.'"
+  caption="To free the biggest disk, you have to first park every smaller disk on the spare tower. That's the recursive structure of the puzzle."
+/>
+
 At the smallest case, `n == 1`, the function stops recursing and just prints the single move. Everything above that is a chain of these three-step operations folding back through the call stack.
 
-### The arguments matter
+### The arguments swap — the only thing that can break
 
 Look closely at the three function calls:
 
@@ -88,7 +95,7 @@ print(f"Move disk {n} from {source} to {target}")  # the big move
 tower_of_hanoi(n - 1, auxiliary, source, target)   # use source as spare
 ```
 
-In the recursive calls, **the roles of the rods swap**. In step 1, `target` plays the role of the spare; in step 3, `source` does. Getting that right is the only place this code can break.
+In the recursive calls, **the roles of the rods swap**. In step 1, `target` plays the role of the spare; in step 3, `source` does. Getting that swap right is the only place this code can break — and it's the bit that confuses everyone the first time they read recursion.
 
 ## The maths: 2ⁿ − 1 moves
 
@@ -110,21 +117,84 @@ Solving this recurrence gives:
 
 The 64-disk version is the original legend: a temple where monks move 64 golden disks one at a time. Even at one move per second, finishing the puzzle would take about **585 billion years** — long after the universe has ended.
 
-## The iterative pattern (no recursion needed)
+**Useful side fact:** the biggest disk always moves **exactly in the middle** of the optimal sequence. For 3 disks (7 moves) it moves on turn 4. For 4 disks (15 moves), turn 8. For 6 disks (63 moves), turn 32. For 8 disks (255 moves), turn 128. If you hit a halfway point and the biggest disk hasn't moved, you've taken a detour.
 
-The recursive solution is elegant, but it's not how you solve the puzzle by hand. There's an iterative pattern based on disk parity that lets a human play optimally without ever having to think:
+## How to actually play it by hand — the three hints
 
-**Rule 1.** The smallest disk (disk 1) moves **every other turn**. The other moves are forced — there's exactly one legal move that doesn't undo the previous one.
+The recursive solution is elegant, but it's not how you solve the puzzle by hand. There's an iterative pattern based on disk parity that lets a human play optimally without ever having to think recursively. It's three small rules:
 
-**Rule 2.** Which direction does disk 1 move?
-- If `n` is **odd**, disk 1 moves **directly to the target** rod on its first move.
-- If `n` is **even**, disk 1 moves **to the spare** rod first.
+### Hint 1 — Every other turn
 
-**Rule 3.** After its first move, disk 1 always moves in the **same direction** (cycle: A → C → B → A → C → B, or the reverse for even `n`).
+> *The smallest disk moves every other turn. The moves in between are forced.*
 
-That's it. Two rules, no recursion, optimal solution.
+This means **literally alternating**: disk 1 moves on turn 1, then a different disk on turn 2, disk 1 on turn 3, different on turn 4, and so on forever. Odd-numbered moves are disk 1; even-numbered moves are something else.
 
-Try it on five disks: 5 is odd → disk 1 goes A → C first. Then alternate disk 1 with the forced move until you finish. You'll do it in 31 moves.
+<Image
+  src="/images/blog/tower-of-hanoi/alternating-pattern.png"
+  alt="Horizontal sequence of 12 numbered squares showing the alternating Tower of Hanoi move pattern. Squares 1, 3, 5, 7, 9, 11 are in slate-blue with the label 'disk 1' below. Squares 2, 4, 6, 8, 10, 12 are in light grey with the label 'forced' below. Title at top: 'Every other turn = alternating'. Subtitle: 'Disk 1, other disk, disk 1, other disk...'"
+  caption="Disk 1 moves on every odd turn. The in-between moves are forced — there's only one legal option that doesn't undo progress."
+/>
+
+The "forced" move sounds harder than it is. After disk 1 has moved, look at the other two towers (ignore the one disk 1 is sitting on). Between those two, there are only two possible disk moves — and one of them would put a larger disk on a smaller one, which is illegal. The other one is the only legal move. That's the forced move.
+
+### Hint 2 — Which direction disk 1 cycles
+
+> *Odd total disks → disk 1 starts toward the target. Even total disks → disk 1 starts toward the spare. After the first move, disk 1 always cycles in the same direction.*
+
+<Image
+  src="/images/blog/tower-of-hanoi/disk-1-cycle.png"
+  alt="Two-panel diagram showing the disk 1 cycle for even vs odd Tower of Hanoi puzzles. Left panel 'EVEN puzzles' shows a triangle of three circles A (bottom-left), B (top), C (bottom-right) with arrows A → B → C → A counterclockwise, and caption 'First move: A → B (spare). Then B → C, C → A, repeat.' Right panel 'ODD puzzles' shows the same triangle with arrows A → C → B → A clockwise, and caption 'First move: A → C (target). Then C → B, B → A, repeat.' Bottom caption: 'The smallest disk always travels in one fixed direction.'"
+  caption="The smallest disk doesn't bounce around. It follows a fixed cycle that depends on whether you started with an odd or even number of disks."
+/>
+
+Once you know the direction, every disk-1 move is determined. **Read it like a clock**: A then B then C then A again, in whichever rotation matches your parity. Don't think left/right — think next station in the cycle.
+
+### Hint 3 — The big plan
+
+> *To move N disks from source to target, first move N−1 disks onto the spare. Then move the biggest disk. Then move N−1 disks back on top.*
+
+This is Hint 3, and it's just the recursive structure stated again. It's not really a tactical move-by-move hint — it's the **strategic checkpoint** that tells you whether you're on track.
+
+For 8 disks: the big checkpoint is when all of disks 1–7 are parked on B, with disk 8 alone on A. From there, one move puts disk 8 on C, and the rest of the puzzle is a 7-disk problem from B to C.
+
+If you ever lose track of where you are, recognise the checkpoint structure: *"I'm trying to free disk N. For that, all smaller disks need to be off the way."*
+
+## Why even puzzles start differently
+
+The reason odd and even puzzles start in opposite directions is hidden inside the recursive structure.
+
+The first big goal of any puzzle is always to free the biggest disk (disk N). For that, the N−1 disks above it must be stacked on the spare tower (B).
+
+That hidden subproblem — "move N−1 disks from A to B" — is itself a smaller Tower of Hanoi. And **its parity is one less than the parent puzzle's**. So:
+
+- **8 disks (even):** the hidden subproblem is 7 disks from A to B. A 7-disk problem is *odd*, and an odd puzzle's disk 1 starts toward its target. The target of that subproblem is B. So disk 1 first goes to B.
+- **7 disks (odd):** the hidden subproblem is 6 disks from A to B. A 6-disk problem is *even*. An even puzzle's disk 1 starts toward its spare. The spare of that subproblem is C (the spare of the *outer* problem). So disk 1 first goes to C.
+
+That's why the rule flips with parity. It's not a coincidence — it's the recursion poking through.
+
+## A common confusion: "where does disk 1 go next?"
+
+The most common stumbling block I see learners hit: they pick disk 1's destination from the position of the *larger* disks. They look at the board and think "this disk would land on an even-numbered disk — is that good or bad?"
+
+Honestly: that pattern is real, but it's a **side effect**, not the steering rule. The reliable rule is **always the cycle from Hint 2**. If disk 1 is currently on B in an even puzzle, the next station is C — not because C is "magic", but because B → C is the next step in the fixed clock-cycle.
+
+| Question | Best answer |
+|---|---|
+| Should I decide disk 1's move by what disk it would land on? | No. That's a side-effect, not a rule. |
+| What should decide where disk 1 goes? | The fixed cycle from Hint 2. |
+| What if disk 1 can legally go to two places? | Pick the next station in the cycle. The other one usually undoes progress. |
+
+## The decision checklist while playing
+
+Distilled to a checklist you can run in your head:
+
+1. **Is this an odd-numbered move?** → Move disk 1.
+2. **Is this an even-numbered move?** → Move a disk that is NOT disk 1.
+3. **If moving disk 1, where?** → Use the cycle from Hint 2.
+4. **If not moving disk 1, what?** → Ignore the tower disk 1 is on. Between the other two, make the only legal move.
+5. **Am I lost?** → Look for the checkpoint: smaller stack parked away, biggest disk free, smaller stack ready to return.
+
+The simplest summary: **Hint 1 tells you WHO moves, Hint 2 tells you WHERE disk 1 goes, Hint 3 tells you WHY the whole thing is working.**
 
 ## Closing thought
 
@@ -132,4 +202,4 @@ Recursion is the kind of pattern that looks magical the first time and obvious t
 
 The other thing I like about it: the eight lines of Python work for `n = 3` and `n = 64` exactly the same way. The compiler doesn't know or care that one finishes instantly and the other outlives the universe.
 
-The full notebook is on [Google Colab](https://colab.research.google.com/drive/1WTM19SFWez7830vD18tPnpZ-ulV2IFsO). The interactive version lives at the bottom of [Beyond Work](/beyond-work).
+The full notebook is on [Google Colab](https://colab.research.google.com/drive/1WTM19SFWez7830vD18tPnpZ-ulV2IFsO). The interactive version lives at the bottom of [Beyond Work](/beyond-work) — and if you get stuck, the hints in the sidebar walk you through Hints 1, 2, and 3 in the same order as this post.

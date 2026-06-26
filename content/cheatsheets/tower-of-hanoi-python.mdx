@@ -1,0 +1,146 @@
+---
+slug: tower-of-hanoi-python
+title: "Tower of Hanoi — Cheat Sheet"
+subtitle: The rules, the recursive plan, and the hand-pattern that solves any size puzzle. Designed for fast revision and quick lookup.
+sourcePost: tower-of-hanoi-python
+sourceLabel: Read the full post
+image: /images/blog/tower-of-hanoi/cheatsheet.png
+topic: Algorithms
+tags:
+  - Algorithms
+  - Recursion
+  - Python
+  - Puzzles
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  To move <Highlight>N disks A → C</Highlight>, first move <Highlight>N−1 disks</Highlight> onto the spare (B), then move the biggest disk to C, then move the N−1 disks back on top. Steps 1 and 3 are smaller copies of the same puzzle — that's the recursion.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="The rules" number="1" accent="navy">
+
+Three rods (**A**, **B**, **C**) and `n` disks stacked on **A** in ascending order — smallest on top, largest on the bottom. The goal: move all disks to **C** obeying:
+
+1. **One disk at a time.**
+2. Only the **top disk** of a stack is movable.
+3. A disk may **never sit on a smaller one**.
+
+The middle rod **B** is the spare — sometimes called the auxiliary.
+
+</CheatCard>
+
+<CheatCard title="The 8-line recursive solution" number="2" accent="blue">
+
+```python
+def tower_of_hanoi(n, source, auxiliary, target):
+    if n == 1:
+        print(f"Move disk 1 from {source} to {target}")
+        return
+    tower_of_hanoi(n - 1, source, target, auxiliary)
+    print(f"Move disk {n} from {source} to {target}")
+    tower_of_hanoi(n - 1, auxiliary, source, target)
+```
+
+```python
+tower_of_hanoi(3, "A", "B", "C")
+```
+
+The roles of the rods **swap** in the recursive calls. That swap is the only place this code can break.
+
+</CheatCard>
+
+<CheatCard title="The maths: 2ⁿ − 1" number="3" accent="amber">
+
+Minimum number of moves for `n` disks:
+
+`T(n) = 2 × T(n−1) + 1   with T(1) = 1`
+
+Solving the recurrence:
+
+`T(n) = 2ⁿ − 1`
+
+| Disks | Min moves |
+|---|---|
+| 3 | 7 |
+| 5 | 31 |
+| 8 | 255 |
+| 16 | 65,535 |
+| 64 | ~1.8 × 10¹⁹ |
+
+**Side fact:** the biggest disk always moves at the **exact middle** of the optimal sequence. Halfway through and it hasn't moved? You took a detour.
+
+</CheatCard>
+
+<CheatCard title="Hand-pattern: hint 1 — every other turn" number="4" accent="green">
+
+> *The smallest disk moves every other turn. The moves in between are forced.*
+
+- **Odd turns** (1, 3, 5, …) → move disk 1.
+- **Even turns** (2, 4, 6, …) → move some other disk.
+
+The "forced" move: after disk 1 moves, look at the other two rods. Between them there's only **one legal move** — the other would put a larger disk on a smaller one.
+
+</CheatCard>
+
+<CheatCard title="Hand-pattern: hint 2 — which direction" number="5" accent="red">
+
+> *Odd total disks → disk 1 starts toward the target. Even total disks → disk 1 starts toward the spare.*
+
+After the first move, disk 1 follows a **fixed cycle**:
+
+<CheatPills>
+  <CheatPill title="Odd n" accent="blue">A → C → B → A → …</CheatPill>
+  <CheatPill title="Even n" accent="amber">A → B → C → A → …</CheatPill>
+</CheatPills>
+
+Read it like a clock — *next station in the cycle*, never left/right.
+
+</CheatCard>
+
+<CheatCard title="Hand-pattern: hint 3 — the big plan" number="6" accent="purple">
+
+> *To move N disks A → C, first move N−1 disks A → B. Then move the biggest disk A → C. Then move N−1 disks B → C.*
+
+This isn't a tactical hint — it's the **strategic checkpoint**.
+
+For 8 disks: the big checkpoint is when disks 1–7 are parked on B and disk 8 sits alone on A. One move lands disk 8 on C; the rest is a 7-disk puzzle from B → C.
+
+If you ever feel lost, recognise the checkpoint shape: *"I'm trying to free disk N — every smaller disk must be off the way."*
+
+</CheatCard>
+
+<CheatCard title="Why parity flips the start" number="7" accent="slate">
+
+The first goal is always **free the biggest disk** — which means stacking the N−1 disks above it on the spare.
+
+That hidden subproblem is itself a Tower of Hanoi — but with **N−1 disks**, opposite parity to the outer puzzle. Disk 1's first move follows the inner subproblem's rule:
+
+- **8 disks (even):** subproblem is 7 (odd) A → B. Odd ⇒ disk 1 toward target. Target is B. **Disk 1 goes to B.**
+- **7 disks (odd):** subproblem is 6 (even) A → B. Even ⇒ disk 1 toward spare. Spare is C. **Disk 1 goes to C.**
+
+That's why the rule flips with parity — it's the recursion poking through.
+
+</CheatCard>
+
+<CheatCard title="Decision checklist" number="8" accent="navy">
+
+Run this in your head every turn:
+
+1. **Odd-numbered move?** → Move disk 1.
+2. **Even-numbered move?** → Move a disk that is **not** disk 1.
+3. **Where does disk 1 go?** → Next station in the cycle (Hint 2).
+4. **Which non-disk-1 to move?** → Ignore the rod disk 1 is on. Between the other two, take the only legal move.
+5. **Am I lost?** → Look for the checkpoint shape (Hint 3).
+
+**Summary:** Hint 1 = *WHO* moves · Hint 2 = *WHERE* disk 1 goes · Hint 3 = *WHY* it works.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="The trap to avoid">
+  Picking disk 1's destination by looking at which larger disk it would land on. That pattern is real but it's a <Highlight>side effect</Highlight>, not the steering rule. Always use the fixed cycle from Hint 2 — the larger disks fall into place automatically.
+</CheatRule>

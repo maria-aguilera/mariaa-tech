@@ -7651,3 +7651,195 @@ body.theme-dark .hanoi__impulseLine { color: #CBD5E1; }
 body.theme-dark .hanoi__impulseLine strong { color: #F1F5F9; }
 body.theme-dark .hanoi__impulseEyebrow,
 body.theme-dark .hanoi__impulseFootnote a { color: #60A5FA; }
+
+/* ---------------------------------------------------------------- */
+/* Cheatsheet CTA at the end of a blog post                          */
+/* (force-rebuild marker)                                            */
+/* ---------------------------------------------------------------- */
+.cheatsheet-cta {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 3rem 0 0;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid #DBEAFE;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #F8FAFF 0%, #EFF6FF 100%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.cheatsheet-cta__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #2563EB;
+  color: #fff;
+}
+.cheatsheet-cta__icon svg {
+  width: 22px;
+  height: 22px;
+}
+.cheatsheet-cta__body { min-width: 0; }
+.cheatsheet-cta__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563EB;
+}
+.cheatsheet-cta__title {
+  margin: 0.2rem 0 0.3rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+.cheatsheet-cta__subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+}
+.cheatsheet-cta__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.cheatsheet-cta__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.cheatsheet-cta__btn svg {
+  width: 15px;
+  height: 15px;
+}
+.cheatsheet-cta__btn--primary {
+  background: #2563EB;
+  color: #fff;
+}
+.cheatsheet-cta__btn--primary:hover {
+  background: #1D4ED8;
+  color: #fff;
+}
+.cheatsheet-cta__btn--ghost {
+  background: #fff;
+  color: #2563EB;
+  border-color: #BFDBFE;
+}
+.cheatsheet-cta__btn--ghost:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+}
+
+@media (max-width: 640px) {
+  .cheatsheet-cta {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  .cheatsheet-cta__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .cheatsheet-cta__btn { flex: 1 1 auto; }
+}
+
+body.theme-dark .cheatsheet-cta {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: linear-gradient(135deg, #0F172A 0%, #111C36 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+body.theme-dark .cheatsheet-cta__icon {
+  background: #3B82F6;
+}
+body.theme-dark .cheatsheet-cta__eyebrow { color: #60A5FA; }
+body.theme-dark .cheatsheet-cta__title { color: #F1F5F9; }
+body.theme-dark .cheatsheet-cta__subtitle { color: #94A3B8; }
+body.theme-dark .cheatsheet-cta__btn--ghost {
+  background: rgba(15, 23, 42, 0.6);
+  color: #93C5FD;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+body.theme-dark .cheatsheet-cta__btn--ghost:hover {
+  background: rgba(30, 58, 138, 0.4);
+  border-color: rgba(147, 197, 253, 0.5);
+}
+
+/* ---------------------------------------------------------------- */
+/* Printable cheat sheet preview (top of /cheatsheets/[slug])         */
+/* ---------------------------------------------------------------- */
+.cheat-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1100px;
+  margin: 0 auto 2.5rem;
+  padding: 0 1.5rem;
+}
+.cheat-preview__figure {
+  margin: 0;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #FAFAF7;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.cheat-preview__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.cheat-preview__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+.cheat-preview__download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.25rem;
+  background: #2563EB;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.cheat-preview__download:hover {
+  background: #1D4ED8;
+}
+.cheat-preview__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748B;
+}
+@media print {
+  .cheat-preview { display: none; }
+}
+body.theme-dark .cheat-preview__figure {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: #0F172A;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+body.theme-dark .cheat-preview__hint { color: #94A3B8; }
