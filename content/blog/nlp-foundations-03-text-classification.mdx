@@ -1,0 +1,91 @@
+---
+slug: nlp-foundations-03-text-classification
+title: "Post 3 — Text Classification"
+subtitle: "Bag-of-words, TF-IDF, the classic pipeline, and where modern transformers fit in."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "Text classification is the workhorse of applied NLP — sentiment, spam, intent, fraud detection, topic labelling. The classical pipeline still teaches you 80% of what you need."
+tags:
+  - NLP
+  - Fundamentals
+source: Notes
+series: "NLP Foundations"
+seriesPart: 3
+seriesTotal: 4
+coverImage: "/images/blog/nlp-from-scratch/s7/s7-page-001.png"
+bannerImage: "/images/blog/nlp-from-scratch/s7/s7-page-001.png"
+unlisted: true
+---
+
+*NLP Foundations · Post 3/4*
+
+## What this post is
+
+Notes from the text classification session. The classical pipeline — preprocessing, vectorisation (BoW / TF-IDF), classifier, evaluation — is still the foundation for understanding why modern fine-tuned transformer classifiers behave the way they do.
+
+<Callout color="yellow">
+  📓 <strong>Format note:</strong> this post is my original handwritten notes, scanned and embedded
+  below. If you want the modern, typed version with code and diagrams, the
+  <a href="/blog/ml-foundations-01-what-machine-learning-actually-is">ML Foundations</a>
+  series is the polished equivalent — the NLP series will get the same treatment later.
+</Callout>
+
+## Key takeaways (so you can scan)
+
+- **Bag-of-words** loses order but keeps content; surprisingly competitive for many classification tasks.
+- **TF-IDF** down-weights words that appear everywhere and up-weights words that appear in fewer documents.
+- Evaluation metrics matter more than the model: F1, precision/recall, and class balance decide what "good" means.
+
+## The handwritten pages
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-001.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 1"
+  caption="Page 1 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-002.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 2"
+  caption="Page 2 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-003.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 3"
+  caption="Page 3 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-004.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 4"
+  caption="Page 4 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-005.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 5"
+  caption="Page 5 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-006.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 6"
+  caption="Page 6 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-007.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 7"
+  caption="Page 7 of 8 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s7/s7-page-008.png"
+  alt="Post 3 — Text Classification — handwritten notes, page 8"
+  caption="Page 8 of 8 — original handwritten notes."
+/>
+
+---
+
+**Next up — [Post 4](/blog/nlp-foundations-04-information-retrieval).**
