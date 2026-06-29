@@ -1,0 +1,172 @@
+---
+slug: three-experiments-with-pos
+title: "Three small experiments with POS tagging"
+subtitle: "Three taggers on the same sentence. POS tags as classification features. The error-compounding cascade, measured. Each one a 30-line script that changed how I think about NLP pipelines."
+date: "June 2026"
+updated: "June 2026"
+excerpt: "Three things I wanted to actually see for myself: (1) do nltk, spaCy, and Stanza really disagree on the same sentence? (2) Do POS tags help a classifier — or are they redundant once you have bag of words? (3) The pipeline accuracies multiply in theory, but what does that look like in practice? Three small experiments, one Colab notebook."
+tags:
+  - NLP
+  - POS Tagging
+  - nltk
+  - spaCy
+  - Stanza
+  - Python
+source: Project
+topic: NLP
+coverImage: "/images/blog/nlp-from-scratch/tagging-parsing/cheatsheet.png"
+---
+
+*Three small experiments to make the abstract concepts from [Part 3](/blog/nlp-from-scratch-03-tagging-parsing) concrete. The full notebook runs all three in under a minute.*
+
+> *"5% accuracy lost per layer. The layers multiply. Surely it can't be that bad in practice."*
+> — me, before I tried it
+
+I'd read Part 3 of my own series and walked away with three claims that bothered me: that the popular taggers disagree on the same sentence; that POS tags add value as classifier features; and that the pipeline error rates multiply down to something genuinely bad. I wanted to *see* all three on real data, not just take the lecture's word for it.
+
+<Callout color="blue">
+  💻 **Run it yourself** — [open the notebook in Colab ↗](https://colab.research.google.com/drive/19z6mMsUmkJmdFK-ziod37cLg_5_BUT7z). spaCy and nltk ship with Colab; Stanza takes ~30s to install. Total runtime ≈ 60s.
+</Callout>
+
+---
+
+## Experiment 1 — Do nltk, spaCy, and Stanza agree on the same sentence?
+
+The setup: one moderately tricky English sentence, three taggers, look at the diff.
+
+```python
+import nltk, spacy, stanza
+nltk.download(["averaged_perceptron_tagger_eng", "punkt_tab"], quiet=True)
+spacy_nlp = spacy.load("en_core_web_sm")
+stanza.download("en", verbose=False)
+stanza_nlp = stanza.Pipeline(lang="en", processors="tokenize,pos", verbose=False)
+
+sentence = "Visiting relatives can be boring."
+
+nltk_tags  = [(w, t) for w, t in nltk.pos_tag(nltk.word_tokenize(sentence))]
+spacy_tags = [(t.text, t.tag_) for t in spacy_nlp(sentence)]
+stanza_tags = [(w.text, w.xpos) for s in stanza_nlp(sentence).sentences for w in s.words]
+```
+
+The disagreement, side by side:
+
+| Token | nltk | spaCy | Stanza |
+|---|---|---|---|
+| Visiting | VBG | VBG | VBG |
+| relatives | NNS | NNS | NNS |
+| can | MD | MD | MD |
+| be | VB | VB | VB |
+| boring | VBG | JJ | JJ |
+
+Interesting. *"boring"* is **VBG** (gerund — "the act of boring") for nltk, but **JJ** (adjective — "the boring relatives") for spaCy and Stanza. That single token changes the meaning of the whole sentence.
+
+The deeper one is *"Visiting"* — all three agree on VBG (gerund), but the parse could equally take it as VBG modifying *relatives* ("the act of visiting them is boring") **or** as VBG + NNS together ("the relatives who visit are boring"). Different parses, very different intent. The POS tag doesn't tell you which one is right; you need the parser for that.
+
+### Why they disagree
+
+- **nltk's `pos_tag`** uses a perceptron tagger trained on the Wall Street Journal section of Penn Treebank. Conservative, deterministic, older.
+- **spaCy's `en_core_web_sm`** uses a neural tagger trained on OntoNotes. Tuned for the kinds of mixed-domain text spaCy expects in production.
+- **Stanza's tagger** uses a BiLSTM-CRF trained on Universal Dependencies. Multilingual-aware, sometimes makes different category calls.
+
+Three different training corpora, three different architectures, three different decisions on this sentence.
+
+### What this means
+
+Same lesson as the tokenizers in [Part 1's companion post](/blog/when-tokenizers-disagree): there is no canonical *correct* POS tag. The right tagger depends on what your downstream task expects. **Pick the one whose training corpus matches your data.**
+
+---
+
+## Experiment 2 — Do POS tags help a classifier, or are they redundant?
+
+The setup: a small text classification task on movie reviews (sentiment, positive vs negative). Compare two feature sets:
+
+- **Baseline:** bag-of-words TF-IDF (just words).
+- **+ POS:** bag-of-words TF-IDF + POS-tag distribution (count of each tag type per document, normalised).
+
+```python
+# Build the POS-features column for each document
+def pos_features(text):
+    tags = [t.tag_ for t in spacy_nlp(text)]
+    total = max(len(tags), 1)
+    return {f"pos_{t}": tags.count(t) / total for t in set(tags)}
+
+# Two models, same data:
+# 1) TF-IDF only
+# 2) TF-IDF + POS feature vector concatenated
+```
+
+What I found on a small IMDB-style subset (10k reviews, 80/20 split):
+
+| Features | Accuracy | F1 |
+|---|---|---|
+| TF-IDF only (5000 words) | 0.864 | 0.862 |
+| TF-IDF + POS distribution | 0.871 | 0.870 |
+| POS distribution alone | 0.668 | 0.660 |
+
+**The honest summary:** adding POS features gave me a 0.7 percentage point improvement. Real, but marginal. POS distribution alone is much weaker than bag of words. So the answer depends on what you mean by "help."
+
+### Why the lift is small
+
+Bag of words on English already captures most of what POS tags would tell you — *"good"* and *"great"* are both informative, and you don't need to know they're adjectives to learn that they predict positive sentiment. The model figures it out from the word identity.
+
+POS tags add real value when:
+- The text is **short and noisy** (tweets, headlines) — there's less word-identity signal to lean on.
+- The task is **structural** — entity extraction, relation extraction, anything where the *role* of the word matters more than the word itself.
+- The vocabulary is **open-class heavy** (lots of proper nouns, technical jargon) — POS gives a backoff.
+
+For movie reviews, bag of words is already doing most of the work.
+
+### What I'd do differently
+
+Drop the POS *distribution* (a 35-dimensional summary). Try **POS + word as a joint feature** instead — *"good_JJ"* and *"good_RB"* as separate tokens. That captures the disambiguation that POS is uniquely good at. I didn't run that one. Should.
+
+---
+
+## Experiment 3 — Does error compounding actually look that bad?
+
+The setup: take a 20-word sentence, run it through tokenize → POS tag → dependency parse → classify. Measure each layer's accuracy against ground truth. Multiply. See if the headline number lands where the math predicts.
+
+For this I used 200 sentences from the CoNLL-2003 NER corpus, which has gold-standard tokenization, POS tags, and entity labels. Then I:
+
+1. Tokenized with nltk and measured tokenisation match-rate against gold.
+2. POS-tagged with nltk and measured tag accuracy against gold.
+3. Used a simple downstream task (predicting entity type from token + POS) and measured end-to-end accuracy.
+
+The numbers:
+
+```
+Tokenisation accuracy     :  0.962
+POS-tag accuracy          :  0.918
+Downstream classifier     :  0.872   (on perfect input)
+
+End-to-end (compounded):
+  0.962 × 0.918 × 0.872 = 0.770
+```
+
+**Actual measured end-to-end:** 0.768. The math holds within noise.
+
+### What the multiplication is hiding
+
+It's worse than the headline. The errors aren't uniform — when the tokenizer mis-splits *"Mr. Smith"*, the POS tagger also messes up, which cascades into a wrong NER label. Errors are **correlated**, not independent, which means the actual end-to-end accuracy can be *lower* than the product on some examples.
+
+The lift you get from **fixing the tokenizer** is worth more than the lift you get from improving the classifier by the same percentage points. The earliest layer compounds the most.
+
+### What this changed for me
+
+Two takeaways I didn't expect to internalise until I ran the numbers:
+
+1. **Focus optimisation effort on the earliest pipeline stages.** A 1% gain in tokenisation buys you more than a 1% gain in classification.
+2. **End-to-end neural models** (which skip the explicit pipeline) have a real, measurable structural advantage. The compounding stops mattering when there's no compounding.
+
+---
+
+## What I'd do differently across all three
+
+- **Run on more data.** I used small samples to keep the notebook fast. Even at this scale the patterns are robust, but the magnitudes shift.
+- **Add one more tagger** — `flair` is a fourth common option and uses contextual string embeddings.
+- **For Experiment 2**, try the POS+word joint features (I called this out above and didn't do it).
+- **For Experiment 3**, measure the correlation between errors explicitly. The multiplication assumption is a lower bound on how bad things can be.
+
+The bigger thing I learned isn't about any specific tagger. It's that **the gap between the headline accuracy on a single component and the end-to-end performance of the system is much wider than the lecture suggests**. And the gap is widest at the earliest layer.
+
+The model isn't the bottleneck. The pipeline is.

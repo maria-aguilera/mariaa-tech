@@ -1,0 +1,182 @@
+---
+slug: nlp-from-scratch-03-tagging-parsing
+title: "Part 3 · Tagging & Parsing — Cheat Sheet"
+subtitle: POS basics, the HMM math, parsing types, the error-compounding cascade, and the common tag reference — all in one page.
+sourcePost: nlp-from-scratch-03-tagging-parsing
+sourceLabel: Read the full post (Part 3)
+image: /images/blog/nlp-from-scratch/tagging-parsing/cheatsheet.png
+topic: NLP
+tags:
+  - NLP
+  - POS Tagging
+  - Parsing
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  POS tagging tells you <Highlight>what each word is</Highlight>. Parsing tells you <Highlight>how they connect</Highlight>. Both layers recover structure that bag of words throws away — and both have error rates that compound viciously through the pipeline.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="What is POS tagging?" number="1" accent="navy">
+
+**POS** = the role a word plays in a sentence (noun, verb, adjective, …).
+
+**Goal:** determine the POS tag for a particular **instance** of a word — same word can be different POS in different sentences (*book* = noun or verb).
+
+**Uses:**
+- Enhanced regex: `(Det) Adj* N+` catches multiword expressions
+- Text-to-speech (how to pronounce *lead*)
+- Input for full syntax parsing
+- Backoff for downstream tasks (NER → NN, sentiment → JJ)
+
+</CheatCard>
+
+<CheatCard title="Two approaches" number="2" accent="blue">
+
+| | Rule-based | Probabilistic / ML |
+|---|---|---|
+| Method | Hand-written rules | Learn from annotated corpus |
+| Data | Not needed | Treebank required |
+| Pros | Interpretable, works small data | Scales, adapts |
+| Cons | Doesn't scale, language-specific | Needs annotation |
+| Use when | No data, specific domain | Standard case for English |
+
+**Modern default:** ML with CRF / BiLSTM-CRF / fine-tuned transformer.
+
+</CheatCard>
+
+<CheatCard title="The HMM math" number="3" accent="amber">
+
+For words `w₁…wₙ` and tags `t₁…tₙ`:
+
+**Emission:** `P(wᵢ | tᵢ)` — *how often is this word tagged this way?*
+- `P(flies | VBZ)` = times *flies* was a verb / total verb tags
+
+**Transition:** `P(tᵢ | tᵢ₋₁)` — *how often does this tag follow that tag?*
+- `P(VBZ | NN)` = how often a verb follows a noun
+
+**Pick the sequence that maximises:**
+
+`argmax ∏ᵢ P(wᵢ | tᵢ) · P(tᵢ | tᵢ₋₁)`
+
+Solved efficiently by **Viterbi** (dynamic programming).
+
+*Punchline:* deep learning is, at heart, **learning to count**.
+
+</CheatCard>
+
+<CheatCard title="The accuracy trap" number="4" accent="red">
+
+State-of-the-art: **94–97%** on clean English. *Looks great, isn't.*
+
+**5% error = one wrong tag every 20 words = one error per sentence.**
+
+| Corpus | Accuracy |
+|---|---|
+| English WSJ | ~97% |
+| English Brown | ~95% |
+| Spanish AnCora | ~93% |
+| English Twitter | ~89% |
+| Chinese | ~75% |
+
+Easy tokens (`the`, `a`, punctuation) inflate the number — real accuracy on hard cases is lower.
+
+</CheatCard>
+
+<CheatCard title="Sources of error" number="5" accent="purple">
+
+| Source | Example |
+|---|---|
+| **Lexicon gap** | new words, slang, domain jargon |
+| **Unknown word** | misspellings, rare/unseen |
+| **Multi-word expressions** | *take off, by the way, out of control* |
+| **Structural ambiguity** | *"Visiting relatives can be boring."* |
+| **Annotation standard** | guidelines disagree at edges |
+| **Punctuation / tokenisation** | upstream tokenizer fights you |
+
+**Fix:** richer features (suffix, capitalisation, prev/next word, embeddings) + sequential models (CRF, BiLSTM, BERT).
+
+</CheatCard>
+
+<CheatCard title="Error compounding" number="6" accent="red">
+
+Each layer multiplies the previous one's error:
+
+`TOK (95%) × POS (93%) × DP (90%) × CLS (85%) ≈ 68%`
+
+**Two takeaways:**
+1. Don't trust headline accuracies on individual NLP tasks — the pipeline eats them.
+2. End-to-end transformers skip the explicit pipeline → no layer-wise compounding → real structural advantage.
+
+</CheatCard>
+
+<CheatCard title="Two types of parsing" number="7" accent="green">
+
+| | Constituency | Dependency |
+|---|---|---|
+| What | Phrase structure tree | Word-to-word arrows |
+| Levels | Terminal (words), pre-terminal (POS), non-terminal (S/NP/VP) | Each word has one head, each arc labelled |
+| Used by | Linguistic theory, older NLP | Modern parsers (spaCy, Stanza), translation |
+
+```python
+import spacy
+nlp = spacy.load("en_core_web_sm")
+for tok in nlp("I saw the big dog"):
+    print(tok.text, tok.dep_, "→", tok.head.text)
+# I nsubj → saw
+# saw ROOT → saw
+# the det → dog
+# big amod → dog
+# dog dobj → saw
+```
+
+</CheatCard>
+
+<CheatCard title="CFG → PCFG" number="8" accent="slate">
+
+**CFG (Context-Free Grammar)** = rules like `S → NP VP`, `VP → V NP`.
+
+**Problem:** *"Fed raises interest 0.5 percent"* has **36 valid parses** by typical English CFG rules. All grammatical, most absurd.
+
+**PCFG (Probabilistic CFG)** = same rules + probabilities learned from a treebank. Pick the parse with the highest product of rule probabilities.
+
+`P(rule) = count(rule applied) / count(LHS expanded)`
+
+Same machinery as the HMM tagger, one level up. Replaced today by neural parsers (transition-based, graph-based, transformer-based).
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Common POS tags (Penn Treebank)" accent="navy">
+
+| Group | Tags |
+|---|---|
+| **Nouns** | NN (singular), NNS (plural), NNP (proper), NNPS (proper plural) |
+| **Verbs** | VB (base), VBD (past), VBG (gerund), VBN (past participle), VBZ (3rd-person singular) |
+| **Adjectives** | JJ, JJR (comparative), JJS (superlative) |
+| **Adverbs** | RB, RBR, RBS |
+| **Determiners** | DT, PDT (predeterminer), WDT (wh-determiner) |
+| **Pronouns** | PRP (personal), PRP$ (possessive) |
+| **Prepositions** | IN |
+| **Other** | CC (conjunction), TO, `.` (punctuation) |
+
+</CheatRule>
+
+<CheatRule label="Final exam traps" accent="red">
+
+1. **Trusting 95%+ accuracy** on POS tagging. 5% error = one error per 20-word sentence.
+2. **Compounding errors** ignored — TOK × POS × DP × classifier = a much lower effective accuracy than any single layer.
+3. **Cross-domain transfer** — a tagger trained on WSJ news will drop ~10 points on tweets.
+4. **CFG without PCFG** — *"Fed raises interest"* has 36 parses; you need probabilities to choose.
+5. **Confusing constituency and dependency** — they're not interchangeable; pick the one your downstream tool expects.
+6. **Skipping POS in a transformer pipeline** — modern transformers learn it implicitly, but the structural intuition still helps when you debug.
+
+</CheatRule>
+
+<CheatRule label="One-line summary" accent="navy">
+  POS tagging is the layer between tokens and structure. Parsing turns tagged tokens into a tree. <Highlight>The math is just learning to count, and the errors quietly compound.</Highlight>
+</CheatRule>

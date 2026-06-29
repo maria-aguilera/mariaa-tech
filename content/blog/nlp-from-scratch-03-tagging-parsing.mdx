@@ -1,0 +1,460 @@
+---
+slug: nlp-from-scratch-03-tagging-parsing
+title: "Part 3: Tagging & Parsing"
+subtitle: "POS tagging finds the role of each word. Parsing finds how they connect. Together they're how a computer recovers some of the structure that bag of words throws away — and the place where pipeline errors quietly compound."
+date: "January 2026"
+updated: "June 2026"
+excerpt: "Part 3 of the NLP from Scratch series. POS tagging (definition, uses, HMM math, the 94–97% accuracy trap), parsing (constituency vs dependency, CFG → PCFG, the 36-parse explosion), where it fits in the pipeline, and why the error-compounding cascade is the thing nobody warns you about."
+tags:
+  - NLP
+  - POS Tagging
+  - Parsing
+  - HMM
+  - Dependency Parsing
+  - CFG
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 3
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/tagging-parsing/cheatsheet.png"
+---
+
+*NLP from Scratch · Part 3/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** Read the [one-page cheat sheet](/cheatsheets/nlp-from-scratch-03-tagging-parsing) — the POS basics, the HMM math, the parsing types, the error-compounding cascade, all condensed for fast revision (or `⌘ P` to print it).
+</Callout>
+
+> *"Bag of words throws away the order. Tagging and parsing put it back — partway."*
+
+In [Part 2](/blog/nlp-from-scratch-02-from-text-to-vectors) we turned text into vectors. Useful, but blunt: bag of words doesn't know that `dog` and `boy` play different grammatical roles in *"the dog chases the boy."* It just counts. This session is about putting some of that structure back — by tagging each word with its **part of speech**, and then **parsing** how the words connect.
+
+This sits at **Level 2 (Syntax)** of the 5-level NLP ladder from [Part 1](/blog/nlp-from-scratch-01-introduction). And it's the place where pipeline errors compound in ways that nobody warns you about.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/nlp-pipeline-pos-fits.png"
+  alt="A wide horizontal pipeline diagram titled 'Where POS tagging fits in the NLP pipeline' on warm off-white background, dark navy text, minimal blog style. Five connected stages in rounded cards, each connected by slate-blue arrows reading left to right. Stage 1 'Text' shows a document icon with the example sentence 'I saw a girl with a telescope.' Stage 2 'Tokenization (~95%)' shows the same sentence as a list of tokens [I, saw, a, girl, with, a, telescope, .]. Stage 3 'POS Tagging (~95–98%)' shows each token with its POS tag underneath: I/PRP, saw/VBD, a/DT, girl/NN, with/IN, a/DT, telescope/NN, ./. — highlighted in pink/purple as the focus of this post. Stage 4 'Parsing (dependency or constituency)' shows a small tree with NP and VP labels. Stage 5 'Text classification / other tasks' shows a checkmark task icon. Caption in slate-grey: 'POS tagging is the layer between raw tokens and full sentence structure. Every step is below 100%, and the errors multiply.'"
+  caption="Where POS tagging sits in the larger pipeline. Notice the accuracies under each box — the errors don't stay local, they multiply down the line."
+/>
+
+## What is POS tagging?
+
+**Part of speech (POS)** = the role a word plays in a sentence. *Noun*, *verb*, *adjective*, *determiner*, etc.
+
+Why care?
+
+- The same word can be different POS in different sentences. *"book"* is a **noun** in *"buy the book"* and a **verb** in *"book a flight"*.
+- Words have different meanings and implications depending on their role.
+- A dictionary isn't enough — we need the **context** of the sentence to decide.
+
+The goal of POS tagging in NLP is: *determine the POS tag for a particular **instance** of a word*. Per occurrence, not per word.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/pos-tagging-example.png"
+  alt="A clean instructional diagram titled 'What is POS tagging?' on warm off-white background, dark navy text. Subtitle: 'POS tagging = determine the POS tag for a particular instance of a word.' Centered: the example sentence 'She reads a book.' broken into four tokens, each in a rounded white card with the POS tag underneath in a coloured chip — She/PRP (pronoun, pink), reads/VBZ (verb, orange), a/DT (determiner, blue), book/NN (noun, green). Below the example, a 'Some tags' panel listing common abbreviations: NN Noun, VB Verb, JJ Adjective, RB Adverb, DT Determiner, PRP Pronoun, IN Preposition. Below that, a 'Uses' panel with 4 icons: Better RegExps, Text to Speech, Parsing, NER, Sentiment Analysis. Caption in slate-grey: 'The same word can be different POS in different sentences — context decides.'"
+  caption="POS tagging assigns a role per token, not per word. 'Book' is a noun here, but it could be a verb in another sentence."
+/>
+
+## Why POS tagging matters — the uses
+
+A surprisingly long list of downstream tasks gets easier once you have POS tags:
+
+- **Enhanced regex** — pattern `(Det) Adj* N+` catches multiword expressions like *"nice location"*, *"excellent food"*. Works across languages.
+- **Text-to-speech** — disambiguate pronunciation. *"lead"* (pronounced *led* as a noun, *leed* as a verb).
+- **Input for syntax parsing** — POS tags are the rung between tokens and dependency trees.
+- **Backoff in other tasks:**
+  - **NER** (named entity recognition) — focus on nouns (NN, NNP)
+  - **Sentiment analysis** — focus on adjectives (JJ)
+  - **Search ranking** — give higher weight to nouns and verbs over function words
+
+The pattern is: *POS tags are cheap structural features that downstream tasks can lean on.*
+
+## Two approaches to POS tagging
+
+There are exactly two families of methods. Pick based on whether you have training data.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/how-do-we-do-pos-tagging.png"
+  alt="Two-column comparison diagram titled 'How do we do POS tagging?' Subtitle: 'two main approaches: rules or learned probabilities.' Left card 'Rule-based (manual)' shows IF/THEN rule cards (e.g. IF word is 'time' and previous tag is DT THEN tag as NN; IF word ends with -ing and previous tag is VB THEN tag as VBG; IF word is 'cut' and previous word is 'to' THEN tag as VB), with a slate-blue info note: 'Interpretable, but hard to scale and domain-specific.' Right card 'Probabilistic modeling (machine learning)' lists: the model learns from annotated sentences, needs tagged training data, predicts the probability of a tag given the word and context, scales better but annotation is time-consuming. Below, two green formula cards: P(wᵢ | tᵢ) emission probability (word given tag), P(tᵢ | tᵢ₋₁) transition probability (tag given previous tag). Footer message: 'News text may work with default taggers; new domains like Twitter or new languages often require retraining or adaptation.'"
+  caption="Rules vs learned probabilities — same problem, two completely different cost profiles. Rules need linguists. ML needs annotated corpora."
+/>
+
+### Rule-based (manual)
+
+Hand-written rules. *"If the word ends in `-ing` and the previous tag was a verb, tag it `VBG`."*
+
+- **Pros:** interpretable, works with little data, no training needed.
+- **Cons:** hard to cover all cases, doesn't scale across languages, expert linguists need to write and maintain the rules.
+- **When to use:** very specific domain, no annotated data, language with limited NLP resources.
+
+### Probabilistic / Machine Learning
+
+Train a model on a corpus of sentences annotated with POS tags. Let it learn what comes after what.
+
+- **Pros:** scales well, adapts to new patterns, automated.
+- **Cons:** needs **annotated** training data (which someone has to label by hand), less interpretable than rules.
+- **When to use:** you have a treebank corpus for your language and domain. This is the default for English.
+
+The hidden cost of the ML approach is the **annotation cost**. Building a Penn Treebank-quality corpus takes thousands of linguist-hours. That's why English POS taggers are excellent and Swahili POS taggers are not.
+
+## The probabilistic model — what's actually being learned
+
+For a sentence of words `w₁, w₂, ..., wₙ` with hidden tags `t₁, t₂, ..., tₙ`, the model wants to find the **most likely sequence of tags**.
+
+Two probabilities do all the work.
+
+### Emission probability
+
+`P(wᵢ | tᵢ)` — *given that the tag is `tᵢ`, how likely is the word `wᵢ`?*
+
+- `P(flies | VBZ)` = how often is *"flies"* tagged as a verb across the training corpus?
+
+It's literally counting: number of times *"flies"* appears as a verb divided by total times any word appears as a verb. The model knows that *"flies"* can be a verb (the insect's verb, *to fly*) **or** a noun (the insects). Emission probability gives you that calibration.
+
+### Transition probability
+
+`P(tᵢ | tᵢ₋₁)` — *given the previous tag, how likely is the current tag?*
+
+- `P(VBZ | NN)` = after a noun, how often does a verb come next?
+
+This captures the grammatical structure. After a determiner (*the*, *a*), the next word is almost certainly a noun, not a verb. After a noun, it's often a verb or a preposition.
+
+### Putting them together
+
+For the whole sentence, the model picks the tag sequence that maximises the product of all emissions and all transitions:
+
+`argmax_{t₁...tₙ} ∏ᵢ P(wᵢ | tᵢ) · P(tᵢ | tᵢ₋₁)`
+
+This is a **Hidden Markov Model (HMM)**. The Viterbi algorithm solves it efficiently with dynamic programming.
+
+*Punchline:* at its heart, the model is **learning to count** — which the more you think about it, is what deep learning ends up doing too.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/probabilistic-pos-model.png"
+  alt="Diagram titled 'Probabilistic POS model.' Subtitle: 'emission + transition probabilities choose the most likely tag sequence.' Top row: observed words w₁, w₂, ..., wₙ above their hidden tags t₁, t₂, ..., tₙ. Two large coloured cards. Green card 'Emission probability' shows P(wᵢ | tᵢ) — how likely word wᵢ is generated by tag tᵢ — with example P(flies | VBZ). Blue card 'Transition probability' shows P(tᵢ | tᵢ₋₁) — how likely tag tᵢ follows the previous tag — with example P(VBZ | NN). Below, a purple 'Ambiguity' card showing the word 'flies' branching to VBZ (verb 3rd person singular, *She flies often*) and NNS (noun plural, *Fruit flies are tiny*). Beside it, an amber 'Decoding objective' card showing the argmax formula: argmax over T of ∏ P(wᵢ | tᵢ) · P(tᵢ | tᵢ₋₁), with the note that t₀ is a START tag. Footer: 'The model chooses the tag sequence with the highest overall probability.'"
+  caption="The full HMM picture. Emission for individual word-tag fits, transition for grammatical flow, argmax over the whole sentence to pick the best joint sequence."
+/>
+
+## POS tagging performance — the accuracy trap
+
+State-of-the-art POS taggers report **94–97% accuracy** on clean English. Sounds great. Isn't.
+
+<Callout color="yellow">
+  ⚠ **The 5% trap.** A 5% error rate means *one wrong tag every 20 words*. The average English sentence is 20+ words. So **you mess up roughly one tag in every sentence you process.** And the errors don't stay where you put them — they propagate downstream.
+</Callout>
+
+### Why isn't it 100%?
+
+- Many words are genuinely ambiguous — multiple plausible tags depending on subtle context.
+- Easy tokens (`the`, `a`, punctuation) are unambiguous and inflate the accuracy number. Strip those out and the *real* accuracy on hard cases is lower.
+- Annotation guidelines themselves disagree at the edges (is *"running"* in *"running shoes"* an adjective or a gerund?).
+
+### Domain matters
+
+The 94–97% number is on the data the tagger was trained on. Switch to a new domain or language and the numbers drop hard:
+
+| Corpus | Accuracy |
+|---|---|
+| English (Wall Street Journal) | ~97% |
+| English (Brown corpus) | ~95% |
+| Spanish (AnCora) | ~93% |
+| English Twitter | ~89% |
+| Chinese | ~75% |
+
+Tweets break taggers because the model has never seen *"smh @justinbieber 🔥🔥"* during training.
+
+### Sources of error
+
+Where does the 3–5% come from? The same handful of recurring issues:
+
+| Source | Example |
+|---|---|
+| **Lexicon gap** | new words, slang, domain-specific terms |
+| **Unknown word** | misspellings, rare or unseen words |
+| **Multi-word expressions** | *take off*, *by the way*, *out of control* |
+| **Structural ambiguity** | *"Visiting relatives can be boring."* (visiting = VBG or NN?) |
+| **Annotation standard** | different guidelines, inconsistent tags between corpora |
+| **Punctuation / tokenisation** | commas, quotes, emoticons — the upstream tokenizer fights you |
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/sources-of-tagging-errors.png"
+  alt="Table titled 'Sources of tagging errors.' Subtitle: 'why POS taggers fail outside the easiest cases.' Three columns: Source, Example / interpretation, % of errors. Rows: (1) Lexicon gap — new words, slang, or domain-specific terms — 4.5%; (2) Unknown word — misspellings or unseen tokens — 4.5%; (3) Could plausibly be right — ambiguity where more than one tag could seem reasonable — 16%; (4) Difficult linguistics — tricky constructions or rare syntax — 19.5%; (5) Under-specified / unclear — not enough context to decide — 12%; (6) Inconsistent / non-standard — noisy writing, tweets, or annotation inconsistency — 28%; (7) Gold standard wrong — the label itself may be wrong — 15.5%. Green footer note: 'Domain shift and annotation quality are major sources of error.'"
+  caption="The error breakdown. The biggest single category is 'inconsistent / non-standard' — and the second-largest is 'gold standard wrong.' The model is fighting bad data, not bad linguistics."
+/>
+
+### Improving performance
+
+The standard playbook:
+
+- **Word-based features:** the word itself, lowercased word, prefix, suffix, capitalisation, previous/next word, Brown clusters, word embeddings.
+- **Sequential models:** **CRF** (Conditional Random Field), **BiLSTM-CRF**, **Transformer-based** taggers (BERT fine-tuned for tagging). All of them dominate the classical HMM on accuracy.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/improving-pos-tagging.png"
+  alt="Two-column diagram titled 'Improving POS tagging.' Subtitle: 'better signals + better features improve predictions.' Left card 'Main sources of information' shows 'Bill saw that man yesterday' with the focus on 'saw,' which could be a VB (verb) or NN (noun); the surrounding words make the verb interpretation much more likely. Below, 'Word probabilities' notes that 'man' is rarely used as a verb. Right card 'What we can do' lists better features: word identity, lowercase form, prefixes / suffixes, capitalization, word shape (Xx, xxed, ALLCAPS), previous / next tags, surrounding words, Brown clusters or embeddings. Below: 'Then train a model to predict tags' with three chips: CRF, BiLSTM-CRF, Transformer. Bottom message: 'Feature engineering and contextual information are key to disambiguation.'"
+  caption="The recipe. Richer features + a sequential model that uses surrounding context. The classical HMM gets you a baseline; CRF / BiLSTM-CRF / fine-tuned BERT take you the rest of the way."
+/>
+
+The structure of the problem hasn't changed — you still want emissions and transitions. The models just learn them more flexibly.
+
+## The error-compounding cascade
+
+This is the part that bites. Every layer of the NLP pipeline has its own error rate, and they **multiply**.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/pos-tagging-performance.png"
+  alt="Multi-panel diagram titled 'POS tagging performance.' Subtitle: 'high token accuracy can still hide meaningful sentence-level errors.' Panel 1 'Headline metric' shows SOFTA ≈ 94–97% in large text, with three bullets: many words are unambiguous; punctuation and easy tokens inflate accuracy; missing 5% of tags can still damage sentence meaning. Panel 2 'Accuracy drops across domains and languages' shows a bar chart comparing English POS (WSJ 97.0% vs Shakespeare 81.9%), German POS (Modern 97.0% vs Early Modern 69.6%), English POS (WSJ 97.3% vs Middle English 56.2%), Italian POS (News 97.0% vs Dante 75.0%), English POS (WSJ 97.3% vs Twitter 73.7%). Panel 3 'Errors compound downstream' shows a horizontal pipeline: TEXT → Tokenization (~95%) → POS tagging (~93–98%) → Dependency parsing → Text classification, with the note 'One upstream mistake can propagate downstream.' Red footer alert: 'At 5% error, a 20-word sentence often contains about one tagging mistake.'"
+  caption="The full performance picture. Headline accuracy holds on clean training data; drops 15–40 points on out-of-domain text; and the errors compound downstream."
+/>
+
+`TOK (95%) × POS (93%) × DP (90%) × Classifier (85%) ≈ 68% effective accuracy.`
+
+Two things to take from this:
+
+1. **Don't trust headline accuracies on individual NLP tasks.** A 97% POS tagger inside a 10-layer pipeline contributes a lot less than the 97% suggests.
+2. **End-to-end systems** (modern transformers that skip the explicit pipeline) have a real structural advantage. They don't compound layer-wise errors because there are no layers in the same sense.
+
+## POS tagging in practice
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/pos-tagging-in-practice.png"
+  alt="Diagram titled 'POS tagging in practice.' Subtitle: 'quick tools and practical baselines.' Top card 'NLTK' shows a code block: import nltk; text = nltk.word_tokenize('Bill saw that man yesterday'); nltk.pos_tag(text). Output below: [('Bill', 'NNP'), ('saw', 'VBD'), ('that', 'IN'), ('man', 'NN'), ('yesterday', 'NN')]. Middle card 'Parsey McParseface / SyntaxNet' lists: based on Google's SyntaxNet, reported around 94% accuracy on Penn Treebank, human performance around 96%, parser-focused practical system. Bottom card 'Tools & Resources' has five small chips: implement your own parser, Stanford POS Tagger, state-of-the-art reviews, Twitter POS tagging, tagged corpora for training."
+  caption="The default toolbox. Three lines of NLTK gets you a POS-tagged sentence. The deeper systems (SyntaxNet, Stanford) come with their own tradeoffs."
+/>
+
+Three default tools:
+
+```python
+# NLTK — classic, slow, comprehensive
+import nltk
+nltk.download("averaged_perceptron_tagger")
+nltk.pos_tag(["She", "reads", "a", "book"])
+# [('She', 'PRP'), ('reads', 'VBZ'), ('a', 'DT'), ('book', 'NN')]
+
+# spaCy — fast, production-ready
+import spacy
+nlp = spacy.load("en_core_web_sm")
+doc = nlp("She reads a book.")
+for tok in doc:
+    print(tok.text, tok.tag_)
+# She PRP / reads VBZ / a DT / book NN / . .
+
+# Stanza — Stanford's, multilingual, accurate
+import stanza
+nlp = stanza.Pipeline(lang="en", processors="tokenize,pos")
+doc = nlp("She reads a book.")
+```
+
+And a research curio worth knowing about:
+
+- **Parsey McParseface** / **SyntaxNet** (Google, 2016) — 94% on Penn Treebank. Human-level is ~96%. Open-sourced by Google. See [their announcement](https://ai.googleblog.com/2016/05/announcing-syntaxnet-worlds-most.html).
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/pos-tagging-resources.png"
+  alt="Diagram titled 'POS tagging in practice — tools & resources.' Subtitle: 'useful libraries, parsers, corpora, and further reading.' List of 5 resource entries with URLs: (1) Implement your own parser — nelsonmanohar.wordpress.com/2015/07/08/a-part-of-speech-2nd-order-classification-tagger; (2) Stanford POS Tagger — nlp.stanford.edu/software/tagger.shtml; (3) State of the art review — arxiv.org/ftp/arxiv/papers/1708/1708.00241.pdf; (4) Twitter Part-of-Speech Tagging — derczynski.com/sheffield/papers/twitter_pos.pdf; (5) NLTK Tagged Corpora for Training — nltk.org/howto/corpus.html#tagged-corpora. Blue footer note: 'Good defaults for practice, benchmarking, and training data.'"
+  caption="Reference list. The Stanford tagger is the academic standard, the Twitter paper is the canonical 'social media is different' citation, and the NLTK corpora are where you start if you want to train your own."
+/>
+
+These three (NLTK, spaCy, Stanza) often disagree on the same sentence — same situation as the tokenizers in Part 1. I [wrote about that, plus two other small experiments](/blog/three-experiments-with-pos) as a companion.
+
+---
+
+## Part 2 — Parsing
+
+Tagging tells you *what each word is*. Parsing tells you *how the words relate*. Two completely different layers.
+
+## Two flavours of parsing
+
+There are two traditions for representing sentence structure, and they look quite different.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/constituency-vs-dependency.png"
+  alt="Two-card diagram titled 'Two types of parsing.' Subtitle: 'phrases versus head-dependent relations.' Left card 'Constituency parsing' shows the sentence 'I saw a girl with a telescope' as a full phrase structure tree: S at the root, branching into NP (PRP → 'I') and VP. VP branches into VBD ('saw'), NP (DT 'a' + NN 'girl'), and PP (IN 'with' + NP (DT 'a' + NN 'telescope')). A legend below labels Non-terminal (phrases), Pre-terminal (part-of-speech), Terminal (words). Footer: 'builds phrases and recursive structure.' Right card 'Dependency parsing' shows the same sentence laid flat with curved labelled arcs: nsubj from saw to I, dobj from saw to girl, det from girl to a, prep from saw to with, pobj from with to telescope, det from telescope to a. The verb 'saw' is the root. Footer: 'captures binary head-dependent relations.'"
+  caption="Constituency on the left — recursive phrase structure. Dependency on the right — direct word-to-word arrows. Same information, different organisation."
+/>
+
+### Constituency parsing
+
+Builds a **phrase structure tree**. Phrases inside phrases inside phrases, all the way down to individual words at the leaves.
+
+The vocabulary:
+- **Terminal nodes** = the raw words at the bottom (*"saw"*, *"the"*, *"dog"*)
+- **Pre-terminal nodes** = the POS tags (`VBD`, `DT`, `NN`)
+- **Non-terminal nodes** = the phrase categories (`S` for sentence, `NP` for noun phrase, `VP` for verb phrase)
+
+Sample structure:
+```
+S
+├── NP
+│   └── PRP (I)
+└── VP
+    ├── VBD (saw)
+    └── NP
+        ├── DT (the)
+        ├── JJ (big)
+        └── NN (dog)
+```
+
+Used heavily in older NLP work and in linguistic theory. Less common in modern production systems.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/constituency-tree-realistic.png"
+  alt="Diagram titled 'A more realistic constituency example.' Subtitle: 'real sentences create big trees.' A full constituency parse tree of the sentence 'Influential members of the House Ways and Means Committee introduced legislation that would restrict how the new savings-and-loan bailout agency can raise capital, creating another potential obstacle to the government's sale of sick thrifts.' The tree spans the full width — root S branching into NP (Influential members of the House Ways and Means Committee), VP (introduced legislation), and SBAR (that would restrict... creating... obstacle... thrifts). Many internal nodes labelled NP, VP, PP, SBAR, IN, NN, JJ, DT, NNS, VBD, MD, VB, VBG, TO. Words at the leaves shown in yellow boxes."
+  caption="A real sentence is not 'I saw a girl with a telescope.' Production-grade constituency trees blow up fast — every modifier adds a sub-tree. This is part of why dependency parsing is the modern default."
+/>
+
+### Dependency parsing
+
+Builds a **directed graph of word-to-word relationships**. Each word has one *head* it depends on, and the relationship is labelled (`nsubj` for subject, `obj` for object, `det` for determiner).
+
+For *"I saw the big dog"*:
+- `saw` is the root
+- `I` is `nsubj` of `saw`
+- `dog` is `obj` of `saw`
+- `the` is `det` of `dog`
+- `big` is `amod` of `dog`
+
+This is the representation that survives translation, that fuels relation extraction, and that attention heads inside BERT and GPT quietly learn on their own. It's the modern default.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/dependency-parsing-example.png"
+  alt="Diagram titled 'Dependency parsing example.' Subtitle: 'relationships between words, not phrase boxes.' Centered: the sentence 'I saw a girl with a telescope' shown flat with curved labelled arcs above the words: nsubj from saw to I, dobj from saw to girl, det from girl to a, prep from saw to with, pobj from with to telescope, det from telescope to a. All arrows in slate-blue. Green check footer pill: 'Same sentence, but now the structure is word-to-word.'"
+  caption="The dependency view of the same sentence — flat, word-to-word, no boxes. This is the representation the model actually consumes."
+/>
+
+## When to reach for parsing
+
+Parsing is expensive — both compute-wise and in terms of pipeline depth. But it pays off for:
+
+- **Machine translation** — relationships between words are what survive across languages. Word-by-word translation breaks; dependency-tree translation holds up.
+- **Text classification** — bag of words + POS tags + dependency features can beat plain bag of words on hard datasets.
+- **Chatbots** — find the **main verb** of the user's sentence → that's usually the intent.
+- **Question answering** — match the question's dependency structure against candidate answers.
+- **Predicting the end of a word / sentence completion** — language modelling is foundationally a dependency-aware task.
+
+## Same words, different parses, different meanings
+
+The classic example. *"I saw the man with the telescope."*
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/when-dependency-parsing-helps.png"
+  alt="Diagram titled 'When dependency parsing helps.' Subtitle: 'structure can be the end goal or a feature for another NLP task.' Top panel: a small dependency-graph icon and the explanation 'Dependency parsing is useful when meaning depends on how words relate to each other. It reveals the grammatical structure that shapes interpretation.' Beside it, an 'Ambiguity example' showing the sentence 'I saw a girl with a telescope.' with two parses side by side — left: 'with a telescope → modifies girl (the girl has a telescope)'; right: 'with a telescope → modifies saw (I used a telescope to see).' Bottom row: four use-case cards. (1) Translation: 'Understand how each word relates in the sentence — helps produce more accurate and fluent translations.' (2) Classification: 'Use syntactic structure as a feature — capture patterns in structure that bag-of-words misses.' (3) Chatbots / intent: 'Identify the main verb and user intent — better understand what the user is asking or requesting.' (4) Predictive text or next-word support: 'Structured context can help predictions — dependencies provide richer signals than word order alone.' Footer: 'Dependency parsing can be an end solution or an input representation for downstream models.'"
+  caption="The telescope ambiguity is the canonical demo. Same words, two parses, two meanings — and the use-cases below are all places where getting the parse right buys you something concrete downstream."
+/>
+
+Tagging is identical in both readings. The ambiguity is purely about **attachment** — does *"with the telescope"* modify the verb *saw* (the instrument) or the noun *man* (the possessor)?
+
+This is **prepositional-phrase attachment ambiguity** and it's one of the hardest open problems in classical parsing. Humans resolve it from context; parsers guess.
+
+## How do you train a dependency parser?
+
+You need a **treebank** — a corpus of sentences annotated with their parse trees. The Penn Treebank is the famous English one. Universal Dependencies covers 100+ languages with a shared annotation standard.
+
+From the treebank, you learn a **grammar**.
+
+### CFG — Context-Free Grammar
+
+A set of rules of the form `LHS → RHS`:
+
+```
+S → NP VP
+NP → Det N
+NP → Det Adj N
+VP → V NP
+VP → V NP PP
+PP → P NP
+```
+
+Plus a **lexicon** — every word and its possible POS tags.
+
+### The 36-parses problem
+
+CFG has a quiet crisis: most non-trivial sentences have **multiple valid parses**.
+
+The classic example from the lecture: *"Fed raises interest 0.5 percent."* Using a typical English CFG, this sentence has **36 different valid parse trees** — combinations of which words are nouns vs verbs, where the prepositional phrases attach, etc. Most of them are nonsense, but the grammar rules permit them.
+
+How do you pick the right one? Not by the rules themselves — they all pass. You need a *probability* attached to each rule.
+
+### PCFG — Probabilistic CFG
+
+Same rules + a probability for each:
+
+```
+S  → NP VP        0.80
+S  → VP           0.20
+NP → Det N        0.45
+NP → Det Adj N    0.15
+NP → PRP          0.30
+NP → Det N PP     0.10
+...
+```
+
+The probability of a parse tree is the product of all the rule probabilities used to build it. Pick the tree with the highest product.
+
+Probabilities are learned by **counting**:
+
+`P(rule) = count(rule applied) / count(LHS expanded)`
+
+So if `NP → Det N` is used 4,500 times and the LHS `NP` is expanded 10,000 times total, then `P(NP → Det N) = 0.45`. Same machinery as the HMM tagger, one level up.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/pcfg-rule-probabilities.png"
+  alt="Diagram titled 'How PCFGs learn rule probabilities.' Subtitle: 'estimate each grammar rule by counting how often it appears.' Centered: the formula P(A → BC) = P(B, C | A) = count(A → BC) / count(A → *). Below: a code snippet showing `tbank_grammar = nltk.grammar.induce_pcfg(Nonterminal('S'), tbank_productions)`. Link to nltk.org/_modules/nltk/grammar.html#induce_pcfg. Two blue pills at the bottom: 'Choose the parse with the highest probability' and 'Learn probabilities from treebank counts.'"
+  caption="The probability of a CFG rule is just how often it shows up in the training treebank. nltk has a one-liner that does it for you."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/cfg-vs-pcfg.png"
+  alt="Four-panel diagram titled 'How do you train a dependency parser?' Subtitle: 'from grammar rules to probabilistic parsing.' Panel 1 'Training data' shows two annotated parse trees ('The Fed raises rates' and 'Jobs create economic growth') with POS tags and dependency arcs. Panel 2 'Grammar + lexicon' shows example CFG rules (S → NP VP, NP → Det N, NP → NP PP, VP → V NP, VP → V NP PP, PP → P NP, Det → the | a) and a lexicon (fed → NNP, interest → NN, raise → VB, 0.5 → CD, percent → NN). Panel 3 'Too many possible parses' shows the sentence 'Fed raises interest 0.5 percent' with three different valid parse trees (out of 36 possible). Panel 4 'PCFG chooses the best one' shows the rule-probability formula P(A → BC) = count(A → BC) / count(A → *), with a single highlighted parse tree where each node carries a probability (e.g. S 0.82, NP 0.91, VP 0.76, VBP 0.94, NP 0.88). Green footer: 'Count rule frequencies, then choose the parse with the largest probability.'"
+  caption="The full picture. From annotated treebank → CFG rules + lexicon → many possible parses → PCFG probabilities pick the most likely one. Same machinery as the HMM tagger, one level up."
+/>
+
+### Modern alternatives — neural parsers
+
+Like with POS tagging, the classical CFG/PCFG approach has been overtaken by neural models:
+
+- **Transition-based parsers** — model parsing as a sequence of shift/reduce actions, predict each action with a classifier (SyntaxNet, spaCy).
+- **Graph-based parsers** — score every possible dependency arc, pick the maximum spanning tree (Stanza, biaffine attention parsers).
+- **End-to-end transformers** — skip the explicit parse, let attention heads learn dependency structure implicitly.
+
+All of them blow past PCFG on accuracy. The conceptual framework — *learn probabilities from a treebank, pick the highest-probability structure* — is the same.
+
+<Image
+  src="/images/blog/nlp-from-scratch/tagging-parsing/traditional-vs-end-to-end.png"
+  alt="Two-row comparison diagram titled 'From handcrafted pipelines to end-to-end text classification.' Subtitle: 'two ways to get from raw text to a classifier.' Top row 'Traditional NLP' shows a 6-stage pipeline: Text → Tokenization → POS tagging (NOUN, VERB, ADJ) → Dependency parsing (arc diagram 'I love NLP') → Feature engineering → Text classifier. Red footer pill: 'many manual preprocessing steps.' Bottom row 'Deep learning' shows a 4-stage pipeline: Text → Transformer / RNN encoder → Learned representation → Text classifier. Green footer pill: 'representation is learned end-to-end.'"
+  caption="The same end goal — classify a piece of text — reached two completely different ways. The traditional pipeline is what this post has been describing. The deep-learning path skips the explicit pipeline entirely and learns the representation as part of training. Both are still in use."
+/>
+
+## A quick reference for the common POS tags
+
+| Code | Meaning | Example |
+|---|---|---|
+| **NN** | Noun, singular | book |
+| **NNS** | Noun, plural | books |
+| **NNP** | Proper noun | Paris |
+| **VB** | Verb, base form | run |
+| **VBD** | Verb, past tense | ran |
+| **VBG** | Verb, gerund / present participle | running |
+| **VBN** | Verb, past participle | eaten |
+| **VBZ** | Verb, 3rd-person singular | runs |
+| **JJ** | Adjective | big |
+| **JJR** | Adjective, comparative | bigger |
+| **JJS** | Adjective, superlative | biggest |
+| **RB** | Adverb | quickly |
+| **DT** | Determiner | the, a, which |
+| **PRP** | Personal pronoun | she, we |
+| **PRP$** | Possessive pronoun | mine, theirs |
+| **IN** | Preposition | in, on, with |
+| **CC** | Coordinating conjunction | and, or, but |
+| **TO** | to | to |
+
+This is the Penn Treebank tag set, the de facto standard for English NLP. Other languages use Universal Dependencies tags, which are simpler (only ~17 categories) but less granular.
+
+## What's next
+
+Tagging and parsing recover *syntactic* structure — the grammatical skeleton. But two words can play the same syntactic role and mean completely different things (`doctor` and `physician` are both nouns, both subjects, but they're *synonyms*; nothing in this layer tells the model that).
+
+That's the **semantic** layer — Part 4. We move from *roles* to *meanings*, and from sparse vectors to **embeddings** — where words that mean similar things end up close together in a continuous space, even when nobody told the model they were related.
+
+See you in Part 4.

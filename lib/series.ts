@@ -48,7 +48,7 @@ export const series: Series[] = [
     posts: [
       { part: 1,  title: "What NLP is (and what it isn't)",             slug: "nlp-from-scratch-01-introduction",            published: true  },
       { part: 2,  title: "From Text to Vectors",                        slug: "nlp-from-scratch-02-from-text-to-vectors",    published: true  },
-      { part: 3,  title: "Tagging & Parsing",                           slug: "nlp-from-scratch-03-tagging-parsing",         published: false },
+      { part: 3,  title: "Tagging & Parsing",                           slug: "nlp-from-scratch-03-tagging-parsing",         published: true  },
       { part: 4,  title: "Semantics & Word Embeddings",                 slug: "nlp-from-scratch-04-semantics",               published: false },
       { part: 5,  title: "Language Modeling",                           slug: "nlp-from-scratch-05-language-modeling",       published: false },
       { part: 6,  title: "Text Classification — Classical",             slug: "nlp-from-scratch-06-text-classification",     published: false },
