@@ -1,0 +1,590 @@
+---
+slug: nlp-from-scratch-02-from-text-to-vectors
+title: "Part 2: From Text to Vectors"
+subtitle: "How a computer turns language into numbers. Bag of words, TF-IDF, cosine similarity, tokenization, normalization, stemming vs lemmatization — every preprocessing step that sets the ceiling for everything that comes next."
+date: "January 2026"
+updated: "June 2026"
+excerpt: "Machine learning only works on numbers. Language is letters. This post is the whole bridge between the two — corpus, documents, words, terms, bag of words, count vectorizers, TF-IDF, the cosine-vs-Euclidean trap, stop words, regex, tokenization (word, subword, character, sentence), normalization, stemming, lemmatization. Every concept from my Session 2 notes, in one place."
+tags:
+  - NLP
+  - Text Processing
+  - TF-IDF
+  - Tokenization
+  - Bag of Words
+  - Cosine Similarity
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 2
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/text-to-vectors/from-text-to-vectors-pipeline.png"
+---
+
+*NLP from Scratch · Part 2/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** Read the [one-page cheat sheet](/cheatsheets/nlp-from-scratch-02-from-text-to-vectors) — every preprocessing decision, every formula, every trap from this post, condensed for fast revision (or `⌘ P` to print it).
+</Callout>
+
+> Machine learning only works on numbers. Language is letters. Everything in this post is about closing that gap.
+
+In [Part 1](/blog/nlp-from-scratch-01-introduction) we drew the 5-level NLP ladder. This session lives at the bottom — **Level 1 · Morphology**. Before any model can do anything interesting with text, somebody has to turn that text into a vector. *How* you do that turns out to set the ceiling for everything that follows.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/from-text-to-vectors-pipeline.png"
+  alt="A clean three-stage horizontal pipeline diagram titled 'From text to vectors with fit_transform()' on warm off-white background, dark navy text. Subtitle: 'how CountVectorizer and TfidfVectorizer turn text into machine-learning features.' Stage 1 is a rounded card titled 'Raw documents' with a document icon and three example documents d1: 'I like eggs', d2: 'I hate cats', d3: 'I like cats'. A thick arrow points to Stage 2, a rounded card titled 'Vectorizer' with a gear icon, containing two code lines: fit_transform(train_text) and transform(test_text). Another arrow points to Stage 3, a rounded card titled 'Sparse matrix X' showing a 3×5 grid with columns 'I, like, eggs, hate, cats' and rows d1, d2, d3 filled with the resulting binary or count values. Below the three stages, three explanatory cards in a row: blue 'rows = data samples — each row represents one document or text sample'; green 'columns = vocabulary terms — each column is a unique term learned from the training data'; red 'most values are zero → sparse matrix — only a few terms appear in each document, so most entries are 0.' Bottom strip with a code icon shows the two essential lines of code: X_train = vectorizer.fit_transform(input_train) and X_test = vectorizer.transform(input_test). Footer: 'Machine learning works on numbers, so vectorizers map text into numerical feature matrices.'"
+  caption="The whole pipeline in three boxes: raw text → vectorizer → sparse matrix. Every blog post in this series lives somewhere on this diagram. This one is the whole diagram."
+/>
+
+## Why this matters even when you have deep learning
+
+A reasonable question: *if I'm going to throw a transformer at the problem anyway, why am I learning bag of words?* Three answers:
+
+1. **You probably don't need deep learning.** For most text-classification problems with a few thousand examples, a TF-IDF vector + logistic regression beats a fine-tuned BERT — and ships in 50 lines. Always ask: *does this need ML at all?* For a lot of pattern extraction, **regex is enough.**
+2. **You need to know what the neural net is learning.** When you inspect a transformer's attention heads, it turns out it's quietly learning a dependency parse — the same thing you'd compute by hand. You can only see that if you already know what a dependency parse *is*.
+3. **Preprocessing depends on the data.** Wikipedia-trained model on a financial-contracts corpus? Bad call. Small dataset, very specific domain? The preprocessing choices matter much more than the model choice.
+
+## Basic concepts and terminology
+
+Three words you need to use precisely from now on:
+
+- **Corpus** — the dataset. A collection of tweets, a collection of Wikipedia pages, a folder of PDFs.
+- **Document** — one row, one classification target. If you classify *news articles* as sports vs politics, the document is the article. If you classify *tweets* by sentiment, the document is the tweet. If your "review" actually contains three paragraphs (one about location, one about service, one about food) and you want to classify *each paragraph*, then the document is the paragraph. **The document is whatever your unit of analysis is** — sentence, paragraph, chapter, page.
+- **Words** — the components of a document as written. What you see in the raw `.txt` file. Features at their rawest.
+- **Terms** — words after preprocessing. The actual columns in your feature matrix. *After* stop-word removal, lowercasing, stemming.
+
+The whole rest of the post is about **how words become terms**.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/basic-text-processing-key-concepts.png"
+  alt="A clean four-panel overview diagram titled 'Basic text processing · key concepts' on warm off-white background, dark navy text. Subtitle: 'the core building blocks before deeper NLP.' Top row has three side-by-side cards. Card 1 'The 5 levels of NLP' (recap) shows a vertical numbered list: 1 Morphology — meaning of words, 2 Syntax — sentence structure, 3 Semantics — meaning of words and sentences, 4 Pragmatics — speaker intent, 5 Inference — new implied information. Card 2 'Corpus → documents → words / terms' shows a vertical flow with example callouts on the right: Corpus = dataset (e.g. 'collection of tweets'), Documents = rows or units to classify (e.g. 'one tweet / one paragraph'), Words = raw tokens (e.g. 'dog', 'toy', 'runs'), Terms = processed features (e.g. 'processed words'). Card 3 'Why preprocessing matters' has three numbered points: 1 decide if simple rules or ML are enough — match the method to the problem's complexity; 2 understand intermediate structure — artifacts like dependency paths carry useful signal; 3 adapt processing to domain and data — what works for news may not work for tweets. Bottom panel 'Bag of words — useful but limited' shows two pairs side by side: 'dog toy' → table with counts dog=1, toy=1, runs=0, barks=0; a red 'word order is ignored' annotation in the middle; 'toy dog' → identical counts table. Below the example: four red callout pills — 'loses word relationships', 'loses context', 'fillers dominate', 'synonyms still look different'. Bottom band: 'Bag of words is a simple representation, but it throws away sequence information.'"
+  caption="The whole session in one frame. The 5-level recap, the vocabulary hierarchy, why preprocessing matters, and the cost of bag of words — all at a glance."
+/>
+
+## Bag of words — the simplest representation
+
+Imagine you have a text-classification problem. Spam vs not spam. You can't feed a string into logistic regression. So you have to turn the email into a vector. The simplest way to do that is to count words.
+
+This is called the **bag of words** representation: you throw all the words into a bag, count how many of each there are, and forget the order.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/countvectorizer-bag-of-words.png"
+  alt="A clean instructional diagram titled 'CountVectorizer · bag of words' on warm off-white background, dark navy text. Subtitle: 'from raw documents to a sparse document-term matrix.' Top strip shows the Vocabulary in a clean horizontal pill: I, like, eggs, hate, cats, and. Left card 'Original documents' lists three documents — d1: 'I like eggs', d2: 'I hate cats', d3: 'I like eggs and I like cats'. Slate-blue arrow points to a right card showing the resulting document-term matrix where each row is one document and each column is one vocabulary term, with the counts filled in. Three callout pills below: '1 document = 1 row' (blue), '1 unique word = 1 column' (green), and 'word order is ignored' (red). Bottom panel shows the scikit-learn code: vectorizer = CountVectorizer(); X_train = vectorizer.fit_transform(documents). Info icon caption: 'Result: a sparse matrix with many zeros.'"
+  caption="Three short documents → one vocabulary → one matrix. Each row is a document, each column is a vocabulary term, and word order is lost."
+/>
+
+The structure you lose is enormous:
+
+- **Word order** — *"dog bites man"* and *"man bites dog"* have the same bag. One is a Tuesday, the other is news.
+- **Context** — *"I love this place"* in a positive review vs *"I love how this place is the worst I've ever been to"*. Same words, opposite meaning.
+- **Synonyms** — *doctor* and *physician* end up as separate columns. Bag of words has no idea they're related. (We'll fix this with embeddings in Part 4.)
+
+Still, the bag of words representation is the foundation of every classic NLP system, and the modern deep models are essentially attempts to fix its limitations.
+
+### N-grams — a tiny bit of order, brought back
+
+The cheapest way to recover *some* word order without changing the bag-of-words mechanics: instead of using single words as features, use **consecutive sequences of `n` words**.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/n-grams.png"
+  alt="A clean three-card diagram titled 'N-grams' on warm off-white background, dark navy text. Subtitle: 'consecutive sequences of items.' Top strip: 'An n-gram is a sequence of n consecutive items: words, subwords, or characters.' Three side-by-side cards each showing the example sentence 'I am fine' broken down. Card 1 (green) 'Unigram (n = 1)' shows three single-token boxes [I], [am], [fine]. Footer: 'single items.' Card 2 (blue) 'Bigram (n = 2)' shows two paired-token boxes [I am], [am fine]. Footer: 'pairs.' Card 3 (red) 'Trigram (n = 3)' shows one triple-token box [I am fine]. Footer: 'triples.' Bottom row has three info pills: 'word2vec often uses skip-grams', 'Markov models often use bigram probabilities', 'larger n captures more local context but increases sparsity.' Bottom band: 'N-grams add a small amount of sequence information compared with bag of words.'"
+  caption="Same bag-of-words machinery, slightly bigger units. Bigrams catch 'New York' as one feature instead of two unrelated words. Higher n catches more context — at the cost of vocabulary explosion."
+/>
+
+In scikit-learn:
+
+```python
+TfidfVectorizer(ngram_range=(1, 2))  # unigrams + bigrams
+```
+
+When to bump `n` above 1:
+- **Sentiment analysis** — *"not good"* tells you something *good* alone doesn't.
+- **Named entities** — *"New York"*, *"machine learning"* are concepts, not two unrelated words.
+- **Search queries** — bigrams are how Google figured out you weren't searching for *York* alone.
+
+When to keep `n = 1`:
+- **Small corpus** — bigrams sparsify the matrix fast; you may not have enough data to learn from them.
+- **Transformer pipeline** — self-attention handles word combinations natively. Stick with unigrams (or subwords).
+
+## CountVectorizer — turning the bag into a matrix
+
+Concretely: you have a corpus of `N` documents. You collect every unique word across all of them — that's your **vocabulary**, size `V`. Each document becomes a vector of length `V`, where position `i` is the count of vocabulary word `i` in that document.
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+
+corpus = [
+    "the cat sat on the mat",
+    "the dog sat on the rug",
+    "the cat chased the dog",
+]
+
+cv = CountVectorizer()
+X = cv.fit_transform(corpus)
+
+print(cv.vocabulary_)   # {'the': 7, 'cat': 1, 'sat': 6, 'on': 5, 'mat': 4, 'dog': 3, 'rug': 5, 'chased': 2}
+print(X.toarray())
+# [[0 1 0 0 1 1 1 2]   ← 'the' appears twice in doc 0
+#  [0 0 0 1 0 1 1 2]
+#  [1 1 1 1 0 0 0 2]]
+```
+
+A few things you have to internalise about this matrix:
+
+- **Shape: `N × V`** — rows are documents, columns are vocabulary terms.
+- **It's sparse.** Most documents contain a tiny subset of the vocabulary. If your corpus has 50,000 unique words and a tweet has 15 of them, that row is 49,985 zeros. Storing it as a dense matrix is wasteful. `scipy.sparse` matrices store only the non-zero entries.
+- **You need a vocabulary mapping** — *"which column is the word 'cat'?"* That's what `cv.vocabulary_` is for. Without the mapping, the matrix is useless.
+
+## Weighting schemes — what goes in the cells
+
+The matrix shape is always `N × V`. What changes is *what number you put in each cell*.
+
+### Binary weighting
+
+The crudest version. `1` if the word appears in the document, `0` if it doesn't. No counts.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/binary-weighting-shakespeare.png"
+  alt="A clean instructional diagram titled 'Binary weighting · document-term representation' on warm off-white background, dark navy text. Subtitle: 'presence / absence instead of raw counts.' Top strip shows two pill labels: '1 if the term appears at least once' (blue pill marked '1 term present') and '0 if absent' (green pill marked '0 term absent'). Centered: a 6×4 example matrix titled 'Example binary document–term matrix.' Rows are Shakespeare plays (Antony and Cleopatra, Julius Caesar, The Tempest, Hamlet, Othello, Macbeth). Columns are terms (Antony, Caesar, mercy, worser). Cells filled with 0s and 1s only. Three pill annotations under the matrix: blue 'documents = rows', blue 'terms = columns', green '✓ binary features ignore frequency.' Bottom row has two cards: blue 'Binary weighting — good when mere presence matters' with a check icon; red 'Limitation — repeating a word 20 times looks the same as using it once' with a warning icon. Footer: 'This is the simplest document-term representation.'"
+  caption="Binary weighting on the Shakespeare corpus. Each cell answers a yes/no: does this play contain this word at all? Useful when presence is the only signal — but throws away frequency."
+/>
+
+Useful for: presence/absence questions ("does this email contain the word *Viagra*?"). Loses everything else.
+
+### TF — term frequency
+
+Just count. The cell holds the number of times the word appears in the document.
+
+This lets you reason about similarity: *two documents are similar if they contain the same words at similar rates.* Distance between row vectors becomes a measure of document similarity. Distance between *column* vectors becomes a measure of word similarity — *"if `Brutus` and `Caesar` appear in the same plays at the same rates, they're related words."*
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/tf-weighting-shakespeare.png"
+  alt="A clean instructional diagram titled 'TF weighting · raw counts as features' on warm off-white background, dark navy text. Subtitle: 'count how often each term appears in each document.' Centered: a 6×6 example document-term matrix titled 'Example document–term matrix.' Rows are Shakespeare plays (Antony and Cleopatra, Julius Caesar, The Tempest, Hamlet, Othello, Macbeth). Columns are terms (Antony, Brutus, Caesar, Cleopatra, mercy, worser). Cells filled with example counts like 157, 4, 232, 57, 2, 2 for Antony and Cleopatra. Below the matrix, two side-by-side panels. Left panel 'Similar documents' shows the Antony and Cleopatra row next to the Julius Caesar row with their term counts visualised, plus a green pill: 'similar vectors → probably same class.' Right panel 'Similar words' shows the Brutus column next to the Caesar column with their per-document counts, plus a blue pill: 'if words appear in similar documents, they can be related.' Bottom strip in a red-bordered alert card: 'Problem: very frequent words dominate the counts.' Footer in slate-grey: 'TF is simple and intuitive, but it overweights common terms.'"
+  caption="The Shakespeare example. Row similarity tells you about documents (Antony and Cleopatra vs Julius Caesar are close — both Roman-era plays). Column similarity tells you about words (Brutus and Caesar co-occur in the same plays at similar rates)."
+/>
+
+### The problem with raw counts
+
+The most frequent words are the same in almost every document. *the, a, is, of, and.* If you measure similarity using raw counts, every document looks like *"mostly the word 'the'"* — because that's literally true.
+
+You have two options:
+- **Manually remove stop words** — we'll cover this below.
+- **Down-weight them automatically** — TF-IDF.
+
+The second option is better because it doesn't require you to know in advance which words are uninformative for your specific corpus.
+
+## TF-IDF — the upgrade
+
+The intuition comes from **Zipf's Law**: in any natural-language corpus, a few words appear extremely often (the, of, a) and many words appear extremely rarely. The rare ones are usually the informative ones. *"Mitochondria"* tells you a lot about which document you're looking at. *"the"* tells you nothing.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/zipfs-law.png"
+  alt="A clean instructional diagram titled 'Zipf's law' on warm off-white background, dark navy text. Subtitle: 'a few terms are very frequent, many terms are rare.' Centred: a log-log plot titled 'Rank vs frequency' with word rank on the x-axis (10⁰ to 10⁶) and frequency on the y-axis (10⁻⁶ to 10⁶). A smooth dark navy curve drops steeply from top-left to bottom-right. Annotations along the curve label specific words: 'the', 'and', 'of', 'it' near the top of the curve; 'mitochondria', 'arachnocentric', 'voltage', 'lemmatizer' along the long tail. A blue info pill in the middle of the plot: 'frequency drops roughly as rank increases.' Two side panels: red on the left with a pie-chart icon — 'head of the distribution → very common words'; green on the right with a long-tail icon — 'long tail → many rare, informative terms.' Bottom band with a light-bulb icon: 'Zipf's law explains why raw term counts are dominated by common words and why weighting schemes such as TF-IDF are helpful.'"
+  caption="The whole shape of any natural-language corpus. A handful of words dominate; the rest are vanishingly rare. The rare ones are usually the informative ones — and that's the reason TF-IDF exists."
+/>
+
+So we want to **boost the weight of rare-but-present terms** and **crush the weight of terms that appear everywhere**.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/tf-idf-formula.png"
+  alt="A clean three-panel formula diagram titled 'TF-IDF · reward informative terms' on warm off-white background, dark navy text. Subtitle: 'high inside one document, rare across the whole corpus.' Three numbered panels. Panel 1 (blue) titled 'Term frequency' shows the formula tf(t, d) = count(t, d) inside a rounded blue card, with the explanation 'How many times term t appears in document d.' Panel 2 (red) titled 'Inverse document frequency' shows the formula idf(t) = log( N / df(t) ) inside a rounded red card, plus a small downward-decreasing curve labelled 'idf decreases as document frequency rises · log squashes large values.' Two pills on the right of the curve: green 'Rare term → high IDF' and red 'Common term → low IDF.' Panel 3 (green) titled 'Combined weight' shows the smoothed sklearn formula w(t, d) = (1 + log tf(t, d)) × log(N / df(t)) inside a rounded green card. Three pill annotations below: 'high if frequent in one document', 'low if common across many documents', 'best for distinctive terms.' On the right, a small purple chip: 'TfidfVectorizer() in scikit-learn.' Footer line: 'N = total number of documents in the corpus | df(t) = number of documents containing term t.'"
+  caption="The whole TF-IDF formula on one page. Multiplying TF by IDF down-weights words that appear in every document and up-weights words that appear in a few. The log squashes the otherwise enormous scale."
+/>
+
+### The math
+
+`TF-IDF(t, d) = TF(t, d) × IDF(t)`
+
+Where:
+- **TF(t, d)** — term frequency. How many times does term `t` appear in document `d`? Two arguments because the same word has a different count in every document.
+- **IDF(t)** — inverse document frequency. *How rare is this term across the entire corpus?* One argument because it doesn't depend on a specific document.
+
+`IDF(t) = log( N / df(t) )`
+
+Where:
+- `N` = total number of documents in the corpus
+- `df(t)` = document frequency — *the number of documents in which term `t` appears at least once*
+
+**Why the log?** If your corpus has 1,000,000 documents and a term appears in 10 of them, `N/df = 100,000`. Without the log, that single term would dominate everything. The log squashes the scale: `log(100,000) ≈ 11.5`. Suitable, not insane.
+
+### What this does in practice
+
+- A word that appears in **every** document has `df = N`, so `IDF = log(N/N) = log(1) = 0`. Multiplied by anything, you get 0. *Stop words get crushed automatically.*
+- A word that appears in **one** document has `df = 1`, so `IDF = log(N)`. Maximum boost.
+- Everything else falls between.
+
+So *"the"* gets crushed even if you didn't tell the system it was a stop word. *"Mitochondria"* gets boosted even if you didn't tell the system it was important. *That's the magic.*
+
+### Normalising TF-IDF
+
+The last step: divide each row vector by its L2 norm so its length is 1. This way **document length doesn't matter** — a long article and a short tweet about the same topic end up close together, instead of the long article having huge counts in every cell.
+
+This is also why Euclidean distance and cosine similarity become equivalent after L2 normalisation, which we'll see below.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/tfidf-variations-normalization.png"
+  alt="A clean three-panel diagram titled 'TF-IDF variations and normalization' on warm off-white background, dark navy text. Subtitle: 'common implementation choices behind the weighting scheme.' Top row has two side-by-side cards. Left card (blue) titled 'Term frequency variations' lists three options: 1 raw count — tf(t, d) = count(t, d); 2 normalized count — tf(t, d) = count(t, d) / total terms in d; 3 log-scaled tf — tf(t, d) = 1 + log(count(t, d)). Green pill at the bottom: 'all increase when a term appears more inside one document.' Right card (red) titled 'Inverse document frequency variations' lists three options: 1 classic — idf(t) = log(N / df(t)); 2 smooth — idf(t) = log((1 + N) / (1 + df(t))) + 1; 3 probabilistic — idf(t) = log((N − df(t)) / df(t)). Red pill at the bottom: 'idf decreases as document frequency rises.' Bottom panel (green) titled 'Normalizing TF-IDF vectors' shows the formula x̂ = x / ||x||₂ in a rounded card, plus three side annotations: green pill 'L1 normalization divides by the sum', blue info card 'After L2 normalization, Euclidean distance and cosine similarity give the same ranking', and a dashed monospace chip 'TfidfVectorizer(norm=\\'l2\\').' Footer: 'TF-IDF has several variants, but the main idea stays the same: reward terms that are frequent in one document and rare across the corpus.'"
+  caption="Same intuition, multiple implementations. scikit-learn's default uses the 'smooth' IDF (the +1s prevent division-by-zero on unseen terms) and L2 normalisation on the final vector — that's what you actually call when you write `TfidfVectorizer()`."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/tf-vs-tfidf.png"
+  alt="A two-panel scatter-plot comparison titled 'TF vs TF-IDF representations' on warm off-white background, dark navy text. Subtitle above the title in a small blue info card: 'Zipf's law: a few terms are very frequent, many terms are rare.' Below, a slate-grey subtitle: 'TF-IDF usually separates classes more clearly.' Two side-by-side 2D scatter plots, both with Feature 1 (x-axis) and Feature 2 (y-axis). Left plot 'TF only' shows blue and orange dots heavily overlapping in the centre of the plot — two classes that are visually indistinguishable. Red pill below: 'common words still dominate.' Right plot 'TF-IDF' shows the same blue and orange dots but now clearly separated into two distinct clusters in opposite corners — class separation is obvious. Green pill below: 'informative terms stand out.' Bottom band: 'TF-IDF selects informative terms and often improves class separation.'"
+  caption="Two classes visualised in 2D. Under raw TF, the two clusters overlap — the common words drown out the signal. Under TF-IDF, the clusters separate cleanly. That's the whole point."
+/>
+
+In scikit-learn:
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+tv = TfidfVectorizer()       # tokenizes + counts + applies TF-IDF + L2-normalises
+X = tv.fit_transform(corpus)
+```
+
+One line. Behind it, the whole pipeline of counting, log-scaling, and normalisation.
+
+## Vector similarity — measuring "close"
+
+Now every document is a point in a `V`-dimensional space. *How close are two documents?* You need a distance.
+
+### Euclidean distance
+
+The straight-line "as the crow flies" distance.
+
+`d(u, v) = √( Σ (uᵢ − vᵢ)² )`
+
+Intuitive — same way you'd measure on a map. But it has a quiet failure mode for documents.
+
+### The long-book / short-book trap
+
+Imagine three books, two vocabulary terms: `mitochondria` and `voltage`.
+
+- **Book A**: a long biology textbook. Mitochondria appears 800 times, voltage 0.
+- **Book B**: a short biology pamphlet. Mitochondria appears 30 times, voltage 0.
+- **Book C**: a short electronics manual. Mitochondria 0, voltage 25.
+
+Vectors:
+
+| Book | mitochondria | voltage |
+|---|---|---|
+| A | 800 | 0 |
+| B | 30 | 0 |
+| C | 0 | 25 |
+
+Compute Euclidean distance:
+- `d(A, B) = √((800-30)² + 0²) = 770`
+- `d(B, C) = √(30² + 25²) ≈ 39`
+
+**The biology pamphlet is closer to the electronics manual than to the biology textbook.** That's wrong. They're closer only because they have similar lengths.
+
+### Cosine similarity to the rescue
+
+Cosine measures the *angle* between two vectors, not the distance between their tips.
+
+`cosine(u, v) = (u · v) / (‖u‖ · ‖v‖)`
+
+- Two vectors pointing the same way (parallel) → cosine = 1
+- Two vectors at 90° → cosine = 0
+- Two vectors pointing opposite ways → cosine = −1
+
+`cosine distance = 1 − cosine similarity`
+
+For our three books:
+- Books A and B both point straight up the `mitochondria` axis. Angle = 0°. Cosine similarity = 1. Cosine distance = 0.
+- Book C points straight right along `voltage`. Angle to A = 90°. Cosine similarity = 0. Cosine distance = 1.
+
+*Now* the biology books are closest to each other, regardless of length. **This is why cosine is the default in NLP.**
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/vector-similarity.png"
+  alt="A clean two-panel diagram titled 'Vector similarity in NLP' on warm off-white background, dark navy text. Subtitle: 'Euclidean distance vs cosine similarity.' Two side-by-side rounded cards. Left card titled 'Euclidean distance' with the description 'Measures the straight-line distance between two vectors.' A small 2D plot shows two vectors x (blue) and y (red) from origin, with a dashed line labelled 'distance' connecting their endpoints. Below the plot, the formula ||x − y||₂ = √((x₁ − y₁)² + (x₂ − y₂)² + ... + (x_D − y_D)²) in a monospace card. Two bullets: 'Depends on the magnitude (length) of vectors' and 'Longer documents tend to be farther apart, even if their direction is similar.' Red pill at the bottom: '⚠ sensitive to document length.' Right card titled 'Cosine similarity' with description 'Measures the cosine of the angle between two vectors.' A second 2D plot shows the same x and y vectors meeting at the origin with an angle θ between them. Below it, the formula cos(θ) = (x · y) / (||x|| ||y||) and an explanation 'cosine distance = 1 − cosine similarity.' Two mini sub-cards: 'Angle = 0° → similarity = 1, distance = 0' and 'Angle = 180° → similarity = −1, distance = 2.' Green pill at the bottom: '✓ Usually better for documents of different lengths.'"
+  caption="Two metrics, two answers. Euclidean walks the straight line between points; cosine reads the angle between directions. For documents, only the angle is reliable."
+/>
+
+### When they're equivalent
+
+Two cases:
+
+- **After L2 normalisation.** Once every vector has length 1, Euclidean and cosine produce the same ranking. (Mathematically: `‖u − v‖² = 2 − 2·(u · v)` when `‖u‖ = ‖v‖ = 1`.) That's why `TfidfVectorizer` L2-normalises by default — it makes everything downstream cheaper.
+- **When you only care about ranking, not absolute distance.** Search engines, recommendation systems — you just need to know *"which document is most similar"*, not the actual similarity score. Either metric works.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/cosine-euclidean-agreement.png"
+  alt="A clean two-panel diagram titled 'When do cosine and Euclidean agree?' on warm off-white background, dark navy text. Subtitle: 'the answer: after L2 normalization.' Two side-by-side rounded cards. Left card titled 'Unnormalized vectors' shows a 2D plot with three vectors from the origin: a long blue arrow 'Biology book A', a shorter blue arrow 'Biology book B', and a red arrow 'Electronics book.' A dashed triangle highlights the distance between A and B. Red pill at the bottom: '⚠ length differences can distort Euclidean distance.' Right card titled 'L2-normalized vectors' shows the same three vectors but now all ending on a dashed unit circle labelled ||x|| = 1. Both Biology books point in nearly the same direction (close together); the Electronics book points off in a different direction. Green pill at the bottom: '✓ similar direction now matters more than document length.' Below both cards, a wider 'Unit-vector identity' card shows the formula ||x − y||² = 2 − 2cos(θ) with caption 'where ||x|| = ||y|| = 1 and θ is the angle between x and y.' On the right of the identity, a blue info card: 'For unit vectors, ranking by Euclidean distance is equivalent to ranking by cosine similarity.' Footer: 'That is why cosine similarity is especially useful for documents of different lengths.'"
+  caption="The mathematical reason TF-IDF L2-normalises by default. After projection onto the unit circle, Euclidean and cosine rank the same — and document length stops distorting the geometry."
+/>
+
+## Stop words
+
+The other way to handle common-word dominance. Curate a list of words you'll just remove before vectorising. *the, a, is, of, and, to, in.*
+
+### Why use them
+
+- They're *extremely common* and appear in almost every document.
+- They're *uninformative* — they don't help you distinguish positive reviews from negative ones.
+- They *increase dimensionality*. Every stop word is a column you have to allocate memory for.
+- They *distort distance*. With raw counts, their huge values overpower the small ones that actually matter.
+
+### How to use them
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer(stop_words="english")  # uses sklearn's default English list
+```
+
+Or with NLTK:
+
+```python
+from nltk.corpus import stopwords
+stop = set(stopwords.words("english"))
+tokens = [w for w in tokens if w not in stop]
+```
+
+You can also add **domain-specific** stop words — HTML tags, common boilerplate text in financial filings, repeated email signatures. Whatever shows up in every document of your corpus and isn't discriminative.
+
+### The tradeoff
+
+Stop words consider words **individually**. They don't know about sentence structure.
+
+- **OK for**: spam classification, sentiment analysis, topic classification — where you only care about *which* words appear.
+- **Bad for**: text summarization, machine translation, anything generative — where word order and function words are part of the meaning.
+
+<Callout color="yellow">
+  ❌ **Myth:** *"Stop words should always be removed."*
+  ✅ **Reality:** It depends on the task. Classification — yes. Summarization or generation — no, you'd destroy the sentence structure. Also: **TF-IDF down-weights stop words automatically**, so you often don't need a manual list at all.
+</Callout>
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/stopwords-and-regex.png"
+  alt="A clean two-card cleaning-text diagram titled 'Cleaning text · stopwords and regular expressions' on warm off-white background, dark navy text. Subtitle: 'remove low-information terms and use rule-based patterns.' Two side-by-side cards. Left card (blue accent) titled 'Stopwords' with a 🚫 icon. Three bullets: extremely common, little discriminative value, more dimensions = more computation. Two code snippets: CountVectorizer(stop_words='english') and stopwords.words('english'). Below that, 'Example stopwords' showing: the, is, are, I, me, my. A red alert card at the bottom: '! Be careful: removing stopwords can hurt tasks that need sentence structure.' Right card (green accent) titled 'Regular expressions' with a .* icon. A 6-row pattern table: ^abc / abc$ / ab* / \\d+ / \\w+ / [abc] with plain-English meanings. Two sub-panels: 'Validate email addresses' with a code snippet using re.compile and email_pattern.match; and 'Filter unwanted content' with a code snippet using re.sub and re.IGNORECASE. Blue info pill at the bottom: 'Great for dates, links, entities, and text cleaning.' Footer band: 'Stopwords simplify the vocabulary; regex captures hand-written rules.'"
+  caption="Two of the oldest text-cleaning tools, still useful. Stopwords simplify the vocabulary; regex captures hand-written rules that no model can learn from your tiny dataset."
+/>
+
+## Regular expressions — the first model you should try
+
+Regex is a formal language for specifying text patterns. In NLP it shows up everywhere:
+
+- **First-pass extraction** — pull dates, currency, URLs, emails, phone numbers, named entities out of raw text with a single pattern.
+- **As features inside an ML classifier** — *"does this string match the regex for a tracking number?"* becomes a binary feature.
+- **For cleaning** — strip HTML tags, normalise whitespace, remove emoji.
+
+```python
+import re
+
+# Extract email addresses
+emails = re.findall(r"[\w\.-]+@[\w\.-]+\.\w+", text)
+
+# Match dates like 2026-06-29
+dates = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
+
+# Strip HTML tags
+clean = re.sub(r"<[^>]+>", "", text)
+```
+
+The rule of thumb: **try regex first.** If your problem dissolves under a 10-line pattern, you don't need a model.
+
+Full Python regex reference: [docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html).
+
+## Tokenization
+
+Tokenization is the operation that converts a raw string into a list of tokens. It is the foundational step of everything above, and it is way more nuanced than it looks.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/tokenization-overview.png"
+  alt="A clean overview diagram titled 'Tokenization · split text into units' on warm off-white background, dark navy text. Subtitle: 'from raw text to words, sentences, and pieces.' Top strip shows a simple example flow: 'I like cats' → s.split() → ['I', 'like', 'cats']. Below, three side-by-side cards. Card 1 (blue, 🎯 icon) 'Why tokenize?': turn text into manageable units, prepare for vectorization, enable downstream NLP. Card 2 (green, ⚠ icon) 'Common issues': punctuation, casing, accents, contractions, hashtags, named entities, abbreviations. Card 3 (purple, 🌐 icon) 'Language issues': French l'ensemble, German compound words (Lebensversicherungsgesellschaft), Chinese/Japanese with no spaces between words (example characters shown). A blue banner pill at the bottom: '✓ Different tasks need different tokenizers.' Footer line in slate-grey: 'Examples: tweet tokenizers, domain-specific tokenizers, multilingual tokenizers.'"
+  caption="The overview. Tokenization sounds trivial — until you list all the things that go wrong."
+/>
+
+### Word tokenization
+
+The default. Split the document into words. Looks easy until you start asking questions:
+
+- **How do you count words?** *"It's"* — is that one token or two? (`It` + `'s`?)
+- **Casing.** Is `Cat` the same as `cat`? Most of the time yes — `sklearn.CountVectorizer(lowercase=True)` does it for you.
+- **Punctuation.** Punctuation may carry meaning. For sentiment: *"I hate cats"* vs *"I hate cats?"* — the question mark changes the polarity. `CountVectorizer` ignores punctuation by default. Sometimes you want to keep it.
+- **Accents.** `Naïve` vs `Naive`. `CountVectorizer(strip_accents="unicode")` normalises them. Or do it manually:
+  ```python
+  import unicodedata
+  norm = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+  ```
+- **Language differences.** Japanese, Chinese, Thai don't use whitespace — `text.split()` returns the whole sentence as one token. Useless. You need a learned segmenter.
+
+A note from Part 1: this is why nltk and spaCy disagree on the same sentence. There's no canonical "word." See [my project post](/blog/when-tokenizers-disagree) for what that looks like in practice.
+
+### Subword tokenization — what BERT does
+
+The modern default. Instead of treating every word as an atomic unit, split rare words into smaller pieces.
+
+`unhappy → un + ##happy`
+`walking → walk + ing`
+`tokenization → token + ##ization`
+
+Why this is clever:
+
+- **Smaller vocabulary.** You don't need a separate column for `walk`, `walks`, `walking`, `walked` — they share the `walk` token plus a suffix.
+- **`walk` and `walking` are now related.** A model treating them as separate words has no way to know they're related. With subwords, they share a token by construction.
+- **Out-of-vocabulary words become rare.** Even a word the model has never seen can be decomposed into subwords it *has* seen.
+- **Translation parity.** Spanish `ordenador` and `ordenadores` collapse the same way English `computer` and `computers` do.
+
+Subword tokenizers are learned from data — you tell the algorithm a target vocabulary size and it figures out the optimal subword set. Common algorithms: **BPE** (Byte-Pair Encoding, used by GPT), **WordPiece** (used by BERT), **SentencePiece** (used by T5, mBART).
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/beyond-simple-tokenization.png"
+  alt="A clean three-card diagram titled 'Beyond simple tokenization' on warm off-white background, dark navy text. Subtitle: 'sentence segmentation, character models, and subwords.' Three side-by-side cards. Card 1 (blue) titled 'Sentence segmentation' with description 'Split text into sentences using punctuation (. ? !) to create clean units.' Four small example sentences stacked vertically. Then a dashed info card: 'periods can be ambiguous: Dr. , Inc. , 4.3'. Blue pill at the bottom: 'use a pretrained sentence tokenizer.' Card 2 (green) titled 'Character-based tokenization' with the example word 'cats' inside a green-bordered box, a green arrow downward, then the result [c, a, t, s] shown as separate boxed letters. Three green bullets: small vocabulary, easy for computers, useful in deep learning. Card 3 (purple) titled 'Subword tokenization' with description 'Split words into meaningful pieces (subwords).' Two examples shown: 'walking → walk + ing' and 'computers → computer + s' visualised as boxes with arrows. Green pill: '✓ helps relate similar words.' Red pill: '⚠ word meaning still depends on the task.' Bottom band with light-bulb icon: 'Word, character, and subword tokenization each solve different problems.'"
+  caption="Three flavours beyond the basic word split. Each one solves a different problem — sentence-level grouping, vocabulary explosion, or morphological similarity."
+/>
+
+### Character-based tokenization
+
+Each character is a token.
+
+- **Tiny vocabulary** — for English, ~100 characters covers basically everything.
+- **No out-of-vocabulary problem** — every word is decomposable.
+- **Tradeoff:** each token holds almost no meaning on its own. The model has to learn word-shapes from sequences of characters, which costs you compute and parameters.
+
+Used in some character-level language models, in OCR pipelines, and in low-resource languages where subword training data is scarce.
+
+### Sentence segmentation
+
+A different problem: given a paragraph, where do sentences begin and end?
+
+In English it's mostly *"split on `.`, `!`, `?` followed by whitespace and a capital letter"* — except for *Mr.*, *Dr.*, *U.S.A.*, ellipses, decimal numbers, abbreviated dates. NLTK's default sentence tokenizer (`punkt`) handles these with a learned model trained on millions of sentences. Use it. Don't roll your own.
+
+```python
+from nltk.tokenize import sent_tokenize
+sentences = sent_tokenize(paragraph)
+```
+
+## Normalization
+
+After tokenization you'll discover the same concept has multiple surface forms in your corpus. These two issues run on parallel tracks:
+
+- **String-level normalisation** — make the same word look the same.
+- **Vector-level normalisation** — make documents of different lengths comparable.
+
+### String-level
+
+- **Punctuation in tokens.** `U.S.A.` and `USA` and `U.S.A` need to collapse. Regex:
+  ```python
+  text = re.sub(r"\.", "", text)
+  ```
+- **Non-alphanumeric chars.** `cooooool` and `cool` and `coool` should collapse. One approach: collapse repeated letters to two.
+  ```python
+  text = re.sub(r"(.)\1{2,}", r"\1\1", text)
+  ```
+- **Spelling mistakes.** Harder. Spellcheckers (`pyspellchecker`, `symspell`) or fuzzy matching (Levenshtein distance) help. Often regex is enough for the common cases.
+
+The general rule: **even if you're using deep learning, normalise.** It's free compute saved.
+
+### Vector-level — L1 vs L2
+
+Once you have count vectors, document length distorts them. A 500-word article and a 50-word tweet about the same topic will have wildly different absolute counts.
+
+- **L2 normalisation.** Divide each vector by `√(Σ xᵢ²)`. After this the vector has length 1. This is what `TfidfVectorizer` does by default. Makes cosine similarity and Euclidean distance equivalent.
+- **L1 normalisation.** Divide each vector by `Σ xᵢ`. After this the elements sum to 1 — every cell becomes the *probability that a random token from this document is this word*. Useful for probabilistic models.
+
+```python
+from sklearn.preprocessing import normalize
+X_l2 = normalize(X, norm="l2")
+X_l1 = normalize(X, norm="l1")
+```
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/text-normalization.png"
+  alt="A clean two-card diagram titled 'Standardize text · normalization' on warm off-white background, dark navy text. Subtitle: 'make representations comparable.' Two side-by-side cards. Left card (green accent) titled 'Vector normalization' shows two numbered methods. Method 1: x̂ = x / ||x||₂ inside a rounded card with a green pill 'L2 norm = 1.' Method 2: x̂ = x / Σxᵢ inside a rounded card with a green pill 'divide by the sum.' Below the two formulas, a light-bulb pill: 'useful when documents have very different lengths.' Right card (blue accent) titled 'Term normalization' is a checklist of six blue check marks: lowercase text, strip punctuation, match U.S.A. and USA, remove non-alphanumeric noise, collapse repeated letters like cooooool, fix spelling mistakes. Blue chip at the bottom: 'Regular expressions can help.' Below both cards, a wider 'Key note' card with two annotations: a green chip with star icon — 'CountVectorizer doesn't normalize by default, but TF-IDF in scikit-learn does'; and an info icon — 'lowercase is common, but case can matter for named entities.'"
+  caption="Two completely different senses of 'normalisation' that both live in this section. String-level for terms. L1 or L2 for vectors. Both matter, both happen automatically inside TfidfVectorizer."
+/>
+
+## Stemming vs lemmatization
+
+The motivation is the same as subword tokenization but cruder. Without it, `walk`, `walks`, `walking` each get their own column in the vector. `walk` ends up no closer to `walking` than it is to `tree`. We want all three to collapse to a single root.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/stemming-vs-lemmatization.png"
+  alt="A clean three-card diagram titled 'Stemming vs lemmatization' on warm off-white background, dark navy text. Subtitle: 'reduce related word forms to a simpler base form.' Three side-by-side cards. Card 1 (red accent) titled 'Stemming' shows the word 'MISINTERPRETED' broken into PREFIX / STEM / SUFFIX with bracket annotations underneath. Three red bullets: crude chopping, fast, may return non-words. Below, 'Examples': walking → walk, cars → car, replacement → replac (each with a red arrow). Card 2 (green accent) titled 'Lemmatization' lists three green bullets: uses language rules or dictionaries, returns a valid base form, often needs part-of-speech. Below, 'Examples': cars → car, am → be, mice → mouse, going (verb) → go (each with a green arrow). Card 3 (blue accent) titled 'Why part-of-speech matters' shows two example sentences with the word 'following' highlighted: 'Donald Trump has a devoted following' (noun / adjective-like usage) and 'The cat was following the bird' (verb usage). A blue pill at the bottom: 'same surface word, different roles.' Bottom strip with two pills: red 'stemming is faster' and green 'lemmatization is more accurate but slower.'"
+  caption="The same problem solved two different ways. Stemming is fast and crude. Lemmatization is correct and slower — and it needs to know the part of speech, because 'following' as a noun and 'following' as a verb have different lemmas."
+/>
+
+### Stemming
+
+Crude. Chops off endings using regex-like rules. The result may not be a real word.
+
+`running → run` ✓
+`studies → studi` ✗ (not a real word)
+`replacement → replac` ✗
+
+Heuristic example (from the Porter stemmer): *"if the word ends in `SSES`, replace with `SS`"* — so `BOSSES → BOSS`. Then *"if the word ends in `IES`, replace with `Y`"* — so `PONIES → PONY`. There are about a hundred such rules.
+
+```python
+from nltk.stem import PorterStemmer
+ps = PorterStemmer()
+ps.stem("running")  # 'run'
+ps.stem("studies")  # 'studi'
+```
+
+### Lemmatization
+
+Looks up the **lemma** — the canonical form of the word — in a dictionary (typically WordNet). The result is always a real word. **But it's POS-dependent**: *saw* as a verb has lemma *see*; *saw* as a noun has lemma *saw*. You need to tag part-of-speech first.
+
+```python
+from nltk.stem import WordNetLemmatizer
+lem = WordNetLemmatizer()
+lem.lemmatize("running", pos="v")   # 'run'
+lem.lemmatize("studies", pos="v")   # 'study'
+lem.lemmatize("saw", pos="n")        # 'saw'  (the tool)
+lem.lemmatize("saw", pos="v")        # 'see'  (the verb)
+```
+
+### Decision frame
+
+| Your need | Reach for |
+|---|---|
+| Speed, rough grouping (search ranking, fast classification) | **Stemming** |
+| Output has to be readable / used downstream | **Lemmatization** |
+| Modern transformer pipeline | **Neither** — subword tokenization handles it |
+| Multilingual without language-specific tooling | **Subword tokenization** |
+
+<Callout color="yellow">
+  ❌ **Myth:** *"You always need stemming or lemmatization before training."*
+  ✅ **Reality:** Only for classical pipelines (bag of words, TF-IDF, logistic regression on word counts). Modern transformer-based pipelines do **subword tokenization** which collapses morphological variants for free — you don't need stemming on top.
+</Callout>
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/is-lemmatization-worth-it.png"
+  alt="A clean three-panel decision diagram titled 'Is lemmatization worth it?' on warm off-white background, dark navy text. Subtitle: 'stemming is crude; lemmatization is usually more accurate.' Top row has two side-by-side cards. Left card titled 'Stemming vs lemmatization II' compares the two side by side: red Stemming bullets (chops endings, may return non-words, good as a fast heuristic) vs blue Lemmatization bullets (returns a valid base word, uses dictionaries / language rules, helps match 'car' and 'cars', can map 'am / are / is' to 'be'). Green pill at the bottom: '✓ lemmatization is often more useful than stemming.' Right card titled 'Mini retrieval example' shows two tables side by side. 'Before' table: query term | treated as — walk/walk, walks/walks, walking/walking, walked/walked. 'After' table: query term | mapped to lemma — walk/walk, walks/walk, walking/walk, walked/walk. A green arrow between them. Green pill: '✓ matching improves when word variants collapse to one base form.' Bottom panel titled 'How much preprocessing is needed?' shows a 2×2 decision table. Rows: Little data, Lots of data. Columns: Domain-specific / noisy text, General / well-written text. Cells: top-left wrench icon 'more preprocessing helps'; top-right scale icon 'moderate preprocessing'; bottom-left forked arrows icon 'task-dependent'; bottom-right leaf icon 'lighter preprocessing often enough.' Footer: 'The best amount of preprocessing depends on task, data quality, and data size.'"
+  caption="The honest cost-benefit. Lemmatization always wins on quality. But the value depends entirely on your data and task — small noisy datasets benefit most; large clean ones often don't need it at all."
+/>
+
+## Putting it together — a simple text-classification workflow
+
+You don't need everything in this post for every project. The minimum viable end-to-end pipeline is short:
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-to-vectors/text-classification-preprocessing-workflow.png"
+  alt="A clean two-column workflow diagram titled 'A simple text-classification preprocessing workflow' on warm off-white background, dark navy text. Subtitle: 'compare a baseline model with a cleaned-text version.' Two side-by-side cards. Left card titled 'Baseline pipeline' shows a vertical stack of code-style boxes connected by arrows: raw_texts → CountVectorizer() → MultinomialNB() → train_score, test_score. Blue pill at the bottom: '⚡ quick baseline.' Right card titled 'With preprocessing' shows the same flow but with cleaning added: X_cleaner = X.apply(process_text) → CountVectorizer(stop_words='english') → MultinomialNB() → train_score, test_score. Green pill at the bottom: '✓ cleaning + stopword removal.' Below both cards, a wide 'Evaluate the effect of preprocessing' panel with three side-by-side mini-cards: 'preprocessing can reduce noise', 'it can also remove useful information', 'always compare on validation / test results.' Bottom band with a shield icon: 'Do not assume preprocessing always helps — measure it.'"
+  caption="The honest workflow. Build the baseline. Build the cleaner version. Compare on validation. Don't assume preprocessing helps — measure it. Sometimes the baseline wins."
+/>
+
+The whole point of this session: preprocessing is a decision, not a default. Every step changes what the model can see. Treat the choices as hypotheses and validate them empirically.
+
+## A quick glossary before you go
+
+The terms you'll be reading in every NLP paper and codebase from here on:
+
+- **Token** — a word (or subword, or character) after tokenization.
+- **Vocabulary** — the set of all unique tokens in your corpus.
+- **Corpus** — the dataset.
+- **Document** — one unit of analysis.
+- **Vector** — a 1D array of numbers with both magnitude and direction.
+- **Sparse matrix** — a matrix where most cells are zero, stored efficiently in `scipy.sparse`.
+
+## What's next
+
+Bag of words + TF-IDF gets us a vector. We can compute distances. We can train a classifier. But we've still lost three things:
+
+- **Word order.** Bag of words discards it. We get it back in Part 4 with sequence models.
+- **Context.** *"Bank"* in *"river bank"* vs *"investment bank"* still gets one vector. We get it back in Part 5 with transformers.
+- **Synonyms.** *"Doctor"* and *"physician"* are still separate columns. **Part 3 fixes this with embeddings** — vectors where semantically similar words end up close together, even when nobody told the model they were related.
+
+See you in Part 3.

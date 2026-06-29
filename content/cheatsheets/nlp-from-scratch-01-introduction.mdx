@@ -1,0 +1,154 @@
+---
+slug: nlp-from-scratch-01-introduction
+title: "Part 1 · Introduction to NLP — Cheat Sheet"
+subtitle: The 5-level ladder, the hard problems, and the field map. Designed for fast revision and quick lookup before the rest of the series.
+sourcePost: nlp-from-scratch-01-introduction
+sourceLabel: Read the full post (Part 1)
+image: /images/blog/nlp-from-scratch/introduction/cheatsheet.png
+topic: NLP
+tags:
+  - NLP
+  - Natural Language Processing
+  - Intro
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  NLP isn't one thing. It's a <Highlight>5-rung ladder</Highlight> from <em>"what are the tokens?"</em> to <em>"what's true that wasn't said?"</em> Every NLP task lives on one of those rungs — and the higher you climb, the harder it gets.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="What NLP is" number="1" accent="navy">
+
+**Definition.** *Automatic analysis and understanding of natural language for the communication between computers and humans.*
+
+- **Natural language** = how humans actually speak. **Artificial language** = Java, Python, SQL.
+- NLP ≠ Neuro Linguistic Programming. Same letters, very different thing.
+- **NLP = AI + Computational Linguistics.** Modern stack = ML / Deep Learning + CL.
+- **NLP** = systems that understand language. **NLP × ML** = systems that *learn* to understand language.
+
+</CheatCard>
+
+<CheatCard title="What NLP solves" number="2" accent="blue">
+
+| Task | What it does |
+|---|---|
+| **Question Answering** | Natural-language queries over a dataset. |
+| **Machine Translation** | Language A → language B (Google Translate, DeepL). |
+| **Text generation** | Autocomplete, Smart Compose, full reports. |
+| **Fake news detection** | Classify text as truthful or misleading. |
+| **Summarization** | Long text → short text, meaning preserved. |
+| **Information extraction** | Pull structured fields from free text. |
+| **Text classification** | Spam vs not-spam, sentiment, intent. |
+
+**The underlying question:** *if I have information in natural language, can I use it to solve a business problem?*
+
+</CheatCard>
+
+<CheatCard title="The 5 levels (the spine)" number="3" accent="amber">
+
+| # | Level | Question | Status |
+|---|---|---|---|
+| 1 | **Morphology** | what are the tokens? | 🟢 mostly solved |
+| 2 | **Syntax** | how do words relate? | 🟢 mostly solved |
+| 3 | **Semantics** | what do words together mean? | 🟡 making progress |
+| 4 | **Pragmatics** | what's the speaker's intent? | 🔴 still really hard |
+| 5 | **Inference** | what's true that wasn't said? | 🔴 still really hard |
+
+**Read it as a ladder.** Every NLP task lives on one rung. You can't do rung *n* without rung *n−1*.
+
+</CheatCard>
+
+<CheatCard title="The example climbs the ladder" number="4" accent="green">
+
+Sentence: *"The dog is chasing the boy in the playground."*
+
+| Level | Output |
+|---|---|
+| 1 Morphology | `[The | dog | is | chasing | the | boy | in | the | playground]` |
+| 2 Syntax | `chasing` → `dog` (nsubj), `chasing` → `boy` (obj) |
+| 3 Semantics | `{agent: dog, action: chasing, patient: boy, location: playground}` |
+| 4 Pragmatics | *"narrating a scene"* |
+| 5 Inference | *"the boy is probably scared"* |
+
+The bottom is automation. The top is open research.
+
+</CheatCard>
+
+<CheatCard title="Why language is hard" number="5" accent="red">
+
+Three reasons language is brutal for computers:
+
+1. **Common sense is omitted.** *"help me with the window"* — open it? close it? clean it? The speaker assumes you know.
+2. **Productivity → combinatorial explosion.** Limitless new sentences. You can't memorise; the model must generalise.
+3. **Ambiguity is the killer.** *"I saw the man with the telescope."* Two valid readings — humans pick one without noticing.
+
+**The fry-an-egg test.** Explain it to someone who has never seen an egg. Now imagine explaining it without a shared language. *That's NLP's grounding problem.*
+
+</CheatCard>
+
+<CheatCard title="Why ML alone isn't enough" number="6" accent="purple">
+
+Deep learning works shockingly well — *and* has real cracks:
+
+- **Bias** — if the corpus isn't curated, the model inherits and amplifies it.
+- **Black box** — induction at scale, not logical reasoning. Answers, not explanations.
+- **No causal grounding** — correlation patterns, not "because."
+- **No real-world semantics or pragmatics** — the model has read about coffee, never tasted it.
+- **Frozen world model** — BERT (trained 2018) doesn't know what COVID is. Can't infer after its cutoff.
+
+The honest take: *reasoning over text is exactly where current models still struggle.*
+
+</CheatCard>
+
+<CheatCard title="The two traditions (and the pendulum)" number="7" accent="slate">
+
+<CheatPills>
+  <CheatPill title="Knowledge-based" accent="blue">
+    Big explicit DB of facts/rules · IBM Watson · logical, slow to scale
+  </CheatPill>
+  <CheatPill title="Statistical / DL" accent="amber">
+    Transformers · LLMs · "give me data, I'll learn anything" · black-box
+  </CheatPill>
+</CheatPills>
+
+- Historically knowledge-based was on top; now statistics is.
+- **The pendulum has swung before.** It will swing again.
+- *Don't fire the linguist.* The cognitive chasm — between pattern-matching text and actually understanding language — is still wide open.
+
+</CheatCard>
+
+<CheatCard title="Decision: where does your problem sit?" number="8" accent="navy">
+
+| Problem | Level it lives on |
+|---|---|
+| Tokenizer for Japanese / Chinese | 1 · Morphology |
+| Parse a sentence to find subject/object | 2 · Syntax |
+| Sentiment / classification / search ranking | 3 · Semantics |
+| Translation between high-resource languages | 2 + 3 |
+| Chatbot intent / dialogue | 4 · Pragmatics |
+| Summarise medical reports + answer reasoning Q | 5 · Inference |
+| Fake news / contradiction detection | 3 + 5 |
+
+**Rule of thumb.** If the answer requires *information that isn't in the text*, you're at level 5. Lower your expectations or add a knowledge source.
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Final exam traps" accent="red">
+
+1. Confusing NLP with **Neuro** Linguistic Programming (different field entirely).
+2. Assuming a bigger transformer solves **inference**. It doesn't. Inference is still open research.
+3. Doing semantics work on a corpus where the **tokenization is broken** (especially non-space languages).
+4. Treating **BERT / LLM outputs as facts** instead of as patterns matched against training data.
+5. Saying *"NLP = chatbots."* Chatbots are one rung (pragmatics). NLP is the whole stack.
+6. Firing the linguist because deep learning is hot — the **cognitive chasm** is still open.
+
+</CheatRule>
+
+<CheatRule label="One-line summary" accent="navy">
+  NLP is a 5-rung ladder. The bottom is engineering. The top is research. <Highlight>Match the rung to your problem before you reach for a model.</Highlight>
+</CheatRule>

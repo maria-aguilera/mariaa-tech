@@ -1,0 +1,339 @@
+---
+slug: nlp-from-scratch-01-introduction
+title: "Part 1: What NLP is (and what it isn't)"
+subtitle: "The 5 levels every NLP system has to climb — from splitting a sentence into tokens, all the way up to inferring something that was never written down. Plus the restaurant menu insight, the egg-fryer problem, and why deep learning still can't tell BERT what COVID is."
+date: "January 2026"
+updated: "June 2026"
+excerpt: "First post of the NLP from Scratch series. The map of the field before we touch any code: what NLP actually is, the 5 levels from morphology to inference, why language is so hard for computers, and where the field is mostly solved vs. still really hard. Includes the restaurant-menu insight, the fry-an-egg problem, and the BERT/COVID example."
+tags:
+  - NLP
+  - Natural Language Processing
+  - Computational Linguistics
+  - Intro
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 1
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/introduction/nlp-levels-pyramid.png"
+---
+
+*NLP from Scratch · Part 1/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** Read the [one-page cheat sheet](/cheatsheets/nlp-from-scratch-01-introduction) — the 5-level ladder, the hard problems, and the field map, condensed for fast revision (or `⌘ P` to print it).
+</Callout>
+
+> If you can read a report and you can't tell whether a human or a computer wrote it — the computer is intelligent. That's the Turing Test, and it's basically the whole reason this field exists.
+
+A small disclaimer before anything else: **NLP is not Neuro Linguistic Programming.** I know. Same letters, very different thing. The one we care about is *Natural* Language Processing — how computers process the language that humans actually speak, in contrast to artificial languages like Java or Python.
+
+This is Part 1 of a series. Before we touch any tokenizers, embeddings, or transformers, we need a map of the territory — what NLP is, what it can do, what it can't do yet, and the 5 levels every NLP system has to climb. Once you have the map, every later post fits somewhere on it.
+
+## NLP, in one sentence
+
+Imagine you're working with Python. You want to load a dataset. Today you write `pd.read_csv("data.csv")`. Back in the 50s and 60s, people asked: *wouldn't it be better to just tell the computer "read the file" — in English?* That question is basically the original motivation for NLP.
+
+The formal definition:
+
+<Callout color="blue">
+  🔑 <Highlight>Natural Language Processing is the automatic analysis and understanding of natural language for the communication between computers and humans.</Highlight>
+</Callout>
+
+The "communication" half is still true — that's what powers chatbots, voice assistants, translation. But it's not the whole story. We also use NLP to *understand* — to extract meaning, signal, and structure from text that nobody is going to read by hand.
+
+## What you can actually do with NLP
+
+The catalogue of business problems NLP gets pointed at is wider than most people realise:
+
+- **Question Answering.** You write a question in English, you get an answer. Internally — pulling from a database of reviews, documents, or tickets. Google does this. Your support team probably should.
+- **Machine Translation.** Google Translate. DeepL. The thing that turns "buen provecho" into "enjoy your meal" without anyone having written a Spanish-to-English dictionary by hand.
+- **Text or Language Generation.** Phone keyboard suggestions. Gmail Smart Compose. And — the more advanced version — full reports written by a system, where you can't reliably tell whether a human or a computer produced them. That last part is the Turing Test in action: *if you can't distinguish the output, the system is intelligent.*
+- **Fake News Detection.**
+- **Summarization.**
+- **Information Extraction.**
+- **Text Classification.**
+
+The pattern underneath all of these is the same: *if I have information in the form of natural language, can I use it to solve a business problem?* That's the question.
+
+<Callout color="yellow">
+  ❌ **Myth:** *"NLP is chatbots."*
+  ✅ **Reality:** Chatbots are one layer. NLP is the whole stack — from *"where do words start?"* up to *"what is this person actually trying to tell me?"* If you only think of chatbots, you miss 80% of the field.
+</Callout>
+
+## The restaurant menu insight
+
+Here's the example that made all of this click for me.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/restaurant-menu-insight.png"
+  alt="Two side-by-side menu cards on a clean white background in dark navy ink, minimal blog style. Title at the top: 'What menus tell you when NLP listens'. Left card titled 'Cheap restaurant' shows a long list of short dish names with red circles highlighting filler words 'fresh', 'crispy', 'tasty'; below the card a red pill reads 'more dishes · short words · linguistic fillers'. Right card titled 'Expensive restaurant' shows a much shorter list of dishes with longer, more descriptive food names and no filler adjectives; below the card a green pill reads 'fewer dishes · longer words · chef's choice'. Between the two cards a slate-blue arrow with annotation: '+18¢ per extra letter in the food description'. Caption at the bottom in faint slate-blue: 'Same act of eating, two different languages. NLP extracted this from text alone.'"
+  caption="Two restaurants, two languages. The price gap is hiding in the words themselves — NLP just makes it readable."
+/>
+
+Some researchers downloaded thousands of restaurant menus and ran NLP over them. What they found:
+
+- When you go to an **expensive** restaurant, the menu basically tells you: *"give us the control."* You sit down, you trust, you let the chef decide. Often there's only one menu.
+- Expensive places have **half as many dishes** as cheap places.
+- They're **3× less likely** to talk about the *diner's* choice, and **7× more likely** to talk about the *chef's* choice.
+- **Longer words in food descriptions correlate with higher prices** — about *18 cents more for every additional letter*.
+- **Linguistic fillers** — "fresh, crispy, tasty" — show up in *cheap* restaurants. In an expensive place, they don't need to remind you the food is fresh. *It is.*
+
+None of that is a model prediction. It's just signal that was sitting in the text the whole time, waiting for someone to extract it. *If you want your cheap restaurant to look more expensive — this is the kind of thing NLP lets you do.*
+
+That's the part to remember: **understanding natural language is what lets you do all the other things.** Communication is one use case. Insight is the bigger one.
+
+## Where NLP actually sits
+
+People ask: *is NLP machine learning? Is it a set of rules? Is it linguistics?*
+
+The honest answer:
+
+<Callout color="blue">
+  💡 <Highlight>NLP = Artificial Intelligence + Computational Linguistics.</Highlight>
+</Callout>
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/nlp-ai-cl-venn.png"
+  alt="Two-panel diagram in dark navy on warm off-white, minimal blog style. Title at the top in mixed colour: 'NLP = Artificial Intelligence + Computational Linguistics' (NLP in blue, Computational Linguistics in green). Subtitle in slate-grey: 'A clean mental model for where natural language processing sits.' Top panel shows a Venn diagram: blue AI circle on the left, green CL circle on the right, central overlap labelled NLP. Bottom panel shows a checklist with five blue check marks (Basically: NLP is the area between AI and computational linguistics; Computational linguistics is linguistics approached with computational ideas; Modern NLP is dominated by ML and deep learning; NLP systems learn to understand, analyse, and generate language; Key idea: NLP combines language knowledge with machine learning). Next to the checklist, a second Venn variant adds a smaller ML circle nested inside AI overlapping NLP, with three slim pills: 'Statistics + ML → dominant approach today', 'NLP → systems that understand language', 'NLP + ML → systems that learn language patterns'."
+  caption="The clean mental model — NLP is where AI and computational linguistics meet, with ML / deep learning as the dominant modern practical layer."
+/>
+
+- **Computational Linguistics** is linguistics using the ideas of computer science. In the past, linguists did everything manually — trying to figure out by hand what makes a sentence work, what the basic structure of a language is. In the 60s, they realised they could do it better with code. *Same field, new tools.*
+- **AI** isn't the old "fancy name for logistic regression" thing. Machine Learning and Deep Learning are subareas of AI. So NLP = ML/Deep Learning + Computational Linguistics.
+
+Two quick distinctions that matter:
+
+- **NLP** — systems that understand language.
+- **NLP × ML** — systems that *learn* how to understand language.
+
+Statistics and ML are the predominant approach today, but they're not the only one. We'll come back to that.
+
+## Scope of this series
+
+Three things normally happen with language: you **capture** it (speech recognition, OCR), you **process** it (NLP), and you **output** it (text-to-speech, generation).
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/natural-language-to-nlp-funnel.png"
+  alt="Funnel-style diagram on a warm off-white background. Top of the funnel is labelled 'Natural Language' in blue with a person silhouette. Four input cards feed into the funnel from above: Speech Recognition (microphone icon), Social Network Analysis / SNA (Facebook-style icon), Web Crawling (browser/code icon), and OCR (scanner icon). The funnel narrows down to a single 'NLP' label in red. From NLP, an arrow points right into a gear cluster representing 'processing' which then fans out to a list of NLP output tasks: Question Answering, Machine Translation, Summarization, Information Extraction, Textual Entailment."
+  caption="Capture (speech, social, web, OCR) → process (NLP) → output (QA, MT, summarisation…). This series focuses on the middle box."
+/>
+
+This series focuses on the middle one — **processing**. We assume the data is already collected. Collection is an engineering problem; processing is where the actual NLP problem lives.
+
+So the question becomes: *how do you do NLP? What are the steps?* And that brings us to the spine of the entire field — the 5 levels.
+
+## The 5 levels of NLP
+
+A computer sees a sentence as a string — a sequence of characters. To make sense of it, the computer has to climb a ladder. Each rung is a different kind of question.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/nlp-levels-pyramid.png"
+  alt="A vertically stacked pyramid diagram titled 'The 5 levels of NLP', with 5 horizontal slabs in dark navy on a clean white background. From bottom to top: Level 1 'Morphology — what are the tokens?' in green (mostly solved); Level 2 'Syntax — how do words relate?' in green (mostly solved); Level 3 'Semantics — what do the words together mean?' in yellow/amber (making progress); Level 4 'Pragmatics — what's the speaker's intent?' in red (still really hard); Level 5 'Inference — what's true that wasn't said?' in red (still really hard). On the left side, a single example sentence 'The dog is chasing the boy in the playground.' enters at the bottom as a raw string and is shown transforming up the ladder: first into tokens [The | dog | is | chasing | the | boy | in | the | playground], then into a small dependency tree with arrows from 'chasing' to 'dog' and 'boy', then into a semantic frame {agent: dog, action: chasing, patient: boy, location: playground}, then into an intent label 'narrating a scene', then into an inferred fact 'the boy is probably scared'. A faint slate-blue caption at the bottom reads: 'Every NLP task lives on one of these rungs. The higher you climb, the harder it gets.' A small color-key in the corner: green = mostly solved, amber = making progress, red = still really hard."
+  caption="Every NLP task — tokenization, parsing, translation, QA, reasoning — lives somewhere on this ladder. The higher you climb, the harder it gets."
+/>
+
+Here's how the same idea was drawn in the lecture notes I worked from — same 5 levels, slightly different naming convention (some textbooks put **Inference** at level 4 and **Pragmatics** at level 5; both orderings are common):
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/nlp-levels-from-notes.png"
+  alt="Multi-panel didactic diagram from a lecture-notes style, dark navy text on warm off-white. Title at the top in a dark navy header card: 'The 5 levels of NLP — from words to grammar, meaning, intent, and inference.' Top panel shows the sentence 'A dog is chasing a boy on the playground.' with each word annotated with its part-of-speech tag underneath (Det / Noun / Aux / Verb / Det / Noun / Prep / Det / Noun) — labelled 'Level 1 · Lexical analysis (part-of-speech tagging).' Middle panel shows a constituency parse tree with brackets fanning out from Sentence into Verb Phrase, Noun Phrase, Complex Verb, and Prep Phrase, with the words at the leaves — labelled 'Level 2 · Syntactic analysis (parsing).' Bottom row has three smaller panels: 'Level 3 · Semantic analysis' with Prolog-style facts Dog(d1). Boy(b1). Playground(p1). Chasing(d1,b1,p1). plus a rule Scared(x) if Chasing(_,x,_) — labelled 'formal meaning representation'; 'Level 4 · Inference' showing a small stick-figure illustration of a dog chasing a boy, with the derived fact Scared(b1) and caption 'If being chased implies fear, we infer the boy is scared.'; 'Level 5 · Pragmatic analysis' showing a speech bubble that says 'A person saying this may be reminding another person to get the dog back…' with caption 'what the speaker may really mean.'"
+  caption="The same ladder, the way my course professor drew it — POS-tags on level 1, a constituency parse on level 2, formal-logic facts on level 3, deductive inference on level 4, speech-act / pragmatics on level 5."
+/>
+
+Let's walk it.
+
+### Level 1 — Morphology: what are the tokens?
+
+Before a computer can do anything with a sentence, it has to split it into *units of meaning* — basically, what counts as a word.
+
+In English, this looks trivial: you split on whitespace, you're mostly done. *"The dog is chasing the boy"* → `["The", "dog", "is", "chasing", "the", "boy"]`. Easy.
+
+It is *not* easy in other languages. Japanese, for example, doesn't put spaces between words. Korean, Chinese, Thai — same story. Even in English, things like contractions (`don't` → `do` + `n't`?), possessives (`Maria's` → `Maria` + `'s`?), and hyphenated compounds get weird fast.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/level-1-tokens.png"
+  alt="A clean instructional diagram in dark navy on a white background, minimal blog style. Title at the top: 'Level 1 — Morphology · what are the tokens?'. Three side-by-side cards. Card 1 'English (easy)' shows the sentence 'The dog is chasing the boy.' with vertical dashed slate-blue dividers between each word, producing tokens [The | dog | is | chasing | the | boy]. A green pill at the bottom of the card reads 'split on whitespace'. Card 2 'Japanese (hard)' shows the sentence '犬が男の子を追いかけている。' as one solid string with no separators, then below it a question mark inside a red circle, and a red pill labeled 'no spaces — where do words start?'. Card 3 'English (the gotchas)' shows three small examples: 'don't → do + n't', 'Maria's → Maria + 's', 'state-of-the-art → ?', each with a red question mark next to it; pill at the bottom in amber: 'contractions, possessives, hyphens'. Caption at the bottom in faint slate-blue: 'Tokenization looks easy until you leave English.'"
+  caption="Even the lowest rung of the ladder is harder than it looks the moment you leave English."
+/>
+
+So even on the easy rung, the easy rung isn't actually that easy. We'll spend a whole session on this in Part 2.
+
+### Level 2 — Syntax: how do the words relate?
+
+Next question: now that you have the words, how do they connect?
+
+This is **dependency parsing**. You're building the grammatical skeleton: who is the subject, who is the object, which verb modifies which noun. *"The dog is chasing the boy"* — `dog` is the subject of `chasing`, `boy` is the object, `the` modifies each of them.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/level-2-dependency-tree.png"
+  alt="A clean instructional diagram in dark navy on a white background, minimal blog style. Title at the top: 'Level 2 — Syntax · how do words relate?'. Two side-by-side dependency-tree visualisations. Left tree titled 'The dog is chasing the boy.' shows tokens The, dog, is, chasing, the, boy laid out horizontally. The verb 'chasing' is highlighted in dark navy and sits as the head; a slate-blue arrow labelled 'nsubj (subject)' arcs from 'chasing' down to 'dog'; another slate-blue arrow labelled 'obj (object)' arcs from 'chasing' down to 'boy'; smaller arrows labelled 'det' connect each 'the' to its noun; an arrow labelled 'aux' connects 'is' to 'chasing'. Right tree titled 'The boy is chasing the dog.' shows the exact same word set in different order, with the same arrow labels but the subject arrow now points to 'boy' and object to 'dog'. Between the two trees, a thick red vertical divider. Below each tree a pill: left in slate-blue reads 'dog is the chaser'; right in red reads 'boy is the chaser — opposite scene'. Caption at the bottom in faint slate-blue: 'Same six words. Different relationships. Different meaning.'"
+  caption="Same six words, completely different scene. Syntax is the difference between a chased boy and a chased dog."
+/>
+
+Why this matters: **the relationship changes the meaning.** *"The dog chased the boy"* and *"The boy chased the dog"* contain the exact same six words. Different syntax, completely different scene.
+
+You can't do level 3 without level 2.
+
+### Level 3 — Semantics: what does it all mean?
+
+Once you have the tokens and the structure, you can ask: *what do these words, together, mean?*
+
+This is where things start getting genuinely hard. Words have multiple meanings (a `bank` is either money or a river edge — only context decides). Sentences have structural ambiguity. And meaning depends on more than just the words on the page — it depends on what's been said before, what's being referred to, what's implied.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/level-3-semantic-frame.png"
+  alt="A clean instructional diagram in dark navy on a white background, minimal blog style. Title at the top: 'Level 3 — Semantics · what do the words together mean?'. The sentence 'The dog is chasing the boy in the playground.' is shown at the top as plain text. Below it, a downward slate-blue arrow points to a single rounded box styled like a JSON-ish semantic frame. Inside the box, four labelled rows in monospace-flavoured type: 'agent: dog' (blue), 'action: chasing' (orange), 'patient: boy' (red), 'location: playground' (green). Each label has a tiny coloured dot to its left. To the right of the frame box, a smaller secondary panel titled 'Ambiguity at this level' showing the word 'bank' with two arrows pointing to two interpretations: 'financial bank (money)' and 'river bank (edge of water)' — each on its own line with a small icon (coin / wave). Caption at the bottom in faint slate-blue: 'A sentence is a scene. Semantics is the part that names who, what, where — and which meaning of each word.'"
+  caption="A sentence becomes a scene: who's the agent, what's the action, where is it happening. Semantics is the layer where meaning starts to take shape."
+/>
+
+Most modern language models — embeddings, transformers, the whole BERT family — are basically attempts to crack this level. That's why semantics is *making good progress* but not *solved*.
+
+### Level 4 — Pragmatics: what's the speaker actually trying to do?
+
+The same sentence can mean very different things depending on the speaker's intent.
+
+*"Can you pass the salt?"* is technically a yes/no question about your physical ability. In practice, it's a request. Saying "yes" and not passing the salt is a joke or a misunderstanding — the *literal* meaning isn't the *intended* meaning.
+
+This is what chatbots are wrestling with. When you talk to a customer-service bot, the bot is trying to figure out *what you actually want* — not just parse the words you typed.
+
+(Even humans take years to get good at this. A two-year-old can technically speak — but reading intent, irony, sarcasm, indirect requests? That takes another decade. It's the kind of skill that genuinely takes a lifetime to master.)
+
+### Level 5 — Inference: what's true that wasn't said?
+
+The hardest level. *Creating information that was never in the original sentence.*
+
+*"The dog is chasing the boy in the playground."* What do you know that the sentence didn't say?
+
+You know **the boy is probably scared.**
+
+How? Because you have experience. Maybe a dog chased *you* once. Or you've seen kids panic at the sight of a strange animal. You're using world knowledge that lives nowhere in those eleven words.
+
+A computer doesn't have that experience. It has the sentence. So *inferring new information* — the thing humans do constantly, the thing that makes us seem intelligent — is exactly where current NLP systems are failing.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/levels-4-5-intent-inference.png"
+  alt="A clean instructional diagram in dark navy on a white background, minimal blog style. Title at the top: 'Levels 4 & 5 — Pragmatics and Inference'. Two stacked panels separated by a thin horizontal slate-blue divider. Top panel labelled 'Level 4 · Pragmatics — what is the speaker really asking?' shows the sentence 'Can you pass the salt?' inside a speech bubble. Below it, two arrows split: one to a literal-meaning card on the left labelled 'Literal: a yes/no question about your ability' (faded grey, with a tiny red X); one to an intended-meaning card on the right labelled 'Intent: pass me the salt, please' (highlighted in green, with a small check mark). Bottom panel labelled 'Level 5 · Inference — what is true that wasn't said?' shows the sentence 'The dog is chasing the boy in the playground.' Below it, a downward arrow leads to an inferred fact card highlighted in red: 'The boy is probably scared.' Off to the side, a small thought bubble icon labelled 'Drawn from world experience the computer does not have'. Caption at the bottom in faint slate-blue: 'These are the levels where current NLP systems still fail. Words are not the same as what people mean — and not the same as what is true.'"
+  caption="The two hardest rungs. Pragmatics is the difference between what was said and what was meant. Inference is the difference between what was said and what must be true."
+/>
+
+This is what we're really trying to solve. *Make the system reason about things that aren't written down.*
+
+<Callout color="yellow">
+  💡 **The BERT example.** BERT — one of the most famous NLP models, built by Google — was trained in **2018**. So if you ask BERT about COVID, it doesn't know what COVID is. The pandemic happened after its training data ended. BERT can't update its world model the way you can. *It can't infer new information from new context.* That's the inference problem in one example.
+</Callout>
+
+## Why NLP is hard (or: why language is built against us)
+
+Language has evolved to be efficient *for humans*. That same efficiency is what makes it brutal for computers.
+
+Three reasons:
+
+1. **We omit a lot of common-sense knowledge.** If I say *"help me with the window"* — do I mean open it? Close it? Clean it? Repair it? You'd know from context, room temperature, what we'd been talking about. A computer doesn't have any of that.
+2. **Language is infinitely productive.** You can say new things that have never been said before — a combinatorial explosion of possible sentences. You can't memorise a list. The model has to *generalise* to sentences it has never seen, which is exactly the hard part of any ML problem.
+3. **Ambiguity is the killer.** *"I saw the man with the telescope."* Did I use a telescope to see him, or did I see a man who was holding one? Both readings are valid. Humans pick the right one from context — usually without noticing there *was* an ambiguity at all.
+
+Most of the data your NLP system will encounter in production is **not in its training set**. That's not a bug. That's the whole point of language.
+
+### The fry-an-egg problem
+
+Imagine you have to explain how to fry an egg. Easy, right? You crack the egg, pour it on the pan, wait.
+
+Now imagine you have to explain it to **someone who has never seen an egg or a frying pan.** Suddenly you need to explain what an egg is. What a pan is. What "crack" means in this context. What heat is. What "done" looks like.
+
+For a computer, it's worse — *the computer doesn't even share the language you're trying to explain things in*. You'd have to explain "egg" with a sentence — and that sentence is made of more words the computer also doesn't ground in anything.
+
+This is the problem that **pre-trained models and transfer learning** were invented to solve. Instead of teaching the model what an egg is from scratch every time, you start from a model that already has a lot of world knowledge baked in (from being trained on huge amounts of text), and you specialise it for your task.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/pretrained-models-transfer-learning.png"
+  alt="Six-card diagram on warm off-white background, dark navy text, minimal blog style. Title at the top: 'Pre-trained models and transfer learning.' Subtitle: 'You don't need to teach the model every concept from scratch.' Six rounded cards in a 3-column × 2-row grid, each illustrating a hard case the model would otherwise have to learn from scratch. Card 1 (blue title) 'Non-standard English' — a tweet-style message 'Great job @justinbieber! We're SOO PROUD of what you've accomplished! U taught us 2 #neversaynever — never give up.' with pill 'slang · hashtags · abbreviations'. Card 2 (green title) 'Segmentation issues' — two parses of 'the New York-New Haven Railroad' shown as token boxes, the wrong segmentation on top, correct one below — pill 'word boundaries matter'. Card 3 (red title) 'Idioms' — four idioms 'dark horse', 'get cold feet', 'lose face', 'throw in the towel' — pill 'literal words ≠ intended meaning'. Card 4 (blue title) 'Neologisms' — three coined words 'unfriend', 'retweet', 'bromance' — pill 'new words appear fast'. Card 5 (green title) 'World knowledge' — sentences 'Mary and Sue are sisters.' and 'Mary and Sue are mothers.' with the note 'Understanding depends on background knowledge' — pill 'context beyond the sentence'. Card 6 (red title) 'Tricky entity names' — sentences 'Where is A Bug's Life playing?', 'Let It Be was recorded in 1970.', 'A mutation on the for gene was found.' with the italicised entity in each highlighted — pill 'titles · genes · named entities'."
+  caption="Six categories of headache pre-trained models help with — slang, segmentation, idioms, neologisms, world knowledge, and weird entity names. The model has seen these patterns at scale already."
+/>
+
+We'll come back to this in a later session — but it's the reason 2018 onwards has been such a leap forward.
+
+## Is statistics + ML enough?
+
+Most modern NLP is "give me a big enough dataset and I'll learn anything." It works *shockingly well* for a lot of tasks. But it has cracks:
+
+- **Bias** — if your training corpus isn't curated, the model inherits whatever bias is in the data. Sometimes amplifies it.
+- **Black box** — the model gives you an answer, not an explanation. It's pure *induction* — pattern-matching at scale, not logical reasoning.
+- **Humans want causal explanations.** "It's correlated with this" isn't the same as "this caused that." NLP models don't really do "because."
+- **No true grounding in real-world semantics or pragmatics.** The model has read about coffee but has never tasted it.
+
+The honest take: **ML alone is not enough.**
+
+Concrete example. Say you have a stack of economic reports and someone asks: *"is another recession coming?"* You have to read the reports, *understand* them, **reason** across them, and produce new information — an inference — that wasn't in any single report. That kind of *reasoning over text* is exactly where current models still struggle.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/ml-is-not-enough.png"
+  alt="Wide diagram on warm off-white background, dark navy title bar at the top: 'ML is not enough — Prediction alone is not reasoning, explanation, or true understanding.' Center panel walks through an end-to-end ML setup for the question 'Is another recession coming?' — Big data (stacked report icons labelled 'reports · signals · indicators') → processed by compute (GPU chip icon) → a small neural-net diagram with Input layer (Unemployment / Economic expansion / Housing market), Hidden layer, and Output layer (Recession? Yes/No) → Prediction (cube icon). Below this, two side-by-side cards: a red card 'Why ML alone falls short' with bullets (bias if training data isn't curated; still a black box — pattern induction not logical explanation; humans seek meaningful and causal explanations; lack of true real-world semantics and pragmatics); and a green card 'What the task really requires' with bullets (read information; understand context; reason and infer new information) plus a green pill 'Prediction ≠ reasoning'. Bottom strip on a light-blue band with a light-bulb icon: 'To answer questions like — Is another recession coming? — a system must go beyond pattern matching and infer new information through reasoning.'"
+  caption="Prediction isn't reasoning. The recession question is the example — a model can output a label, but the actual question requires reading, understanding, and inferring across documents."
+/>
+
+## The knowledge-based approach (and the pendulum)
+
+The opposite bet. IBM Watson is the classic example.
+
+<Image
+  src="/images/blog/nlp-from-scratch/introduction/knowledge-based-approach.png"
+  alt="Wide instructional diagram on warm off-white background, dark navy text. Title at the top in large dark navy: 'The knowledge-based approach.' Subtitle: 'A knowledge-based system combines curated domain knowledge with machine learning. Instead of relying only on data, it encodes structured expertise into a domain model and uses logical deduction to produce explainable outputs.' Center pipeline reads left to right: Curated knowledge (graph + book + database icons) → Domain model (small tree-of-nodes icon) → blue circle 'Synthesis of domain model' (brain icon) → Logical deduction (wireframe cube icon) labelled 'explainable.' Below this pipeline, two cards side by side. Left card with a green check icon 'Pros' lists: Built on curated knowledge graphs; Needs little training data; Interpretable and explainable; Structured knowledge helps tasks like word-sense disambiguation; Modelling tools are available. Right card with a red X icon 'Cons' lists: Representations can be rich, but also rigid and brittle; Automation is difficult; Manual knowledge encoding is expensive; Hard to scale."
+  caption="Explainable and data-light, but rigid and hard to scale."
+/>
+
+For a long time this was on top and statistics was the underdog. Then deep learning arrived and the pendulum swung hard the other way. We're at the peak of the statistics wave now — transformers, large language models, the whole party. Knowledge-based work is quieter, but the pendulum has swung before.
+
+<Callout color="yellow">
+  ❌ **Myth:** *"If you have a linguist on your team and you fire them, model performance goes up 10%."* (Yes, this is a real NLP joke.)
+  ✅ **Reality:** Deep learning is the most advanced way to do NLP — but it's still a black box, and the pendulum has swung knowledge ↔ statistics ↔ knowledge before. The cognitive chasm — the gap between *predicting patterns in text* and *actually understanding language* — is still wide open. Don't fire the linguist.
+</Callout>
+
+## Where the field actually is right now
+
+The honest snapshot, mapped against the 5 levels above:
+
+- ✅ **Mostly solved.** Preprocessing at the morphological and lexical level. Simple classification tasks (spam vs not-spam, sentiment as positive/negative).
+- 🟡 **Making good progress.** Preprocessing at the semantic level. Advanced text classification (multi-label, fine-grained sentiment, intent detection). Machine translation between high-resource languages.
+- 🔴 **Still really hard.** Tasks at the pragmatic and inference levels. True dialogue. Long-form reasoning. Anything that requires the model to know something it wasn't told.
+
+This is why the pyramid is colour-coded the way it is. The bottom of the ladder is largely solved engineering. The top is open research.
+
+## Why NLP, and why now?
+
+A few practical reasons companies care:
+
+- **Improve user experience.** Smart search, voice assistants, better autocomplete.
+- **Automate support.** Triage tickets, route complaints, answer the easy 80%.
+- **Monitor and analyse feedback.** Reviews, social, internal surveys — text data at a scale no human team can read by hand.
+
+The big players — Google, Meta, Microsoft, OpenAI, Anthropic — are all betting heavily on language understanding as the next interface. *Talking to your computer* has gone from "60s science fiction" to "what most people did this morning."
+
+## The cognitive chasm
+
+The aspiration in the background of all this — sometimes called the Adam Tuning aspiration — is: *create real intelligence*. And you basically can't get there without NLP, because language is the way intelligence gets expressed.
+
+But there's a gap. Some open questions that nobody has fully answered:
+
+- *How do we merge human understanding and machine understanding?*
+- *Are they cognitively disconnected — are we and the model actually doing different things?*
+- *If they are different, what mechanisms would cross the chasm?*
+- *How should knowledge be represented — in a way that's flexible, scalable, deep, and logically consistent?*
+
+I don't have answers to these. Nobody does yet. They're the reason the field is still interesting.
+
+---
+
+## What's next
+
+Now we have the map. Every future post in this series picks one rung on the ladder and goes deep:
+
+- **Part 2 — Morphology and basic text processing.** How does a computer split *"The dog is chasing the boy"* into tokens? And why does Japanese, with no spaces between words, break every assumption we made in this post?
+- **Part 3 — Syntax: tagging and parsing.** Turning a token sequence into a dependency tree.
+- **Part 4 — Semantics.** Word meaning, embeddings, the leap from symbols to vectors.
+- **Part 5 — Text classification.** The first place where everything we've built starts paying off.
+- **Part 6 — Language modelling, IR, QA.** The path toward systems that don't just classify text, but *generate* and *retrieve* it.
+
+This series is going to build the same way the ML series did — one rung at a time, every concept connecting to the next. **The pyramid is the map.** Keep it nearby.
+
+See you in Part 2.

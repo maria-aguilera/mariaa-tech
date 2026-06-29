@@ -1,0 +1,223 @@
+---
+slug: nlp-from-scratch-02-from-text-to-vectors
+title: "Part 2 · From Text to Vectors — Cheat Sheet"
+subtitle: Every preprocessing decision, every formula, every trap from bag of words to lemmatization — condensed for fast revision.
+sourcePost: nlp-from-scratch-02-from-text-to-vectors
+sourceLabel: Read the full post (Part 2)
+image: /images/blog/nlp-from-scratch/text-to-vectors/cheatsheet.png
+topic: NLP
+tags:
+  - NLP
+  - Text Processing
+  - TF-IDF
+  - Tokenization
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Machine learning only works on numbers. Language is letters. <Highlight>Preprocessing is the entire bridge between the two</Highlight> — and the choices you make here set the ceiling for everything downstream.
+</CheatRule>
+
+<CheatGrid columns={2}>
+
+<CheatCard title="Core terminology" number="1" accent="navy">
+
+| Term | Meaning |
+|---|---|
+| **Corpus** | The dataset — collection of documents |
+| **Document** | One row, one classification target (tweet, article, paragraph) |
+| **Words** | Raw tokens as written |
+| **Terms** | Words *after* preprocessing — the actual feature columns |
+| **Vocabulary** | Set of all unique terms, size `V` |
+
+**Rule:** *the document is whatever you're classifying* — sentence, paragraph, or chapter, depending on the task.
+
+</CheatCard>
+
+<CheatCard title="Bag of words" number="2" accent="blue">
+
+Split the document into words. Count them. Forget the order.
+
+- *"dog toy"* and *"toy dog"* → **same vector**. Order is lost.
+
+**Limitations:**
+- Word order — gone
+- Context — gone
+- Synonyms (`doctor` / `physician`) — separate columns
+- Fillers (`the`, `a`) dominate counts
+
+Still the foundation of every classical NLP system.
+
+</CheatCard>
+
+<CheatCard title="CountVectorizer" number="3" accent="amber">
+
+Each document → vector of length `V` (vocabulary size).
+
+**Matrix shape:** `N × V` · **mostly zeros (sparse)** · use `scipy.sparse`.
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer(lowercase=True, stop_words="english")
+X = cv.fit_transform(corpus)
+print(cv.vocabulary_)  # word → column index
+```
+
+You **always** need the word→index map. Without it the matrix is useless.
+
+</CheatCard>
+
+<CheatCard title="Weighting schemes" number="4" accent="purple">
+
+<CheatPills>
+  <CheatPill title="Binary" accent="slate">
+    0 / 1 — does the word appear?
+  </CheatPill>
+  <CheatPill title="TF" accent="blue">
+    Raw count of word in document.
+  </CheatPill>
+  <CheatPill title="TF-IDF" accent="green">
+    TF × log(N / df). Boosts rare informative terms, crushes stop words automatically.
+  </CheatPill>
+</CheatPills>
+
+**TF-IDF formula:** `tf-idf(t, d) = tf(t, d) × log(N / df(t))`
+
+- Word in *every* doc → `df = N` → IDF = log(1) = 0 → crushed.
+- Word in *one* doc → IDF = log(N) → max boost.
+- **Log** squashes scale (1M docs → ~14, not 1M).
+
+</CheatCard>
+
+<CheatCard title="Vector similarity" number="5" accent="green">
+
+| Metric | When to use |
+|---|---|
+| **Euclidean** | Vectors already L2-normalised, or magnitudes truly matter |
+| **Cosine** | Documents of *different lengths* — default for NLP |
+
+**The long-book trap.** A long biology book and a short biology pamphlet → far apart under Euclidean, parallel under cosine. Length ≠ topic.
+
+`cosine(u, v) = (u · v) / (‖u‖ · ‖v‖)` · `cosine_distance = 1 − cosine_similarity`
+
+After L2 normalisation, cosine and Euclidean rank the same.
+
+</CheatCard>
+
+<CheatCard title="Stop words" number="6" accent="red">
+
+**Why:** extremely common · uninformative · inflate dimensionality · dominate raw counts.
+
+**How:**
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer(stop_words="english")
+```
+
+**Tradeoff:**
+- ✅ Classification, search ranking
+- ❌ Summarization, generation (you destroy sentence structure)
+
+**TF-IDF down-weights stop words automatically** — you often don't need a manual list at all.
+
+</CheatCard>
+
+<CheatCard title="Tokenization" number="7" accent="blue">
+
+| Flavour | Unit | Vocabulary | Used by |
+|---|---|---|---|
+| **Word** | word | up to 1M+ | classical NLP |
+| **Subword** | piece (`un` + `##happy`) | ~30–50k | BERT, GPT |
+| **Character** | character | ~100 | OCR, low-resource |
+| **Sentence** | sentence | n/a (segmentation) | summarization |
+
+**Word-level traps:** `It's` → 1 or 2 tokens? Casing (`Cat` vs `cat`)? Punctuation (`I hate cats?` ≠ `I hate cats`)? Accents (`Naïve` vs `Naive`)?
+
+**Languages without spaces** (Japanese, Chinese, Thai) → whitespace split is useless. Use a learned segmenter.
+
+</CheatCard>
+
+<CheatCard title="Normalization" number="8" accent="slate">
+
+**String-level** — collapse surface variants:
+
+| Surface | Target |
+|---|---|
+| `U.S.A.` / `USA` / `U.S.A` | `usa` |
+| `Cooooool` | `cool` |
+| `Naïve` | `naive` |
+| `running` / `ran` / `runs` | `run` |
+
+**Vector-level — L1 vs L2:**
+
+| Norm | Formula | Result |
+|---|---|---|
+| **L2** | `x / √(Σxᵢ²)` | Vector length = 1 (default for TF-IDF) |
+| **L1** | `x / Σxᵢ` | Cells sum to 1 (probabilistic models) |
+
+</CheatCard>
+
+<CheatCard title="Stemming vs Lemmatization" number="9" accent="amber">
+
+| | Stemming | Lemmatization |
+|---|---|---|
+| Method | Chop endings via rules | Dictionary + POS |
+| Output | May not be a real word | Always a real word |
+| Speed | Fast | Slower |
+| Example | `replacement → replac` | `replacement → replacement` |
+| Tool | Porter Stemmer (NLTK) | WordNet (NLTK), spaCy |
+
+```python
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+PorterStemmer().stem("studies")           # 'studi'
+WordNetLemmatizer().lemmatize("studies", pos="v")  # 'study'
+```
+
+**Modern transformer pipeline:** skip both — subword tokenization collapses morphological variants for free.
+
+</CheatCard>
+
+<CheatCard title="Regular expressions" number="10" accent="slate">
+
+First-pass tool. Often the *only* tool you need.
+
+```python
+import re
+
+# Emails
+re.findall(r"[\w\.-]+@[\w\.-]+\.\w+", text)
+
+# Dates 2026-06-29
+re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
+
+# Strip HTML
+re.sub(r"<[^>]+>", "", text)
+```
+
+Used everywhere in NLP:
+- Named entities, dates, URLs, currency
+- Features inside ML classifiers
+- Cleaning before vectorization
+
+**Rule of thumb:** *try regex first. If it dissolves the problem, you don't need a model.*
+
+</CheatCard>
+
+</CheatGrid>
+
+<CheatRule label="Final exam traps" accent="red">
+
+1. **Forgetting the vocabulary mapping.** A matrix without the `word → index` dict is meaningless.
+2. **Using Euclidean distance on unnormalised count vectors.** Long docs end up far from short docs even on the same topic. Use cosine or L2-normalise first.
+3. **Removing stop words before summarization.** You destroy the sentence structure. Stop words are only safe for classification-style tasks.
+4. **Stemming the output that a human will read.** `replac` isn't a word.
+5. **Trusting a manual stop-word list for a specialised corpus.** Domain-specific stop words (`patient`, `diagnosis` in clinical notes) need to be discovered, not assumed — let TF-IDF find them.
+6. **Whitespace-splitting Japanese / Chinese / Thai.** You'll get one giant "token" per sentence.
+7. **Building both stemming and subword tokenization into the same pipeline.** Pick one. They do the same job; combining them just confuses the model.
+
+</CheatRule>
+
+<CheatRule label="One-line summary" accent="navy">
+  Preprocessing is the entire bridge from language to numbers. <Highlight>Tokenize → normalise → weight → vectorise.</Highlight> Every choice you make in those four steps sets the ceiling for everything downstream.
+</CheatRule>
