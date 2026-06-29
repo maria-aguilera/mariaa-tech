@@ -8,7 +8,6 @@ import {
   BookOpen,
   FileText,
   Home,
-  Layers,
   Moon,
   Sun,
 } from "lucide-react";
@@ -64,10 +63,9 @@ export default function Navbar() {
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
-    // Individual blog post pages (/blog/<slug>) should highlight the visible "Blog"
-    // pill (href=/projects), not the visible "Projects" pill (href=/blog index).
-    if (pathname.startsWith("/blog/")) {
-      return href === "/projects";
+    // Reading a blog/cheatsheet post should highlight the "Projects" pill (href=/blog).
+    if (pathname.startsWith("/blog/") || pathname.startsWith("/cheatsheets")) {
+      return href === "/blog";
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
@@ -106,9 +104,9 @@ export default function Navbar() {
           </Link>
         </li>
 
-        {/* Renamed Projects→Blog: this hosts the curated writing + series dropdown on hover. */}
+        {/* Guides: dedicated landing for multi-part walkthroughs, with dropdown of each series on hover. */}
         <li
-          className={`navbar__item navbar__item--has-menu ${isActive("/projects") ? "active" : ""}`}
+          className={`navbar__item navbar__item--has-menu ${isActive("/series") ? "active" : ""}`}
           onMouseEnter={() => setBlogMenuOpen(true)}
           onMouseLeave={() => setBlogMenuOpen(false)}
           onFocus={() => setBlogMenuOpen(true)}
@@ -121,13 +119,13 @@ export default function Navbar() {
         >
           <Link
             className="navbar__link"
-            href="/projects"
-            aria-current={isActive("/projects") ? "page" : undefined}
+            href="/series"
+            aria-current={isActive("/series") ? "page" : undefined}
             aria-haspopup="menu"
             aria-expanded={blogMenuOpen}
           >
             <BookOpen size={iconSize} />
-            <span>Blog</span>
+            <span>Guides</span>
           </Link>
 
           {blogMenuOpen && (
@@ -146,17 +144,6 @@ export default function Navbar() {
               </ul>
             </div>
           )}
-        </li>
-
-        <li className={`navbar__item ${isActive("/cheatsheets") ? "active" : ""}`}>
-          <Link
-            className="navbar__link"
-            href="/cheatsheets"
-            aria-current={isActive("/cheatsheets") ? "page" : undefined}
-          >
-            <Layers size={iconSize} />
-            <span>Cheat sheets</span>
-          </Link>
         </li>
 
         <li className={`navbar__item ${isActive("/beyond-work") ? "active" : ""}`}>

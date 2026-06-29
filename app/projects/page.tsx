@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 // Ordered topic list. Posts with topics not listed here fall into "Other".
 const TOPIC_ORDER = [
   "Machine Learning",
+  "NLP",
   "Reinforcement Learning",
   "Networking",
   "Data Projects",

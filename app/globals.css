@@ -3355,7 +3355,8 @@ body.theme-dark .home-panels,
 body.theme-dark .featured,
 body.theme-dark .contact,
 body.theme-dark .blog-body,
-body.theme-dark .post-page {
+body.theme-dark .post-page,
+body.theme-dark .series-index__inner {
   background: #020617;
   color: rgba(226, 232, 240, 0.92);
   border-top-color: rgba(148, 163, 184, 0.16);
@@ -7728,13 +7729,21 @@ body.theme-dark .hanoi__impulseFootnote a { color: #60A5FA; }
   width: 15px;
   height: 15px;
 }
-.cheatsheet-cta__btn--primary {
+.cheatsheet-cta a.cheatsheet-cta__btn--primary,
+.post-content .cheatsheet-cta a.cheatsheet-cta__btn--primary {
   background: #2563EB;
   color: #fff;
+  text-decoration: none;
 }
-.cheatsheet-cta__btn--primary:hover {
+.cheatsheet-cta a.cheatsheet-cta__btn--primary:hover,
+.post-content .cheatsheet-cta a.cheatsheet-cta__btn--primary:hover {
   background: #1D4ED8;
   color: #fff;
+  text-decoration: none;
+}
+.cheatsheet-cta a.cheatsheet-cta__btn--ghost,
+.post-content .cheatsheet-cta a.cheatsheet-cta__btn--ghost {
+  text-decoration: none;
 }
 .cheatsheet-cta__btn--ghost {
   background: #fff;
@@ -7843,3 +7852,196 @@ body.theme-dark .cheat-preview__figure {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 body.theme-dark .cheat-preview__hint { color: #94A3B8; }
+
+/* --- Guides (series index) carousel cards --- */
+.series-index {
+  color: #0f172a;
+}
+.series-index__inner {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  max-width: none;
+  padding: 2.5rem 1.25rem 4rem;
+}
+.series-index__list {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.series-index__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+.series-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem 1.25rem 1.1rem;
+  background: #FFFFFF;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.series-card:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 10px 28px -10px rgba(15, 23, 42, 0.22);
+  transform: translateY(-2px);
+}
+.series-card__header { display: flex; flex-direction: column; gap: 0.35rem; }
+.series-card__chip {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563EB;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 999px;
+}
+.series-card__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+  color: #1E293B;
+}
+.series-card__desc {
+  font-size: 0.92rem;
+  color: #475569;
+  margin: 0;
+  line-height: 1.5;
+}
+.series-card__cover-link {
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #F8FAFC;
+  aspect-ratio: 16 / 9;
+  transition: border-color 150ms ease;
+}
+.series-card__cover-link:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+.series-card__cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.series-card__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.series-card__arrow {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #FFFFFF;
+  color: #1E293B;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.series-card__arrow:hover {
+  background: #F1F5F9;
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #2563EB;
+}
+.series-card__arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.series-card__current {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+.series-card__current-num {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+.series-card__current-title {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1E293B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.series-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+.series-card__read {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2563EB;
+  text-decoration: none;
+}
+.series-card__read:hover { text-decoration: underline; }
+.series-card__all {
+  font-size: 0.82rem;
+  color: #64748B;
+  text-decoration: none;
+}
+.series-card__all:hover { color: #2563EB; }
+
+/* dark mode */
+body.theme-dark .series-card {
+  background: #0F172A;
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+body.theme-dark .series-card:hover {
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.6);
+}
+body.theme-dark .series-card__title { color: #E2E8F0; }
+body.theme-dark .series-card__desc { color: #94A3B8; }
+body.theme-dark .series-card__chip {
+  color: #93C5FD;
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+body.theme-dark .series-card__cover-link {
+  background: #1E293B;
+  border-color: rgba(148, 163, 184, 0.18);
+}
+body.theme-dark .series-card__arrow {
+  background: #1E293B;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #E2E8F0;
+}
+body.theme-dark .series-card__arrow:hover {
+  background: #0F172A;
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #93C5FD;
+}
+body.theme-dark .series-card__current-num { color: #64748B; }
+body.theme-dark .series-card__current-title { color: #E2E8F0; }
+body.theme-dark .series-card__footer { border-color: rgba(148, 163, 184, 0.12); }
+body.theme-dark .series-card__read { color: #93C5FD; }
+body.theme-dark .series-card__all { color: #94A3B8; }
+body.theme-dark .series-card__all:hover { color: #93C5FD; }

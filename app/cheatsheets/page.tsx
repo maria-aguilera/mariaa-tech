@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const TOPIC_ORDER = [
   "Machine Learning",
+  "NLP",
   "MLOps",
   "Forecasting",
   "Reinforcement Learning",
