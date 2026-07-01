@@ -1,0 +1,368 @@
+---
+slug: nlp-from-scratch-06-text-classification
+title: "Part 6: Text Classification — Classical"
+subtitle: "From hand-coded rules to Naïve Bayes to MaxEnt and SVM — and why logistic regression is the baseline you always build first."
+date: "June 2026"
+updated: "June 2026"
+excerpt: "Part 6 of the NLP from Scratch series. What text classification is, the running spam example, annotated datasets, the document-term matrix and TF-IDF, the four classical methodologies (hand-coded rules, Naïve Bayes with Bayes' theorem labelled, MaxEnt classifiers and why they equal logistic regression, SVM), why classical models can't 'speak the language', the real-world decision tree (no data / little data / reasonable data / big data), and the practitioner rules: always build a logistic regression baseline first, and don't use CNNs for text."
+tags:
+  - NLP
+  - Text Classification
+  - Naive Bayes
+  - MaxEnt
+  - Logistic Regression
+  - SVM
+  - TF-IDF
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 6
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/text-classification/text-classification-overview.png"
+---
+
+*NLP from Scratch · Part 6/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** [The four-page cheat sheet for this post](/cheatsheets/nlp-from-scratch-06-text-classification) — foundations, applications, the four classical methodologies, and the practitioner rules — printable, downloadable, condensed for fast revision.
+</Callout>
+
+> *"All models are wrong, but some are useful. But Naïve Bayes is too wrong for text."*
+> — The line that opens the methodology arc.
+
+## What text classification actually is
+
+Strip away the hype and text classification is one thing: **given a document, assign it to one class from a fixed list**. News article → sports / politics / technology. Email → spam / ham. Movie review → positive / negative. Tweet → toxic / safe. The shape of the problem is always the same — document in, class label out.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/text-classification-overview.png"
+  alt="A clean editorial card titled 'Text classification as document → class'. Left: a document icon. Centre: an arrow pointing into three labelled class boxes (Sports, Politics, Technology). Right: a callout 'One document → one predicted class (from a fixed set of classes)'. Bottom: an example reading 'Given a news article, the model predicts whether it is about sports, politics, technology, etc.'. Warm off-white background, navy headings, slate-blue accents."
+  caption="The basic shape. Document in, class label out — from a fixed set of classes you decide upfront."
+/>
+
+The simplest version is binary — only two classes. Spam classification is the canonical example, and it is the one this post leans on throughout because everyone has felt the pain.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/spam-classification-binary.png"
+  alt="A card titled 'Spam classification'. An incoming-message icon on the left with an arrow pointing to two classes: 'Spam (1)' in green and 'Ham (0)' in red. Two example messages below: 'Spam (1): Win a free prize now!' and 'Ham (0): Hi, are we still meeting tomorrow?'. Bottom callout: 'Running example used throughout the session'. Warm off-white background, navy text."
+  caption="Binary classification = choose between two classes. Spam vs ham is the lab rat of every NLP class for a reason."
+/>
+
+The problems classical text classification has solved in production, mostly with the same handful of techniques:
+
+- Personalization (Quora digests, Spotify "Discover Weekly" tagging)
+- Authorship attribution (who wrote the Federalist Papers, was this essay written by a man or a woman)
+- Sentiment analysis (movie reviews, product reviews, social media)
+- Topic/genre assignment (news routing)
+- Spam detection
+- Age/gender identification from text
+- Language identification
+- Sarcasm detection
+- Fake news detection
+
+It's a long list. The interesting thing is that all of these problems were largely cracked *before* deep learning, with the same classical pipeline we are about to build.
+
+For a tour of what each of these actually looks like in production — the shape of the problem, the technique that usually wins, and the headache that bites you when you ship — see [Text Classification in the Wild](/blog/nlp-text-classification-in-the-wild).
+
+## Annotated datasets are the fuel
+
+Supervised classification needs labels. The thing classical NLP cannot fake away — you need a **training set** of documents paired with the correct class. Without it, no classifier learns anything.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/annotated-datasets.png"
+  alt="A card titled 'Annotated datasets'. A small table with two columns 'Document (text)' and 'Label'. Rows: 'Win a $1000 gift card now...' → Spam (red); 'Hey, are we still meeting tomorrow?' → Ham (green); 'Limited-time offer! Claim your reward...' → Spam (red); 'Can you send me the report today?' → Ham (green). Right callout: 'Each training example pairs text with the correct class'. Bottom chain: 'More labels → Better coverage → Better predictions'. Bottom green badge: 'Quality and quantity of labels drive model performance'."
+  caption="The most under-glamorous part of any NLP project, and the part that determines whether your model works."
+/>
+
+In her notes: *"Quality and quantity of labels drive model performance."* If you remember nothing else about classical text classification, remember this. A small clean dataset usually beats a big noisy one, and a big clean dataset beats anything.
+
+## How do we even feed text into a classifier?
+
+A logistic regression takes a vector of numbers and outputs a probability. But a document is a string of words. So before any classifier touches the data, we need a way to turn each document into a vector. There are two classical answers — both of which you already met in [Part 2](/blog/nlp-from-scratch-02-from-text-to-vectors).
+
+The first is the **document-term matrix (DTM)**. Rows are documents, columns are unique terms in the vocabulary, and each cell is a count — how many times this term appears in this document. Each document becomes a row vector with as many dimensions as your vocabulary has words.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/document-term-matrix.png"
+  alt="A card titled 'Document–term matrix (DTM)'. A small matrix on the left with rows labelled Doc 1, Doc 2, Doc 3 and columns word1, word2, word3, ..., wordn; cells contain term counts like 2, 0, 1, 3, ... . Right caption: 'Turns text into numeric features for machine learning'. Bottom row of icons: 'Rows = documents', 'Columns = unique terms', 'Values = term frequencies'. Red warning at the bottom: 'Useful, but sparse and ignores word order'."
+  caption="The DTM is the workhorse representation of classical NLP. Counts of words per document. Sparse, simple, and surprisingly far you can go with it."
+/>
+
+Two problems with raw counts:
+
+- **Common words dominate.** The word `the` will appear in every document and crush the signal of rarer, more meaningful words.
+- **Long documents look more important.** A 2,000-word article looks "louder" than a tweet just because it has more of every word.
+
+**TF-IDF** is the fix. Each cell is no longer a raw count — it is multiplied by the **inverse document frequency** of the term. Rare terms get amplified; common terms get downweighted.
+
+$$
+\text{TF-IDF}(t, d) = \text{TF}(t, d) \times \text{IDF}(t), \qquad \text{IDF}(t) = \log\!\left(\frac{N}{df(t) + 1}\right)
+$$
+
+Where `N` is the total number of documents and `df(t)` is the number of documents containing term `t`. The `+1` is a smoothing trick so we never divide by zero for unseen terms.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/tf-idf-card.png"
+  alt="A card titled 'TF-IDF and old sparse representations'. The formula 'TF-IDF(t, d) = TF(t, d) × IDF(t)' at the top, and below it 'IDF(t) = log(N / (df(t) + 1))'. Two horizontal weight bars below: 'the' with a low weight (blue), 'quantum' with a high weight (green). Right callout: 'Improves plain counts by downweighting common terms'. Red bottom warning: 'Still high-dimensional, sparse, and weak on context and word order'."
+  caption="The idea: a word is important to a document if it is frequent here and rare everywhere else."
+/>
+
+So now we have vectors — sparse, high-dimensional vectors, but vectors a classifier can chew on.
+
+## Logistic regression: the baseline you always build first
+
+Before we get fancy, install this rule in your head:
+
+<Highlight>**Always implement a logistic regression classifier as a baseline, even when you plan to ship something more sophisticated.**</Highlight>
+
+Repeated three times in the source notes. It is the single most important practitioner rule in this whole post.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/logistic-regression-classifier.png"
+  alt="A card titled 'Logistic regression as a traditional classifier'. A 2-D scatter plot on the left showing two classes (blue circles and red Xs) separated by a dashed line. Three green check badges on the right: 'Simple', 'Interpretable', 'Fast baseline'. A document-icon callout below: 'Often used with bag-of-words or TF-IDF features'. Bottom blue star callout: 'Effective when features are good, but still shallow'."
+  caption="Simple, interpretable, fast. It will get you 80% of the way to the eventual deep-learning system, and tells you where the hard cases are."
+/>
+
+Why this rule matters in practice: in the notes, logistic regression hits **~80% accuracy** on the running text classification task; a fine-tuned transformer hits **~84%**. The transformer wins, but the gap is *much* smaller than people expect. And the LR baseline tells you whether your data is good, your labels are clean, and your feature engineering is sane — long before you spend three weeks training a BERT.
+
+A second rule worth installing now, also from the notes, but bolded and underlined:
+
+<Callout color="red">
+  ❌ **Do not use CNN for text classification.** They had historical success with images, and people tried to copy that over for text. They can capture some local structure but they do not capture sequential information. Use RNNs or transformers instead.
+</Callout>
+
+## Methodologies: the four classical generations
+
+There are four generations of classifiers worth knowing, and they line up with how the field actually evolved. We will walk each one — including why each one wasn't enough on its own.
+
+### Generation 1 — Hand-coded rules
+
+The first answer to "how do we classify text?" is: don't bother with machine learning. Write rules.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/rules-based-systems.png"
+  alt="A card titled 'Hand-coded / rule-based systems'. A short list of human-readable rules on the left ('IF contains Nigerian prince AND wire transfer → spam', 'IF rating missing AND contains don't buy → fake'), an arrow into a flag/decision icon, and a binary output classification on the right. Bottom green check: 'Precision-driven, codifies domain knowledge.' Bottom red warning: 'Expensive to build and maintain — every edge case is a new rule.'"
+  caption="The pre-ML approach. Experts encode their domain knowledge as if-then rules. Precise, interpretable, and still widely used in production — but the maintenance burden grows with every edge case."
+/>
+
+- If the email contains `"Nigerian prince"` and `"wire transfer"` → spam.
+- If the review contains `"don't buy"` and the rating is missing → likely fake.
+
+The honest truth from the notes: **rules are still widely used in industry**. Spam filters, fake-news detectors, content moderation. They are precision-driven, codify domain knowledge, and are carefully refined by experts over years.
+
+The catch: they are **very expensive to build and maintain**. Every edge case is a new rule. Every new spam tactic needs a new rule. The system grows in complexity until nobody understands it. So we want to replace rules with something that learns from data.
+
+### Generation 2 — Naïve Bayes
+
+The first probabilistic classifier most people meet, and the right one to start with because it gives you the mental model for the rest.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/naive-bayes-intro.png"
+  alt="A card titled 'Introduction to Naïve Bayes'. A document on the left feeds into a probabilistic engine in the centre; on the right are probability bars for each candidate class with the highest bar (the predicted class) highlighted. Bottom green check: 'A probabilistic classifier — pick the class with the highest posterior probability.' Bottom blue star: 'Simple, fast, and a great starting point for text classification.'"
+  caption="Naïve Bayes asks one question: given the words in this document, what is the most probable class? Pick the highest posterior, output that label."
+/>
+
+Naïve Bayes asks one question: *given the words in this document, what is the most probable class?*
+
+Bayes' theorem gives us four pieces, each with a name:
+
+$$
+\underbrace{P(C \mid d)}_{\text{Posterior}} = \frac{\overbrace{P(d \mid C)}^{\text{Likelihood}} \cdot \overbrace{P(C)}^{\text{Prior}}}{\underbrace{P(d)}_{\text{Marginal}}}
+$$
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/bayes-formula.png"
+  alt="A card titled 'Understanding Bayes' formula'. The formula P(C|d) = P(d|C) · P(C) / P(d) with each term labelled: P(C|d) Posterior (what we want), P(d|C) Likelihood, P(C) Prior, P(d) Marginal. Each label has a one-line definition next to it. Bottom blue star: 'Four named pieces — the building blocks of every probabilistic NLP model.'"
+  caption="Memorize the four names. Posterior, Likelihood, Prior, Marginal. They come back in every probabilistic model in this series."
+/>
+
+The four named pieces are worth memorising — they will come back in every probabilistic NLP model after this:
+
+- **Posterior** $P(C \mid d)$ — *how probable is our hypothesis given the observed evidence?* This is what we want.
+- **Likelihood** $P(d \mid C)$ — *how probable is the evidence given that our hypothesis is true?*
+- **Prior** $P(C)$ — *how probable was our hypothesis before we saw any evidence?*
+- **Marginal** $P(d)$ — *how probable is the new evidence under all possible hypotheses?* In practice we ignore this because it's the same for every class.
+
+For classification, we pick the class with the highest posterior. Naïve Bayes makes one cheating assumption to make the likelihood tractable: **all words are independent given the class**. The word `prize` and the word `now` are treated as if they have nothing to do with each other once you know the email is spam.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/naive-bayes-independence.png"
+  alt="A card titled 'Naïve Bayes independence assumption'. A sentence broken into individual word tokens that float independently in the diagram, each with its own probability badge; dashed lines that would link related words are crossed out. Bottom red warning: 'Treats every word as if it has nothing to do with the others.' Bottom blue brain: 'Wrong in theory — but the model still works surprisingly well in practice.'"
+  caption="The naïve part. The model treats 'free' and 'prize' as unrelated even though they obviously travel together. The notes' phrasing: 'completely wrong.' It still works."
+/>
+
+That assumption is, in the notes' phrasing, *"completely wrong."* Words in real language are deeply correlated — `prize` and `free` and `claim` all travel together. Naïve Bayes pretends they don't.
+
+It still works surprisingly well — that is the famous result — but the wrongness of the independence assumption is what motivates the next generation.
+
+### Generation 3 — Maximum Entropy classifiers (a.k.a. logistic regression)
+
+MaxEnt classifiers were the answer to "Naïve Bayes is too wrong for text". They drop the independence assumption.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/maxent-classifier.png"
+  alt="A card titled 'MaxEnt classifier'. A flowchart: observed data → list of feature constraints → maximum-entropy distribution → softmax-style class probabilities. Bottom green check: 'Drops the independence assumption.' Bottom blue star: 'Picks the most uniform distribution that still satisfies what you observed.'"
+  caption="MaxEnt classifiers learn a probability distribution by adding only the constraints the data forces. Among all distributions that satisfy those constraints, they pick the most uniform one."
+/>
+
+The intuition is one of the most beautiful in all of NLP and it deserves to land:
+
+<Highlight>**Assume nothing about your probability distribution other than what you have observed.**</Highlight>
+
+That is the maximum-entropy principle. You start with the most uniform distribution possible (which makes no assumptions), and as you observe data, you add **constraints** — but you only add the ones the data forces. Among all the distributions that satisfy your constraints, you pick the one with the largest entropy. Largest entropy = most uniform = fewest assumptions.
+
+The notes use a concrete example with four classes — `economics`, `sports`, `politics`, `art`. Before you see any data, the maximum-entropy distribution is uniform:
+
+$$
+P(\text{economics}) = P(\text{sports}) = P(\text{politics}) = P(\text{art}) = 0.25
+$$
+
+Now you inspect documents. You notice that when the word `ball` appears, the document is about `sports` 70% of the time. That is a constraint. You update the conditional distribution:
+
+$$
+P(\text{sports} \mid \text{ball}) = 0.7,\quad P(\text{politics} \mid \text{ball}) = 0.1,\quad P(\text{economics} \mid \text{ball}) = 0.1,\quad P(\text{art} \mid \text{ball}) = 0.1
+$$
+
+You inspect more documents. You notice `Bush` correlates with `politics` (80%), `game` with `sports` (60%), `stock` with `economics` (50%). Each observation is another constraint:
+
+$$
+P(\text{politics} \mid \text{Bush}) = 0.8, \quad P(\text{sports} \mid \text{game}) = 0.6, \quad P(\text{economics} \mid \text{stock}) = 0.5, \ldots
+$$
+
+The key move: among all probability distributions that satisfy *all* of these constraints, MaxEnt picks the one with the largest entropy — the most uniform one — because that distribution makes the fewest extra assumptions.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/maxent-constraints.png"
+  alt="A card titled 'MaxEnt constraints'. A diagram showing several candidate probability distributions over the same set of classes; constraints (each derived from observed data) are drawn as horizontal pegs that the chosen distribution must satisfy; the picked distribution sits at the most uniform position consistent with all constraints. Bottom blue star: 'Constraints come from the data; uniformity comes from making no extra assumptions.'"
+  caption="Each observation from the data adds one constraint. Among all the distributions that satisfy those constraints, MaxEnt picks the most uniform — the one that adds nothing extra."
+/>
+
+There is an infinite number of distributions that satisfy any given set of constraints. The maximum-entropy distribution is the one that says "yes to these constraints, but no extra structure beyond that." That is the cleanest possible probabilistic model.
+
+Here's the magic from Berger et al. (1996): solving the maximum-entropy problem turns out to be **exactly equivalent** to fitting a **multinomial logistic regression** whose weights maximize the likelihood of the training data. This is why:
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/maxent-lr-equivalence.png"
+  alt="A card titled 'MaxEnt ↔ Logistic Regression'. Two boxes connected by a bidirectional arrow: 'Maximum entropy classifier' on the left, 'Multinomial logistic regression' on the right; underneath a small reference 'Berger et al., 1996'. Bottom green check: 'Solving one problem solves the other.' Bottom blue brain: 'Logistic regression is the principled probabilistic answer — not a hack.'"
+  caption="The Berger 1996 equivalence. Maximum entropy and multinomial logistic regression are the same thing under the hood. This is why sklearn's LogisticRegression is what you get when you search 'sklearn maxent'."
+/>
+
+- `sklearn.linear_model.LogisticRegression` *is* the MaxEnt classifier. There is no separate `MaxEnt` class. You search "sklearn maxent" and the documentation hands you `LogisticRegression`.
+- Logistic regression works absurdly well for text classification. It is not a coincidence. It is solving the maximum-entropy problem.
+
+That is the single most important fact in this whole post, and the reason the "always build an LR baseline" rule is so strong. Logistic regression is not a hack — it is the principled probabilistic model that makes the fewest assumptions about your data.
+
+### Generation 4 — Support Vector Machines
+
+Before deep learning won, **SVMs were state of the art** for text classification. They have three properties that make them especially well-suited:
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/svm-overview.png"
+  alt="A card titled 'Support Vector Machines'. A 2-D scatter plot showing two classes separated by a maximum-margin hyperplane with the margin highlighted; support vectors on the boundary are marked. Right side lists three key features: 'Well-suited for sparse data', 'Well-suited for high-dimensional data', 'Large-margin = robustness'. Bottom green check: 'A strong baseline for text — especially on small datasets.'"
+  caption="The large-margin idea: separate classes with the hyperplane that leaves the most space on either side. Especially well-suited to TF-IDF features, which are sparse and high-dimensional."
+/>
+
+- **Well-suited for sparse data** — and TF-IDF features are extremely sparse.
+- **Well-suited for high-dimensional data** — and vocabularies are huge.
+- The large-margin constraint gives them a useful trade-off between **robustness and accuracy**.
+
+The trade-off with SVMs: they are harder to train than logistic regression (especially with non-linear kernels), but on TF-IDF features and a reasonable dataset, they used to beat everything. They still hold their own in plenty of practical settings — especially when you have small datasets.
+
+The reason classical NLP eventually moved past SVMs was not that SVMs were broken — it was that they hit a ceiling that no amount of feature engineering could break through. And that ceiling has a name.
+
+## Why classical models can't "speak the language"
+
+Logistic regression on TF-IDF features will get you a long way. But there is a hard ceiling, and once you understand it, everything in [Part 7](/blog/nlp-from-scratch-07-text-classification-dl) clicks.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/why-lr-doesnt-speak-language.png"
+  alt="A card titled 'Why logistic regression doesn't speak the language'. A row of word boxes: 'The', 'movie', 'was', 'not', 'boring' with a red X above and the caption 'Bag-of-words can miss word order, negation, and meaning'. Below, a green box: 'The movie was not boring. Meaning depends on context, not just word counts'. Bottom blue note: 'Traditional linear models use surface features, not true language understanding'. Red footer: 'Words are counted, but semantics is lost'."
+  caption="Counts and frequencies are surface features. They cannot see that 'not boring' means the opposite of 'boring', or that 'The dog bit the man' is different from 'The man bit the dog'."
+/>
+
+The classical pipeline treats text as a **bag of words**. The order is gone. The relationships between words are gone. *"not boring"* and *"boring not"* look identical to the model. The phrase *"this is the greatest screwball comedy ever filmed"* and the phrase *"unbelievably disappointing"* both end up as TF-IDF vectors that — depending on vocabulary — might not even be that different.
+
+And it gets worse, because natural language is layered in ways the bag of words cannot see:
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/why-nlp-is-hard.png"
+  alt="A card titled 'Why natural language is hard for computers'. Four categories listed with icons: 'Ambiguity (example: bank)', 'Polysemy (one word, many senses)', 'Long-range dependencies (meaning depends on distant words)', 'Sarcasm, irony, pragmatics (literal meaning is often not the point)'. Right callout with brain icon: 'A model must capture context, structure, and meaning — not just keywords'. Red footer warning: 'Naive text models fail because language is richer than isolated word counts'."
+  caption="Four ways language defeats bag-of-words: ambiguity, polysemy, long-range dependencies, and sarcasm."
+/>
+
+The instinct here is: "ok, more data will fix this." It will not.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/big-data-without-labels.png"
+  alt="A card titled 'Big data is not enough without labels'. Left: stack of document icons labelled 'Lots of unlabeled data'. Red blocker icon in the middle. Right: classification output 'Spam / Ham / Spam' marked as 'still uncertain'. Right callout: 'Without supervision, the model still does not know the correct target'. Two coloured badges at the bottom: red 'Unlabeled ≠ directly useful for supervised training' and green 'Labels are the bottleneck'. Bottom target callout: 'The challenge is not just data volume — it is labelled data'."
+  caption="More raw text does not automatically improve supervised classification. Labels are still the bottleneck — and for many domains they are very expensive to produce."
+/>
+
+So just throwing more data at a logistic-regression baseline runs into two walls simultaneously: the bag-of-words representation can't capture meaning, and you can't label enough new data to drown out the noise.
+
+## The real-world decision tree
+
+The practitioner answer from the notes is a small decision tree based on how much data you have. Memorize this one — it is the closest thing classical NLP has to "what should I actually try first?"
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/data-availability-decision-tree.png"
+  alt="A card titled 'Data availability decision tree'. A small flowchart from top to bottom: 'How much labelled data do you have?' → four branches: No data → Hand-coded rules; Very little → Naïve Bayes / label more / bootstrap; Reasonable → SVM, LR/MaxEnt, decision trees; Big → Deep learning / transfer learning. Bottom blue star: 'Pick the simplest method that fits your data budget.'"
+  caption="Memorize this. The practitioner answer to 'what should I try first?' is almost always determined by how much labelled data you have."
+/>
+
+- **No training data?** Manually written rules. Need careful crafting, very time-consuming, but works for narrow domains.
+- **Very little data?** Naïve Bayes. Or label more data — DIY, gamification, Mechanical Turk. Or semi-supervised annotation / bootstrapping (label a tiny seed set, train, use the model's confident predictions as new labels, retrain).
+- **A reasonable amount of data?** SVM. Regularized logistic regression / MaxEnt. User-interpretable decision trees (useful because users like to hack rules into them, and management likes quick fixes).
+- **Big data?** Try deep learning. This is where [Part 7](/blog/nlp-from-scratch-07-text-classification-dl) picks up.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/data-size-vs-classifier.png"
+  alt="A card titled 'Data size vs. classifier performance'. A line chart showing accuracy on the y-axis against amount of training data on a log-scaled x-axis. Three classifier curves rise and converge as data grows: the gap between classifiers shrinks dramatically at the right end of the chart. Bottom blue star: 'With enough data, the choice of classifier matters less than the data.' Bottom green check: 'Spend your time on the input, not the algorithm.'"
+  caption="The Brill & Banko result: with enough data, the classifier almost stops mattering — feature engineering and data labelling beat classifier choice."
+/>
+
+There is also the classic Brill & Banko spelling-correction plot — accuracy as a function of data size, where with enough data the choice of classifier almost stops mattering. The implication: feature engineering and data labelling often beat classifier choice. Spend your time on the input, not the algorithm.
+
+## Feature engineering: where most of the practical wins live
+
+In real text classification systems, the feature engineering matters more than the classifier. From the notes:
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/domain-feature-weights.png"
+  alt="A card titled 'Domain-specific feature weights'. A bag-of-words representation on the left with several words highlighted (e.g., title words, domain terms) and small weight multipliers next to them (×2, ×3); a side panel lists the sources of upweighting: title words, first sentences, sentences with title words. Bottom green check: 'Re-weighting features beats picking a fancier classifier.'"
+  caption="Some words deserve more weight than others. Title words, first-sentence words, sentences containing title words — re-weight them so the model knows they matter more."
+/>
+
+- **Domain-specific features and weights.** Very important in real performance. Generic TF-IDF on a domain-specific corpus leaves money on the table.
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/term-collapsing.png"
+  alt="A card titled 'Text normalization / term collapsing'. Left column: raw token list with concrete examples ('IP 192.168.1.1', 'part #A7-B9', 'chemical NaCl', 'C2H5OH'). Arrow into a collapsed token list on the right ('<IP>', '<PART_NUMBER>', '<CHEMICAL>'). Bottom green check: 'Collapse high-variance tokens so the model learns the pattern, not the value.'"
+  caption="Part numbers, IP addresses, chemical formulas — collapse them into a single token like &lt;PART_NUMBER&gt; so the classifier learns 'a part number lives here', not every specific part number."
+/>
+
+- **Sometimes need to collapse terms.** Part numbers, chemical formulas, IP addresses — collapse them all into a single token like `<PART_NUMBER>` so the classifier learns "there is a part number here" rather than memorizing every part number.
+- **Upweighting** — count a word as if it occurred twice when it appears in certain places: title words (Cohen & Singer 1996), the first sentence of each paragraph (Murata 1999), sentences that contain title words (Ko et al. 2002).
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/n-grams.png"
+  alt="A card titled 'N-grams capturing context'. A sentence with bigram and trigram windows highlighted, capturing examples like 'not good' (negation) and 'New York' (named entity). Right side examples: bigrams = negation + adjacency; trigrams = object-action + compound names. Bottom green check: 'Tiny windows that recover word order on the cheap.'"
+  caption="The cheap trick for getting some word order back into a bag-of-words. Bigrams catch negation ('not good'), trigrams catch compounds ('New York Times')."
+/>
+
+- **N-grams** — bigrams and trigrams capture some lexical information (negation: `"not good"`, object-action pairs) and some semantic information (named entities, compound names).
+
+There is also NLP-specific feature engineering on top of the bag of words:
+
+- **POS tags** for first-level word-sense disambiguation. `Book` as a noun → book sales. `Book` as a verb → travel agency. Same word, completely different signal.
+- **Dependency parsing** for word relationships that n-grams cannot capture. Two words may have a strong grammatical relationship across many filler words; n-grams only see adjacency.
+
+The pattern: classical text classification stops being about "which classifier" and starts being about "which features".
+
+## What this connects to
+
+You now have the full classical text-classification stack: representation (DTM, TF-IDF), classifier (rules → NB → MaxEnt/LR → SVM), feature engineering, and the real-world decision tree that picks which to use. With this you can build a working classifier for almost any narrow-domain problem — spam, sentiment on product reviews, topic routing, content moderation.
+
+The wall you hit is the bag-of-words ceiling. Counts and frequencies cannot capture meaning, word order, polysemy, or long-range dependencies. To break through, you need a representation that does — and that representation comes from **language modelling**, the deep-learning approach to text classification, and the transfer-learning workflow that ties it all together.
+
+That is [Part 7](/blog/nlp-from-scratch-07-text-classification-dl): the deep-learning side of the same problem.

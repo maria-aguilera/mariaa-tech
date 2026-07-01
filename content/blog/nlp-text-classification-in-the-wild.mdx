@@ -1,0 +1,129 @@
+---
+slug: nlp-text-classification-in-the-wild
+title: "Text Classification in the Wild"
+subtitle: "Eight applications where the document-in, label-out shape is quietly running production — and the technique that fits each one."
+date: "June 2026"
+updated: "June 2026"
+excerpt: "A companion to the NLP from Scratch series. Eight real-world applications of text classification — personalization, authorship attribution, sentiment, spam, demographic inference, language ID, sarcasm, fake news — each with the shape of the problem, the technique that usually wins, and a note on what makes the production version hard."
+tags:
+  - NLP
+  - Text Classification
+  - Applications
+  - Sentiment Analysis
+  - Spam Detection
+  - Sarcasm Detection
+  - Authorship Attribution
+  - Personalization
+  - Fake News
+source: Notes
+topic: NLP
+coverImage: "/images/blog/nlp-from-scratch/text-classification/applications/sentiment-analysis.png"
+---
+
+A short companion to [Part 6 — Text Classification: Classical](/blog/nlp-from-scratch-06-text-classification) and [Part 7 — Text Classification: Deep Learning](/blog/nlp-from-scratch-07-text-classification-dl). Same machine — *document in, class out* — eight different jobs.
+
+For each one: what the problem looks like, what technique usually wins in production, and the gotcha that bites you when you ship it.
+
+## Personalization
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/personalization.png"
+  alt="A card titled 'Personalized content through text classification'. A user profile on the left, a stream of items (articles, products, music) on the right, with classification arrows tagging each item against the profile's interests. Bottom green check: 'Tag the catalogue, then match to the user.' Bottom blue note: 'Used by recommendation systems, digests, and discovery feeds.'"
+  caption="The hidden workhorse behind 'Discover Weekly', Quora digests, and the news app on your phone."
+/>
+
+Most personalization is a text-classification problem in disguise. Tag every item in the catalogue (article, product, track, video) with its topics, then match users to items whose topics they like. The interesting part is not the recommender — it's the tagging pipeline that classifies a million items per day with no human in the loop.
+
+The technique that fits: usually a fine-tuned transformer for tagging accuracy, with classical TF-IDF + LR as the always-on fallback when latency budgets are tight. The production headache: taxonomy drift. The set of topics you classify into keeps changing as the product evolves, and that means you keep re-labelling.
+
+## Authorship attribution
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/authorship-attribution.png"
+  alt="A card titled 'Authorship attribution'. A passage of text on the left, a row of candidate authors on the right; arrows from the passage point at one author with a confidence score. Bottom blue brain: 'Stylometric features identify the writer.' Bottom green check: 'Works on forensic, historical, and AI-vs-human tasks.'"
+  caption="The Federalist Papers question, modernised: who wrote this?"
+/>
+
+Given a passage, identify the author from a fixed list of candidates. Historically it was used on disputed works (the Federalist Papers, anonymous essays); modern versions are used to detect AI-generated text, identify ghostwriters, and verify identity in forensic settings.
+
+The technique that fits: classical features (character n-grams, function-word frequencies, punctuation patterns) feeding a logistic regression or SVM are surprisingly hard to beat. Stylometry is a signal that lives at a level large pretrained models often blur over. The production headache: the gallery problem. Adding a new candidate author means re-training from scratch.
+
+## Sentiment analysis
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/sentiment-analysis.png"
+  alt="A card titled 'Sentiment analysis'. Three short review snippets on the left labelled positive (green), neutral (grey), and negative (red); the model output on the right shows class probabilities. Bottom green check: 'Powers product reviews, social listening, and brand monitoring.' Bottom red warning: 'Sarcasm and negation break naive classifiers.'"
+  caption="The lab rat. Every NLP course classifies movie reviews; every product team eventually does too."
+/>
+
+Positive, negative, neutral — sometimes finer (5-star, multi-emotion). The canonical NLP classification task, and the one with the most public benchmarks. In production you see it on product reviews, support tickets, social media monitoring, and "voice of customer" dashboards.
+
+The technique that fits: transformer fine-tuning (BERT, RoBERTa) is the modern default; a TF-IDF + LR baseline still gets you ~80% on most public datasets and tells you whether the labels are clean. The production headache: sarcasm and negation — the bag-of-words gives up here, and even good transformers are inconsistent.
+
+## Spam detection
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/spam-detection.png"
+  alt="A card titled 'Spam detection'. An incoming email stream on the left feeds into a classification engine; outputs split into 'inbox' and 'spam' bins on the right. Bottom green check: 'Classical features still ship in production spam filters.' Bottom blue note: 'Adversarial: attackers update tactics, so models retrain often.'"
+  caption="The longest-running text classification deployment on the planet — and the one with the most adversarial pressure."
+/>
+
+Binary. Spam or ham. The canonical introductory example for a reason: clean labels, large datasets, immediate stakes. Used in email, SMS, comments, reviews, and increasingly in messaging apps.
+
+The technique that fits: Naïve Bayes still ships in production filters because it's fast, interpretable, and good enough; the heavy lifting today is feature engineering (URLs, sender reputation, header metadata) and adversarial robustness. The production headache: attackers evolve. Every classifier you ship has a half-life — your spam filter needs to retrain weekly to keep up with new tactics.
+
+## Age and gender inference from text
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/age-gender-inference.png"
+  alt="A card titled 'Text-based demographic inference'. A short writing sample on the left; on the right two outputs: predicted age range and predicted gender, with confidence intervals. Bottom red warning: 'Ethically loaded — handle with care.' Bottom blue brain: 'Stylistic signals correlate with demographics but are noisy.'"
+  caption="Possible — and ethically fraught."
+/>
+
+Predict a demographic attribute (age group, gender) from a writing sample. Researched extensively in academic settings; deployed cautiously where at all. The signal exists — lexical and syntactic patterns correlate with demographic groups — but the production case is narrow and the ethical case is uncomfortable.
+
+The technique that fits: pretty much any text classifier works; the differentiator is feature engineering and the labelled corpus. The production headache: the ethics, not the technology. Most products that try this end up reinforcing stereotypes or violating user expectations, which is why you mostly see it in research or in carefully scoped editorial tools.
+
+## Language identification
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/language-identification.png"
+  alt="A card titled 'Language identification'. A short multilingual text snippet on the left; the model output on the right shows a confidence distribution over languages (English, Spanish, French, Portuguese, ...). Bottom green check: 'Character n-grams alone reach 95%+ on long text.' Bottom red warning: 'Short text and code-switching are the hard cases.'"
+  caption="One of the few NLP problems that classical methods solve essentially perfectly — on long text."
+/>
+
+Detect which language a piece of text is written in. Used everywhere — search routing, translation pipelines, content moderation, locale auto-selection. A solved problem on long text; an unsolved problem on short text and code-switching.
+
+The technique that fits: character n-gram features feeding a logistic regression or even simpler model (think `fastText`). For long documents this is essentially a solved problem. The production headache: tweets, search queries, and chat messages are short and noisy, and people code-switch mid-sentence — that's the hard case where production systems still fail visibly.
+
+## Sarcasm detection
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/sarcasm-detection.png"
+  alt="A card titled 'Sarcasm detection'. A literal-sounding sentence on the left ('Oh, great, another Monday meeting') with a sarcasm flag raised; underneath a contrast example with the same words used sincerely. Bottom red warning: 'Words alone are not enough — context and tone matter.' Bottom blue brain: 'Hard for classical models; even transformers are inconsistent.'"
+  caption="The case study for why bag-of-words can't speak the language."
+/>
+
+Decide whether a piece of text is meant sarcastically. Used in social media moderation, customer feedback analysis, and any sentiment system that wants to avoid being fooled by *"oh, great, another meeting"*.
+
+The technique that fits: transformer-based classifiers with context windows large enough to catch tone shifts; classical methods struggle badly here because sarcasm is precisely the case where surface lexicon contradicts intended meaning. The production headache: domain shift. A sarcasm classifier trained on Twitter does not transfer cleanly to product reviews.
+
+## Fake news detection
+
+<Image
+  src="/images/blog/nlp-from-scratch/text-classification/applications/fake-news-detection.png"
+  alt="A card titled 'Fake-news detection'. A news article on the left being classified into 'real' (green) or 'fake' (red) on the right; a side panel lists signals: factual claims, source reliability, language patterns, image consistency. Bottom red warning: 'A real-world problem that goes beyond text classification.' Bottom blue brain: 'Best systems combine NLP with knowledge sources.'"
+  caption="The application that text classification alone cannot solve — and the one with the highest stakes for getting it wrong."
+/>
+
+Classify whether a news article is misleading or fabricated. The most consequential application on this list, and the one where pure text classification falls shortest. Real systems combine NLP signals (writing style, framing) with knowledge-base lookups, fact-checking pipelines, and source reputation graphs.
+
+The technique that fits: classification is only one component of a larger system — and the classifier alone gives a *style* signal, not a *truth* signal. The production headache: adversaries adapt faster than retraining cycles, and the cost of false positives is catastrophic for press freedom. This is where text classification becomes a political problem, not a technical one.
+
+## What this connects to
+
+You now have the working catalogue. Eight problems, same shape — *document in, class out* — eight different techniques, eight different production headaches.
+
+The methodology you'd reach for in each case is exactly the decision tree from [Part 6](/blog/nlp-from-scratch-06-text-classification): how much labelled data do you have, how adversarial is the environment, how much can you spend on inference. For the modern fine-tuning workflow that powers most of these in production today, see [Part 7 — Text Classification: Deep Learning](/blog/nlp-from-scratch-07-text-classification-dl).
+
+The pattern that keeps showing up: text classification stops being about *which classifier* the moment you take it out of the textbook. In production it's about feature engineering, label quality, taxonomy drift, adversarial pressure, and the social context you're deploying into.

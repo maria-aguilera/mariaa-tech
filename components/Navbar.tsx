@@ -63,9 +63,12 @@ export default function Navbar() {
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
-    // Reading a blog/cheatsheet post should highlight the "Projects" pill (href=/blog).
-    if (pathname.startsWith("/blog/") || pathname.startsWith("/cheatsheets")) {
-      return href === "/blog";
+    // Reading a series post highlights "Guides" (/series). One-off blog or cheatsheet
+    // posts that are NOT part of a series fall back to "Projects" (/blog).
+    if (pathname.startsWith("/blog/") || pathname.startsWith("/cheatsheets/")) {
+      const slug = pathname.split("/")[2] ?? "";
+      const isSeriesPost = series.some((s) => s.posts.some((p) => p.slug === slug));
+      return isSeriesPost ? href === "/series" : href === "/blog";
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };

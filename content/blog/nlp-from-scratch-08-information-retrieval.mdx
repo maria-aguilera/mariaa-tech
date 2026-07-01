@@ -1,0 +1,256 @@
+---
+slug: nlp-from-scratch-08-information-retrieval
+title: "Part 8: Information Retrieval"
+subtitle: "How a search engine actually finds you the right document — from exhaustive search to inverted indexes, BM25, and Elasticsearch."
+date: "June 2026"
+updated: "June 2026"
+excerpt: "Part 8 of the NLP from Scratch series. What information retrieval is and why it is not just Google, the classical IR pipeline (information need → query → engine → results), exhaustive search as the baseline, the document-term matrix and incidence vectors, the inverted index and the positional inverted index, ranked retrieval with TF-IDF, cosine similarity and Okapi BM25, evaluation with precision/recall/F1/P@K and ranking-aware metrics, relevance feedback, query expansion, page rank, and how Elasticsearch puts it all together."
+tags:
+  - NLP
+  - Information Retrieval
+  - Inverted Index
+  - TF-IDF
+  - BM25
+  - Elasticsearch
+  - Precision and Recall
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 8
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/information-retrieval/cheatsheet.png"
+---
+
+*NLP from Scratch · Part 8/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** A one-page cheat sheet for this post is on the way — what IR is, the inverted index, BM25, evaluation, all the gotchas, condensed for fast revision.
+</Callout>
+
+> *"80% of data is unstructured."* — Gartner.
+> If that number is right, search is not a side problem. It is most of the problem.
+
+## Information retrieval is everywhere — but rarely thought about
+
+You use information retrieval every day. You typed something into Google two minutes ago. The thing is, in commercial scenarios IR is *not* applied as often as it could be, and that is the gap this post is about. Once you see the IR pattern, you start spotting it in places where today people are still writing `SELECT` queries by hand or scrolling through wiki pages.
+
+It is also a key step inside any modern NLP pipeline. Doing question answering? Under the hood, BERT needs an IR system to fetch candidate passages before it can extract an answer. So even if your end-goal is "build a chatbot that answers questions about our docs", you still need to understand IR first.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Information retrieval beyond Google" showing IR as a system that searches a large unstructured collection (documents stack icon) and returns relevant results — with small icons of Google search, an internal knowledge base, customer-support docs, and a question-answering pipeline. Off-white #FAFAF7 bg, navy heading, slate-blue accents.
+
+## What makes IR hard: unstructured data and large collections
+
+There are two things working against you. The first is that your data has **no structure**. A tweet, a news article, a PDF — these are sequences of characters. Nothing like a tabular database. If everything were already structured, you would not need IR at all — you would write a SQL query.
+
+The second is that you are searching a **large collection**. With twenty documents, anything works. But scale to a corporate wiki, or Wikipedia, or the entire web, and the naive approach falls over fast.
+
+So IR is really two problems at once: search in unstructured data, *and* do it over a huge collection. That combination is what makes it interesting.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Structured vs unstructured" — left side shows a clean SQL table (rows of scientists in Spain) with a SQL query icon; right side shows a stack of unstructured docs (tweets, articles, PDFs) with a natural-language query "scientists in Spain"; bottom callout: "Gartner: 80% of data is unstructured." Navy + slate-blue.
+
+This is also why IR matters now more than it did in the 90s. Back then, most of the information that existed about a customer lived in a structured database. Today, most of the interesting information about a customer comes from unstructured sources — posts, chat conversations, support tickets. If you cannot store and search that, you are missing the most informative part of your data.
+
+And one more thing worth saying upfront: IR is not usually the last step. It is the **filter**. You use IR to surface the relevant documents, and then you do something with them — classify, summarize, score, extract. Or, like Google, you can hand the top-ranked results directly to the user. Both are valid; just know which mode you are in.
+
+> 🖼️ **Image placeholder** — brand concept card titled "IR as a filter in your NLP pipeline" — IR system in the middle as a funnel; left side: huge document collection; right side: small set of relevant docs feeding into downstream tasks (classification, summarization, QA). Slate-blue + green accents.
+
+## The classical IR model: information need → query → engine → results
+
+Before any code, the IR system is a flow. The user has an **information need** (a problem they want to solve). They have to *formalize* that need into a **query** — and this is harder than it sounds. Then a **search engine** runs that query against a corpus of documents and returns a list of results.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Classical IR model" — left: user icon with thought bubble "information need"; arrow to "query"; arrow into a box labelled "Search engine + corpus (documents)"; arrow out to "ranked results". Dashed feedback loop back from results to the user (iterate / refine). Navy + slate-blue.
+
+The formalization step is where most bad searches come from. Imagine you are stuck on a Python error in your NLP assignment — you cannot just send Stack Overflow a screenshot. You have to *conceptualize* the problem as text. If you cannot, you cannot search for it. Copy-pasting the error message is the lazy version of this; it sometimes works, but you are at the mercy of whether someone else hit the exact same stack trace.
+
+Misformulation is the silent killer. The whole loop becomes iterative: if your results are bad, you refine the query and try again. Doing this five times is normal. Doing it twenty times is a signal that you have not formalized your need well.
+
+That is the theory. The interesting question is how to build the engine in the middle.
+
+## First attempt: just look at everything
+
+Start with the most obvious thing possible. You want to find every document in the Shakespeare corpus containing `Brutus AND Caesar AND NOT Calpurnia`. The naive approach:
+
+```
+for document in all_documents:
+    if "Brutus" in document and "Caesar" in document and "Calpurnia" not in document:
+        results.append(document)
+```
+
+A nested loop over every word in every document. With 20 documents this is fine. With Google-scale data, you would still be computing the result when the sun explodes. This is the baseline you build everything else against — slow, but correct.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Exhaustive search" — a stack of document icons being scanned one by one with a magnifying glass; small "for-loop" snippet on the right; bottom red warning callout "Slow — does not scale beyond toy corpora." Off-white bg, red warning accent.
+
+So the question becomes: how do we change the **representation** so that we do not have to look at every document for every query? We need to organize the corpus once, ahead of time, so that queries become fast.
+
+## Second attempt: the document-term matrix and incidence vectors
+
+You have already met the **document-term matrix (DTM)** in Part 2. Documents are rows, words are columns, cells are counts (or TF-IDF). For now, use the simplest version — the **binary** DTM — where the cell is `1` if the word appears in that document and `0` if not.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Document-term matrix (binary)" — small DTM with rows Doc 1..Doc 4 and columns Brutus / Caesar / Calpurnia / ...; cells filled with 0/1; right side note "Rows = documents, columns = terms, cells = 1 if term appears". Off-white bg, navy + slate-blue.
+
+Each row is a document, but each *column* is also useful — it is an **incidence vector** for that word. The column for `Brutus` is a binary vector telling you which documents contain Brutus. The column for `Caesar` does the same for Caesar.
+
+Now your boolean query becomes vector arithmetic:
+
+- `Brutus AND Caesar` → bitwise AND of the two incidence vectors
+- `NOT Calpurnia` → flip the bits of the `Calpurnia` incidence vector
+- Combine all three with AND, and the positions that come out as `1` are your matching documents.
+
+This is much better. You did not have to re-read every document at query time. The *one-time* cost is building the DTM up front — and that is fine, because you do it once.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Incidence vectors" — three vertical bit-vectors labelled Brutus, Caesar, NOT Calpurnia; AND operation between them produces a fourth vector with 1s only where all three line up; small caption "matching documents = positions with 1". Slate-blue + green accents.
+
+But there is still a problem: the DTM is mostly zeros. Most words do not appear in most documents. Storing all those zeros is wasteful — for a real corpus, you are talking about gigabytes of memory holding nothing. Could we keep only the `1`s and forget about the `0`s?
+
+## Final attempt: the inverted index
+
+Yes. The trick is to flip the data structure on its head. Instead of storing, for each document, which words appear in it, store — for each word — the list of documents that contain it.
+
+That is an **inverted index**. It is a dictionary where:
+
+- the **key** is a term, and
+- the **value** is the ordered list of `doc_id`s where that term appears.
+
+If `Brutus` does not appear in `Doc 3`, then `3` is simply not in its list. You only store the positions of the `1`s. No zeros wasted.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Inverted index" — left: small dictionary with three rows "Brutus → [1, 2, 4, 11, ...]", "Caesar → [1, 2, 4, 5, ...]", "Calpurnia → [2]"; right note "Keys = terms, values = sorted lists of doc IDs"; bottom green callout "Sparse, fast, easy to update". Off-white bg, slate-blue + green accents.
+
+The ordering matters. Because the lists are sorted, intersecting two lists (for an AND query) is a linear walk-through. You take the `Brutus` list and the `Caesar` list, walk both with two pointers, and emit any `doc_id` that appears in both. Adding `NOT Calpurnia` is just subtracting the `Calpurnia` list from the running intersection.
+
+The process of building the inverted index is called **indexing**, and it is *not* fast — you have to read every document and tokenize every word. But indexing happens **once**, ahead of time. At query time, the lookups are dictionary-fast. That asymmetry — slow indexing, fast querying — is the whole point.
+
+A nice side benefit: an inverted index is **easy to update**. When a new document arrives, you tokenize it, and for each new word you either create a new entry or append the new `doc_id` to an existing entry. You never have to rebuild from scratch.
+
+## When the inverted index breaks: phrase queries
+
+There is a query type the basic inverted index cannot handle: a **phrase query**. If you type `"restaurants in madrid"` (with the quotes), you do not want documents that just contain the three words *somewhere*. You want the three words *in that exact order, adjacent to each other*.
+
+The standard inverted index cannot do this. It records *which documents* contain a word, but not *where in the document* the word appears. We need the **position** too.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Phrase queries break the inverted index" — left: query "\"restaurants in madrid\""; centre: a document where the three words appear in scattered places, marked with red Xs; bottom warning "Need word positions, not just document IDs". Red warning accent.
+
+## The fix: positional inverted index
+
+Extend the structure by one level. Each word still maps to a list of documents, but each document entry now also stores the **positions** where the word appears in that document. You end up with a two-level dictionary:
+
+- Level 1 key: the term (e.g. `Brutus`)
+- Level 1 value: a dictionary of `{doc_id: [position_1, position_2, ...]}`
+
+So `Brutus` might be `{1: [10, 130], 4: [16, 502]}` — meaning Brutus appears at positions 10 and 130 in document 1, and at positions 16 and 502 in document 4.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Positional inverted index" — nested dictionary: term "to" → {Doc 4: [16, 173, 405], Doc 9: [22]}; term "be" → {Doc 4: [17, 174], Doc 7: [55]}; small inline caption "Two-level dictionary: term → doc → positions". Slate-blue accent.
+
+Now phrase queries are tractable. For `"to be"`:
+
+1. Look up both terms.
+2. Find documents where they both appear (intersection of doc IDs).
+3. For each common document, find positions `p` of `to` and check whether `be` has position `p + 1`.
+
+If you want `"to be or"`, repeat the check for position `p + 2` against the index for `or`.
+
+The trade-off is real: a positional index is bigger (more memory, slower to update). But it gives you exact-phrase search, which is non-negotiable for many real applications.
+
+## The limitations that will bite you
+
+If you stop here and ship this index, you will hit problems fast. None of them are deal-breakers, but each one is a decision you have to make consciously:
+
+- **Misspellings.** A user typing `restaurnts` will get nothing. You need fuzzy matching or spell correction.
+- **Keywords.** You probably want to weigh some words more than others, especially in titles or headlines.
+- **Synonyms.** `restaurant`, `eatery`, `cafe`, `bistro`. Should they all match? In what scenarios?
+- **Stop words.** Words like `to`, `the`, `a` appear everywhere. Indexing them blows up the size of your index for very little gain. But if you skip them, you cannot do phrase queries like `"to be or not to be"`.
+- **Lemmatization.** Should `car` and `cars` be the same entry? `is` and `are`? Depends on the language and the use case.
+
+These are all the same kind of decision: "how much do I preprocess?". And this is exactly where **Elasticsearch** earns its keep. It gives you all of these as configuration knobs — stemming, stop-word removal, custom analyzers — instead of making you build each one yourself. There is also a set of pre-built **index analyzers** for common scenarios. Be careful when picking one, because the choice silently shapes what your search can find.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Preprocessing decisions" — four icons in a 2x2 grid: ✗ misspellings, ✗ stop words, ✗ synonyms, ✗ lemmatization; small note "Each is a config decision in Elasticsearch"; bottom callout "Choose deliberately — these choices shape every query forever". Off-white bg, navy + slate-blue accents.
+
+There is also a research direction worth knowing about: replacing the sparse index with **dense representations from a language model** (the BERT-for-search idea). Google has done this. But for most commercial systems, the classical pipeline still wins on cost, latency, and explainability. So that is what we will keep building.
+
+## Ranked retrieval: not just *which* documents, but *which order*
+
+Everything so far has been **boolean** — a document either matches or it does not. That is not enough. When you Google something, you open the first three results. If they are bad, you re-query. You are *implicitly* assuming the system ranks documents by relevance, with the most relevant on top.
+
+Boolean matching cannot do that. To rank, we need a number — a **similarity score** between the query and each document. The document that "looks most like" the query goes on top.
+
+This is where the binary DTM is not enough. We want to weigh occurrences, not just record them. That is what the **vector space model** does.
+
+## The vector space model
+
+Treat both the query and each document as vectors over the vocabulary, but use richer weights — **term frequency** or, better, **TF-IDF**. Now similar vectors mean similar content.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Vector space model" — small 2-D illustration: query vector q and a few document vectors d1, d2, d3 in a 2-D plane; angle between q and each d marked; closest doc highlighted as "most relevant". Slate-blue + green accents.
+
+A query like `restaurants in madrid` becomes a vector with three non-zero entries. A document that is full of *restaurants* and *madrid* will have a vector that points in roughly the same direction. A document that contains them only once — and contains a thousand other words — will not.
+
+The two classic similarity measures are:
+
+- **Cosine similarity.** The angle between the two vectors. Easy to compute, scale-invariant.
+- **Okapi BM25.** A more clever score that gives extra weight when *many query terms* match, downweights common words, and accounts for document length.
+
+We will use both, but BM25 is what most systems actually deploy.
+
+## Okapi BM25, briefly
+
+BM25 is essentially TF-IDF turned into a similarity score with three smart adjustments:
+
+1. **Term frequency saturation.** A document containing `madrid` twenty times is not twenty times as relevant as one containing it once. BM25 saturates — diminishing returns.
+2. **IDF (inverse document frequency).** Common words like `in` get downweighted. Rare words like `madrid` get amplified.
+3. **Length normalization.** Long documents naturally contain more matches just because they are long. BM25 normalizes by document length.
+
+A useful intuition: **"repetition matters less than different query words"**. A document containing `restaurants`, `in`, and `madrid` once each is more relevant than a document containing `restaurants` ten times but missing `madrid`.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Okapi BM25" — formula at the top (BM25 score = sum over query terms of IDF(t) · normalized TF); below it three small explainer panels: (1) TF saturation curve, (2) IDF bar chart with "in" low and "madrid" high, (3) document length normalization icon (long doc vs short doc). Slate-blue + green accents.
+
+Where this leaves us: a positional inverted index for fast lookup, TF-IDF weighting inside it, and BM25 to rank results. That is the typical IR system. It is not state of the art, but it is the recipe most production search engines still use.
+
+## Evaluating IR: precision, recall, F1 — never accuracy
+
+You cannot use **accuracy** here. The data is wildly imbalanced — for any given query, the vast majority of your corpus is irrelevant. A system that returns *nothing for every query* would score 99.9% accuracy because 99.9% of documents are correctly classified as "not relevant". Useless.
+
+So you measure the two halves separately:
+
+- **Precision** — of the documents you returned, how many were actually relevant?
+- **Recall** — of the relevant documents in the corpus, how many did you return?
+
+> 🖼️ **Image placeholder** — brand concept card titled "Precision vs recall" — query "restaurants in madrid"; left side: 10 results returned by the system, with the relevant ones in green and irrelevant in red — precision = 9/10; right side: corpus contains 20 relevant docs total, system returned 10 — recall = 10/20. Slate-blue + green + red.
+
+You cannot focus on either one alone:
+
+- **Maximize precision alone:** return one document you are 100% confident about. Precision = 100%. Useless — you missed everything else.
+- **Maximize recall alone:** return the entire corpus. Recall = 100%. Useless — precision crashes to near zero.
+
+That is why we use the **F-measure (F1)**, the harmonic mean of precision and recall. It punishes either being low.
+
+But different use cases lean one way or the other. In web search you care most about precision in the top results, because the user will only look at the first ten anyway. That is what **P@K** measures — precision among the top *K* results, typically `P@10`.
+
+> 🖼️ **Image placeholder** — brand concept card titled "P@K and ranking-aware metrics" — top: bar showing two ranked result lists (IR(1) and IR(2)); IR(1) has wrong doc at position 1; IR(2) has wrong doc at position 8; both have same overall precision/recall/F1 but IR(2) is clearly better because the error is further down; bottom note "Position matters — ranking-aware metrics capture this". Amber accent for the warning.
+
+There are also ranking-aware metrics that explicitly reward putting correct results higher. If two systems make the *same number* of mistakes but one makes them at position 1 and the other at position 8, the second is clearly better — even though their precision, recall, and F1 are identical. Metrics like MAP and NDCG capture this.
+
+And beyond all of these, there are **business KPIs** — did the user find what they wanted? Did they spend less time looking? Did they click through? Those are the metrics that actually matter, but they need real users to measure. The offline metrics above are the proxies you use during development.
+
+## How to make an IR system better (without rebuilding it)
+
+Once the basic system works, there are three classical levers you can pull on top.
+
+**Relevance feedback** — integrate the user into the loop. *Explicit* relevance feedback asks the user "which of these results were useful?", then re-weights the query toward documents like the ones they approved. *Pseudo* or *implicit* relevance feedback infers the answer from behaviour — if a user clicks results 1 and 2 but ignores results 3 through 10, treat 1 and 2 as positive examples.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Relevance feedback" — user icon on the left; ranked result list; checkmarks next to chosen docs; arrow looping back to the query box "re-weighted query"; small note "Explicit (user picks) vs implicit (user clicks)". Slate-blue + green accents.
+
+**Query expansion** — broaden the query with synonyms. `restaurants in madrid` becomes `(restaurants OR eateries OR cafes) in madrid`. Classically this used **WordNet** to look up synonyms; today, language-model-based expansion is taking over.
+
+> 🖼️ **Image placeholder** — brand concept card titled "Query expansion" — original query "restaurants in madrid" → expanded query with synonyms "(restaurants OR eateries OR cafes) in (madrid OR Madrid OR MAD)"; WordNet icon on the side. Slate-blue accent.
+
+**Page Rank** — weight documents by intrinsic importance, not just query relevance. Google's original insight: a well-linked Wikipedia page is probably a better answer than a random blog comment, even if both contain the query terms. PageRank scores each document once, then the ranking blends content relevance with this importance score.
+
+> 🖼️ **Image placeholder** — brand concept card titled "PageRank" — small graph of web pages with arrows representing links; well-linked node highlighted as high-importance; small caption "Documents weighted by how often other documents point at them". Slate-blue accent.
+
+These three are not magic. But on top of a solid BM25 baseline, they buy you real improvements with relatively little code.
+
+## What this connects to
+
+You now have the full classical IR stack: information need → query → positional inverted index → BM25 ranking → evaluation → feedback loop. That stack is enough to build a working search engine over a corporate wiki, a documentation site, or a slice of the web.
+
+Where this matters for the rest of the series: the next step up is **question answering**. The user does not want a list of ten documents to read — they want *the answer*. And the classical QA pipeline starts with an IR system exactly like the one we built here, then adds a question-processing stage and an answer-extraction stage on top.
+
+That is Part 9. Same plumbing — but the goal changes from *finding the right document* to *finding the right span of text inside it*.
