@@ -134,11 +134,11 @@ The standard inverted index cannot do this. It records *which documents* contain
 Extend the structure by one level. Each word still maps to a list of documents, but each document entry now also stores the **positions** where the word appears in that document. You end up with a two-level dictionary:
 
 - Level 1 key: the term (e.g. `Brutus`)
-- Level 1 value: a dictionary of `{doc_id: [position_1, position_2, ...]}`
+- Level 1 value: a dictionary of `\{doc_id: [position_1, position_2, ...]\}`
 
-So `Brutus` might be `{1: [10, 130], 4: [16, 502]}` — meaning Brutus appears at positions 10 and 130 in document 1, and at positions 16 and 502 in document 4.
+So `Brutus` might be `\{1: [10, 130], 4: [16, 502]\}` — meaning Brutus appears at positions 10 and 130 in document 1, and at positions 16 and 502 in document 4.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Positional inverted index" — nested dictionary: term "to" → {Doc 4: [16, 173, 405], Doc 9: [22]}; term "be" → {Doc 4: [17, 174], Doc 7: [55]}; small inline caption "Two-level dictionary: term → doc → positions". Slate-blue accent.
+> 🖼️ **Image placeholder** — brand concept card titled "Positional inverted index" — nested dictionary: term "to" → \{Doc 4: \[16, 173, 405\], Doc 9: \[22\]\}; term "be" → \{Doc 4: \[17, 174\], Doc 7: \[55\]\}; small inline caption "Two-level dictionary: term → doc → positions". Slate-blue accent.
 
 Now phrase queries are tractable. For `"to be"`:
 
