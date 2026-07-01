@@ -1,0 +1,125 @@
+---
+slug: gft-prep-questions-to-ask
+title: "GFT Prep · Questions I have to ask GFT"
+subtitle: "The interviewer will ask 'do you have any questions for us?' — good questions show fit, probe the culture, and surface deal-breakers before the offer arrives. Here's my list, grouped by who I'll ask what."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "Questions for the hiring manager (team, projects, growth), for the technical interviewer (stack, LLMOps, on-call), for HR (compensation, benefits, remote), and for the CoE lead if I meet them (playbook, tooling, knowledge-sharing). Also: the red-flag questions that tell me if I should walk away. Part 3 of my GenAI Engineering — Interview Prep series."
+tags:
+  - Interview prep
+  - GFT
+  - Career
+source: Interview prep
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 3
+seriesTotal: 15
+coverImage: "/images/blog/genai-interview-prep/page-3-rag-memory.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 3/15*
+
+The last five minutes of every interview: *"do you have any questions for us?"*. Wrong answer: *"no, you covered everything"*. Right answer: three or four specific questions per interviewer that show I've done the work, I understand what the job actually is, and I'm evaluating them as much as they're evaluating me.
+
+This is my grouped list. I won't ask all of them — I'll pick the 3–4 most relevant to whoever's in the room.
+
+## Questions for the hiring manager
+
+### About the team and the day-to-day
+- What does a *typical* week look like for the AI engineer role you're hiring for? Notebook exploration, production PRs, client demos — what's the mix in a normal quarter?
+- How is the AI.DA CoE structured internally? Is it one team or several specialised pods (RAG, agents, MLOps, evaluation)?
+- Who would I be reporting to, and what does the reporting cadence look like — weekly 1:1s, sprint reviews, quarterly OKRs?
+- What's the size of the team right now, and what's the target size in 6 months?
+
+### About the projects
+- Which industries — banking, insurance, industrial — are driving the most GenAI work in the CoE right now?
+- Can you describe an active project (without breaking confidentiality) that this role would likely land on?
+- How many client engagements does a CoE engineer typically run in parallel? Is it *deep on one* or *spread across two or three*?
+- What's a project that didn't work out the way you expected, and what did the CoE learn from it?
+
+### About growth
+- What's the growth path for someone in this role — technical IC track, tech lead, principal architect?
+- How does GFT support certifications or conference attendance (AWS AI Practitioner, PyData, NeurIPS)?
+- Has anyone in the CoE published, spoken publicly, or open-sourced work? What's the appetite for that?
+
+## Questions for the technical interviewer
+
+### About the stack
+- What LLM providers are you deploying against most often — OpenAI, Anthropic, Azure OpenAI, self-hosted Llama / Mistral variants? Is the choice per-client or a CoE default?
+- Do you have a canonical RAG stack you reuse across engagements (vector DB, chunking library, reranking model), or is each project greenfield?
+- LangChain vs LlamaIndex vs writing it yourself — where does the CoE land, and why?
+- How do you handle model versioning and prompt versioning in production — is there a canonical way, or is each team building their own?
+
+### About LLMOps + reliability
+- What does observability for LLM-based systems look like at GFT — Langfuse, LangSmith, Datadog, a home-grown solution?
+- How do you set SLOs for a RAG system in a banking context, when "correct" is often subjective? What's the evaluation harness?
+- What's the on-call rotation like for a GenAI service in production? Who gets paged when the model starts hallucinating on a Friday afternoon?
+- How do you handle prompt injection and jailbreak defense today — allowlists, LLM firewalls, output filtering, a mix?
+
+### About cost + latency
+- What's the typical cost profile of a project — mostly per-token API costs, or infrastructure for self-hosted models?
+- Have you had to fall back from GPT-4/Claude to a smaller open model for cost reasons? What was that experience like?
+- What latency budgets do banking clients typically demand for user-facing agent workflows?
+
+### About the agent frontier
+- The JD mentions multi-agent patterns as a core skill area. Are you deploying multi-agent workflows in production today, or is that still mostly a demo / prototype phase?
+- What agent framework do you lean on — LangGraph, AutoGen, CrewAI, custom? And what's the reasoning?
+
+## Questions for HR / people-ops
+
+### Compensation + benefits
+- What's the compensation range for this role, and how is it structured (base + bonus, equity if any)?
+- Is there a formal review cycle for compensation adjustments, and how often?
+- What benefits does GFT offer around health, retirement pension, meal vouchers, transport? (Standard Spanish package questions — but ask specifically.)
+- Is there a training budget per engineer per year — for certifications, conferences, books, courses?
+
+### Location + hybrid
+- What's the hybrid / remote policy for this role? Days-in-office expectation, flexibility, off-site travel?
+- Which office would I primarily be based out of? Is there flexibility between the Madrid / Alicante / Sant Cugat locations?
+- How much client travel is realistic for this role — none, occasional, weekly?
+
+### Process
+- What are the next steps in the interview loop, and what's the realistic timeline to an offer?
+- Is there a take-home or case study round I should prepare for?
+- Who else would I meet before the offer — CoE lead, engineering director, teammates?
+
+## Questions for the CoE lead (if I meet them)
+
+- What are the top three engineering challenges the CoE is facing right now?
+- What's the shared playbook look like — is it a template repo, an internal wiki, an evaluation harness, all of the above?
+- How does the CoE decide what to standardise vs what to leave per-project?
+- How do knowledge-sharing rituals work — weekly show-and-tell, quarterly summits, internal blog?
+- What percentage of CoE time is client-billable vs internal R&D / tooling?
+
+## Red-flag questions (the ones that tell me to walk away)
+
+I won't ask these directly, but I'll listen for the answers in what they *do* say:
+
+- If "how do you evaluate LLM output quality" gets a vague answer like "we look at it", that's a red flag — no evaluation discipline means no way to know when things are broken.
+- If "what's the on-call rotation" gets *"we don't really have on-call for GenAI yet"*, that's not necessarily bad — it could mean the products aren't yet in production 24/7, which is fine, but I want to know.
+- If "how do you handle prompt injection" gets a wave-off, that means prompt injection defense is one of my *first* jobs, not a skill I'll learn from a senior. Not a deal breaker, but a signal.
+- If the answer to *"how does the CoE share learnings"* is anything less structured than a weekly ritual + a searchable knowledge base, the "CoE" is more branding than substance.
+- If salary transparency at the HR stage is bad, that predicts how the rest of the compensation conversation will go.
+
+## My top 5 (the ones I'll definitely ask)
+
+Given time, I'll prioritise:
+
+1. **What does a typical week look like for this role in a normal quarter?** (calibrates the day-to-day)
+2. **Which industries and what kind of client project would this role likely land on?** (calibrates the actual work)
+3. **What does observability + evaluation for LLM systems look like inside GFT today?** (signals technical maturity)
+4. **How do you handle prompt injection defense in production RAG systems for banking clients?** (signals depth — I've studied this and want to know their answer)
+5. **What's the growth path for a technical IC in the CoE, and what does the first 90 days look like?** (calibrates my trajectory)
+
+## What's next in this series
+
+The meta prep is done. From here, the series goes fully technical.
+
+- [Part 4: The 4-page cheatsheet](/blog/genai-interview-prep-cheatsheet)
+- [Part 5: LLM Foundations](/blog/genai-01-llm-foundations) — transformers, RLHF, sampling
+- [Part 6: Prompting & Reasoning Loops](/blog/genai-02-prompting-reasoning) — CoT, ReAct, ToT
+- [Part 7: RAG & Retrieval Deep Dive](/blog/genai-03-rag-retrieval)
+- [Part 8: Memory & State Management](/blog/genai-04-memory-state)
+- [Part 9: Multi-Agent Systems & Tool Use](/blog/genai-05-multi-agent-tools)
+- [Part 10: Guardrails, Security & LLMOps](/blog/genai-06-guardrails-security-llmops)
+- [Part 11: Cost, Latency & Deployment](/blog/genai-07-cost-latency-deployment)

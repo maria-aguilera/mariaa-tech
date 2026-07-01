@@ -1,0 +1,472 @@
+---
+slug: genai-04-memory-state
+title: "Part 8: Memory & State Management"
+subtitle: "How to give an LLM app the ability to remember — short-term chat history, long-term user context, session management, semantic caching, and the memory abstractions in LangChain / LangGraph / Mem0."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "LLMs are stateless — every request is fresh. Real applications have memory: chat history, user preferences across sessions, cached responses. Full walkthrough of memory patterns: buffer / summary / vector / entity memory, session management, semantic cache (embedding-similarity keyed), context window budgeting, and memory-augmented agents (Mem0, Zep, MemGPT). With LangChain code and interview questions."
+tags:
+  - GenAI
+  - LLM Memory
+  - LangChain
+  - Semantic Cache
+  - State Management
+  - Interview prep
+source: Interview prep
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 8
+seriesTotal: 15
+coverImage: "/images/blog/genai-interview-prep/page-3-rag-memory.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 8*
+
+<Callout color="blue">
+  This is Part 8 of my prep for a real Generative AI Engineer interview at **GFT Madrid**. If you're reading this to learn the material with me, start with [Part 1 — the cheatsheet](/blog/genai-interview-prep-cheatsheet) and read forward.
+</Callout>
+
+## The one line that matters
+
+The LLM does not remember you. Every request is a fresh mouth with no history. If your app *feels* like it remembers, that's because you — the person building it — sent the history back in every single call.
+
+That is the whole memory story. Everything else — buffer, summary, vector, entity, session, cache, Mem0, Zep, MemGPT — is just *how* you decide to package what you send back.
+
+So the real question in production is never "does the model remember" (it doesn't). The real question is: **what subset of past information do I stuff into this next prompt, so the model can behave as if it does?**
+
+## Why memory is a first-class concern
+
+Three constraints collide the moment you go past a demo:
+
+1. **The model is stateless.** Same input → same output distribution. No hidden variables carrying over.
+2. **The context window is finite.** Even at 200k or 1M tokens, it's not free — every token costs money and latency. You can't just append forever.
+3. **Users expect continuity.** They expect the app to remember their name from yesterday, the file they uploaded last week, the tone they prefer.
+
+Memory is the layer that reconciles those three things. It decides *what to keep, what to compress, what to forget, and what to look up on demand.*
+
+<img src="https://mem0.ai/_next/image?url=%2Fblog%2Fai-agent-memory%2Fmemory-types.png&w=1920&q=75" alt="Diagram of AI agent memory hierarchy — short-term (working), long-term (episodic, semantic, procedural), and how they relate to the LLM context window." />
+
+The rest of this post is the vocabulary you need to talk about this in an interview and the code patterns you need to actually build it.
+
+---
+
+## 1. Short-term memory (the chat buffer)
+
+### What it is
+
+Short-term memory is the current conversation. Turn 1, Turn 2, Turn 3 — the running back-and-forth. In LLM apps this is almost always just a Python list of messages that you re-send with every request.
+
+```python
+history = [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "My name is Maria."},
+    {"role": "assistant", "content": "Nice to meet you, Maria."},
+    {"role": "user", "content": "What's my name?"},
+]
+```
+
+The reason the model "remembers" your name in the last turn is not because the model learned anything. It's because you sent turns 1–3 back in the same list.
+
+### Why it matters
+
+Every LLM chat feature — ChatGPT, Claude, an internal RAG bot — is built on this. If you don't have short-term memory, you have a stateless FAQ, not a conversation.
+
+### How it works in LangChain
+
+The classic `ConversationBufferMemory` just keeps the raw list. It has three variants worth naming:
+
+- **ConversationBufferMemory** — keep everything, verbatim.
+- **ConversationBufferWindowMemory** — keep only the last *k* turns (sliding window).
+- **ConversationTokenBufferMemory** — keep as many recent turns as fit within a token budget.
+
+```python
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.chains import ConversationChain
+from langchain_openai import ChatOpenAI
+
+memory = ConversationBufferWindowMemory(k=6)  # keep last 6 turns
+chain = ConversationChain(llm=ChatOpenAI(), memory=memory)
+
+chain.predict(input="My name is Maria.")
+chain.predict(input="What's my name?")  # works — turn 1 is still in the window
+```
+
+### Interview angle
+
+If the interviewer asks *"how does an LLM chatbot remember the previous turn?"* — the answer is not "the model has memory." The answer is: **the application re-sends the conversation history in every request, and the memory abstraction decides which subset of the history to include.**
+
+Bonus points if you mention that in **LangChain 1.x**, `ConversationBufferMemory` and friends are deprecated and the modern replacement is **LangGraph checkpointers** — same idea, different abstraction, plus persistence.
+
+---
+
+## 2. Long-term memory (across sessions)
+
+### What it is
+
+Long-term memory is anything you want to remember *between* sessions. The user closes the tab, comes back tomorrow, and the app knows their preferences, their previous projects, their tone.
+
+Short-term memory lives in RAM (or in a thread's state). Long-term memory lives in a database — Postgres, Redis, a vector store, a graph — and gets looked up when relevant.
+
+### Why it matters
+
+This is the difference between a chatbot and an assistant. A chatbot forgets you between sessions. An assistant remembers you across weeks.
+
+The three flavours of long-term memory come from cognitive science and now show up everywhere in agent frameworks:
+
+- **Semantic memory** — facts. "Maria works on mariaa.tech. She lives in Spain."
+- **Episodic memory** — past interactions. "Last Tuesday she asked about RAG evaluation."
+- **Procedural memory** — how to behave. "She prefers short answers, code blocks with comments, no emojis."
+
+### How it works
+
+The typical pattern:
+
+1. After each conversation, run an extraction step — an LLM call that pulls out durable facts.
+2. Store those facts somewhere queryable (vector store keyed by embedding, or a KV store keyed by user + entity).
+3. At the start of the next session, retrieve the facts relevant to the current query and inject them into the system prompt.
+
+<img src="https://blog.getzep.com/content/images/size/w2000/2024/08/zep-memory-diagram.png" alt="Zep long-term memory architecture — extraction, storage in a temporal knowledge graph, and retrieval for a new session." />
+
+### Interview angle
+
+If they ask *"how do you make an agent remember a user across sessions?"* — describe the loop: **extract → store → retrieve → inject**. Then name a concrete backend (Postgres for structured facts, a vector store for episodic snippets, a graph like Zep for facts with temporal relationships).
+
+---
+
+## 3. Session state (the thread abstraction)
+
+### What it is
+
+A **session** (or **thread**) is one conversation. Give it an ID. Every message in that conversation gets tagged with the same ID. When the user comes back, you load the state for that ID and continue.
+
+This is not a memory *type*, it's the *addressing scheme* that lets you have memory at all.
+
+### How it works in LangGraph
+
+LangGraph makes this explicit. You attach a `checkpointer` to the graph, and every node execution auto-saves the state under a `thread_id`.
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.checkpoint.postgres import PostgresSaver
+
+graph = StateGraph(...)
+checkpointer = PostgresSaver.from_conn_string("postgresql://...")
+app = graph.compile(checkpointer=checkpointer)
+
+# Same thread_id = same conversation state
+config = {"configurable": {"thread_id": "user-42-session-2026-07-01"}}
+app.invoke({"messages": [("user", "Hi")]}, config)
+app.invoke({"messages": [("user", "What did I just say?")]}, config)  # remembers
+```
+
+Three things fall out of this for free:
+
+- **Resumability** — the user reloads the tab, you rehydrate from the checkpoint.
+- **Time travel** — you can rewind to any past checkpoint and branch a new conversation.
+- **Human-in-the-loop** — the graph can pause, wait for human approval, and resume.
+
+### Interview angle
+
+If they ask about **stateful agents** or **long-running workflows**, this is the answer. Session ID + checkpointer = a durable, resumable conversation. Say "MemorySaver for dev, PostgresSaver for prod" and you've earned the point.
+
+---
+
+## 4. The four memory types you should be able to name
+
+This is the comparison table every interviewer wants to hear.
+
+| Type | What it stores | Strength | Weakness | Use when |
+|------|----------------|----------|----------|----------|
+| **Buffer** | Raw messages, verbatim | Perfect recall of recent turns | Blows the context window fast | Short conversations, small models |
+| **Summary** | LLM-generated running summary | Handles unbounded history | Loses specific details in compression | Long support chats, coaching bots |
+| **Vector** | Message embeddings in a vector store | Retrieves semantically relevant past turns regardless of when they happened | Extra latency, needs a threshold | Long histories where old context matters |
+| **Entity** | Structured key-value facts per entity | Precise, queryable, no fuzz | Requires extraction step, brittle for unstructured info | User profiles, CRM-style memory |
+
+The trick to remember them: buffer is *literal*, summary is *lossy compression*, vector is *semantic lookup*, entity is *structured*.
+
+### Buffer memory (already covered above)
+
+`ConversationBufferMemory` — verbatim, no compression. Sliding window (`k`) or token budget variants when the raw history gets big.
+
+### Summary memory
+
+Compresses older history into a running summary. `ConversationSummaryBufferMemory` is the practical version — it keeps *recent* turns verbatim and compresses everything older into a summary.
+
+```python
+from langchain.memory import ConversationSummaryBufferMemory
+from langchain_openai import ChatOpenAI
+
+memory = ConversationSummaryBufferMemory(
+    llm=ChatOpenAI(model="gpt-4o-mini"),
+    max_token_limit=2000,
+)
+# When the buffer crosses 2000 tokens, older messages get summarised
+# and replaced with the summary.
+```
+
+The trade-off: you handle unbounded history at the cost of losing details in the summary. Names get dropped. Numbers drift. If the user said "book the 9:15 flight" three days ago, the summary might say "asked about flights."
+
+### Vector memory
+
+Embed every message (or every user turn), throw it in a vector store, and at query time retrieve the top-k semantically similar past messages.
+
+```python
+from langchain.memory import VectorStoreRetrieverMemory
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
+
+vectorstore = Chroma(embedding_function=OpenAIEmbeddings())
+retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+memory = VectorStoreRetrieverMemory(retriever=retriever)
+
+# On every new message, memory.load_memory_variables({"prompt": user_query})
+# returns the 4 most semantically similar past exchanges.
+```
+
+Good for very long conversations where a relevant snippet might live 500 turns back. Basically RAG, but the corpus is the conversation itself.
+
+### Entity memory
+
+`ConversationEntityMemory` runs an extraction pass on each turn — it identifies entities (people, projects, dates) and maintains a mini profile per entity.
+
+```python
+from langchain.memory import ConversationEntityMemory
+from langchain_openai import ChatOpenAI
+
+memory = ConversationEntityMemory(llm=ChatOpenAI())
+memory.save_context(
+    {"input": "Maria is preparing for a GFT interview in Madrid."},
+    {"output": "Good luck with the prep."},
+)
+# memory.entity_store now has:
+# {"Maria": "Preparing for a GFT interview in Madrid.", "GFT": "...", "Madrid": "..."}
+```
+
+This is close to what Mem0 does under the hood, just more structured and less scalable.
+
+<img src="https://python.langchain.com/assets/images/memory_diagram-a5b7dda03a13f7c22d34c95c5cf3aec6.png" alt="LangChain memory diagram — how a memory module reads from and writes to the conversation state around the LLM call." />
+
+### Interview angle
+
+If asked *"which memory type would you pick?"* — **decision framework**, not opinion:
+
+- Short chat, high recall needed → **buffer** (with a window)
+- Long conversation, you can afford to lose detail → **summary**
+- Very long conversation, old context still matters → **vector**
+- Structured profile per user/entity → **entity**
+- Production agent that has to remember users across weeks → **none of the above alone, use Mem0 / Zep / LangGraph store**
+
+---
+
+## 5. Semantic cache (the one that actually saves money)
+
+### What it is
+
+A normal cache checks: *did I see this exact string before?* A **semantic cache** checks: *did I see something that means roughly the same thing before?*
+
+It hashes queries by *embedding*, not by *text*. So "how do I reset my password" and "I forgot my password, help" hit the same cached answer.
+
+### Why it matters
+
+LLM calls are the expensive part of your bill. In an internal support bot, a huge fraction of queries are near-duplicates of yesterday's queries. Semantic caching kills that duplicate cost — reported numbers are in the range of **60–80% cache hit rates** for FAQ-style traffic, with **~3–8ms lookup latency** vs hundreds of ms for a fresh LLM call.
+
+### How it works — worked example
+
+The full lookup loop:
+
+```python
+# Pseudocode: semantic cache lookup
+def semantic_cache_lookup(user_query, cache, embed_model, threshold=0.92):
+    # 1. Embed the incoming query
+    query_vec = embed_model.encode(user_query)
+
+    # 2. Search the vector store of past (query, response) pairs
+    hits = cache.vector_search(query_vec, top_k=1)
+
+    if not hits:
+        return None  # cold cache
+
+    top_hit = hits[0]
+    similarity = cosine_similarity(query_vec, top_hit.vector)
+
+    # 3. Only serve if similarity crosses the threshold
+    if similarity >= threshold:
+        return top_hit.cached_response  # cache HIT — skip the LLM
+
+    return None  # cache MISS — fall through to the LLM
+
+
+def answer(user_query):
+    cached = semantic_cache_lookup(user_query, cache, embed_model)
+    if cached is not None:
+        return cached
+
+    response = llm.generate(user_query)          # expensive call
+    cache.store(embed_model.encode(user_query), response)  # write-through
+    return response
+```
+
+The two knobs you tune:
+
+- **Similarity threshold.** Too low → false positives (you serve the wrong answer). Too high → false negatives (you re-call the LLM for near-duplicates). Start at **0.92**, watch false-positive rate over 48 hours, adjust in 0.01 increments.
+- **TTL.** How long a cached answer stays valid. Recommended defaults: **24h for news/current events, 72h for stable factual content, 7 days for FAQ-style answers.**
+
+<img src="https://cdn.zilliz.com/statics/gptcache_arch.png" alt="GPTCache architecture — embedding model, vector store, similarity evaluator, cache storage, and eviction policy." />
+
+The main open-source implementation is **GPTCache** (Zilliz). Redis has native semantic caching via RedisVL. LangChain has `RedisSemanticCache` as a drop-in `.set_llm_cache(...)` layer.
+
+### The related-but-different thing: prompt caching
+
+Do not confuse semantic cache with **Anthropic prompt caching** (or OpenAI's automatic caching).
+
+- **Semantic cache** = skip the LLM call entirely, serve a stored response.
+- **Prompt cache** = still call the LLM, but the provider skips re-processing the identical *prefix* of the prompt (system message, big context) and charges you 10% of input cost for those tokens instead of 100%.
+
+The rule that makes prompt caching work: **keep the prefix stable, only grow the tail.** Cached content must appear at the beginning and must be byte-identical across requests. Anthropic requires a minimum prefix of **1,024 tokens for Sonnet** and **4,096 for Opus / Haiku 4.5**. Cache writes cost 1.25x base input, cache reads cost 0.1x — so it pays off after roughly two hits.
+
+Both caches compose. Semantic cache handles duplicate *queries*. Prompt cache handles the shared *system prompt + RAG context* inside a non-duplicate query.
+
+### Interview angle
+
+*"How would you reduce LLM cost in a support chatbot?"* Two-part answer: **semantic cache in front of the LLM for duplicate queries, prompt cache for the stable prefix.** Then say the number you'd start with (0.92 threshold, 72h TTL) and mention monitoring false-positive rate. That specificity is what signals experience.
+
+---
+
+## 6. The three history strategies — pick your poison
+
+Once your conversation gets long, you have three ways to send it back to the model. Every framework wraps this same choice.
+
+| Strategy | What you send | Cost | Recall of old detail | Coherence |
+|----------|---------------|------|----------------------|-----------|
+| **Full history** | Every turn, verbatim | Grows linearly | Perfect | Perfect |
+| **Sliding window** | Last k turns only | Constant | Zero for old turns | Breaks on references to old context |
+| **Summary + append** | Rolling summary + last k turns | Constant | Lossy | Decent — model has the gist |
+
+**Full history** is fine until it isn't. Great for demos and short bots. Fails silently — you don't notice until the bill or the latency hits.
+
+**Sliding window** is what people reach for first. Cheap, predictable, but if a user says "remember the file I uploaded at the start" and the start is out of the window, the model has no idea.
+
+**Summary + append** is the production default. Compress old turns into a running summary, keep recent turns raw. This is what `ConversationSummaryBufferMemory` implements and what modern LangGraph agents do explicitly.
+
+There's also a fourth option — **vector retrieval over conversation history** — which is really RAG applied to the transcript. Use it when the conversation is *very* long and old context matters unpredictably.
+
+---
+
+## 7. Context window budgeting
+
+The context window is a shared budget. Everything competes for it: system prompt, chat history, retrieved RAG chunks, tool schemas, and the space you need to *leave for the model's response.*
+
+A useful mental split for a 128k-token window:
+
+- **System prompt + tool schemas** — ~2–4k tokens. Stable, prompt-cacheable.
+- **Long-term memory / user profile** — ~1–2k tokens. Retrieved per session.
+- **RAG context** — 4–16k tokens. Whatever your retriever + reranker returns.
+- **Chat history** — variable. This is the pressure valve — compress it when the rest grows.
+- **Response space** — reserve at least the `max_tokens` you set for the reply, plus headroom.
+
+The two failure modes:
+
+- **Overflow** — you send more tokens than the window and the API errors out (or silently truncates). Usually the chat history balloons.
+- **Lost in the middle** — even when it fits, models pay less attention to tokens in the middle of long contexts. Put the important stuff at the start or the end.
+
+The rule of thumb: **budget backwards from the response.** Reserve response space first, then RAG context, then history. History is the softest — that's where you apply summary or window.
+
+### Interview angle
+
+*"How would you handle a very long conversation?"* Answer in three moves: **(1)** budget the window backwards from the response, **(2)** compress chat history with summary + append and keep recent turns raw, **(3)** cache the stable prefix (system + tool schemas) with prompt caching. That's a production answer, not a textbook answer.
+
+---
+
+## 8. Memory-augmented agents (Mem0, Zep, MemGPT)
+
+The three names you should know cold.
+
+### Mem0
+
+Mem0 is the current standard for a **drop-in long-term memory layer** for agents. You call `memory.add(...)` after each conversation and `memory.search(...)` before the next one. It handles the extract → store → retrieve loop for you.
+
+Under the hood it's a two-stage architecture: an **extraction stage** that pulls salient facts from the conversation, and an **update stage** that decides whether to `ADD`, `UPDATE`, `DELETE`, or `NOOP` against existing memories (so the memory stays consistent, not just cumulative). Storage is Postgres for facts + a vector store for episodic snippets, with an enhanced variant that uses a graph database for entity relationships.
+
+Partitions by `user_id`, `agent_id`, `run_id` — so multi-user isolation is baked in.
+
+Reported numbers: **91% lower p95 latency** and **90% token reduction** vs full-context prompting, with **~26% accuracy gains** over plain vector-store memory (because it consolidates and forgets, instead of just piling up).
+
+```python
+from mem0 import Memory
+
+memory = Memory()
+memory.add("Maria is preparing for a GFT interview in Madrid.", user_id="maria")
+
+# Next session
+results = memory.search("what is Maria working on?", user_id="maria")
+# → returns the interview prep fact
+```
+
+### Zep
+
+Zep goes one layer up. Instead of storing facts in a vector store, it maintains a **temporal knowledge graph** (via its Graphiti engine) that tracks not just facts but how facts change over time. So it can capture "the user preferred X, then switched to Y" as a temporal edge, not just an overwrite.
+
+Reported to beat MemGPT on the DMR benchmark (**94.8% vs 93.4%**) and to hit **up to 18.5% accuracy improvements** with **90% lower latency** on LongMemEval.
+
+Use it when the *history of facts* matters — e.g. tracking changing preferences, evolving project state, causality.
+
+### MemGPT
+
+MemGPT is the paper (arxiv 2310.08560) that framed the whole area as "LLMs as operating systems." The core idea: give the LLM a **hierarchical memory system** with a fixed context window as "RAM," a searchable message store as "disk," and a vector-indexed archival store as "cold storage." The LLM has *functions to manage its own memory* — it can page facts in and out of the working context.
+
+You probably won't build MemGPT from scratch, but you should be able to explain the analogy in an interview because it's the cleanest mental model for what long-term memory actually is: **virtual context management.**
+
+### Interview angle
+
+If asked *"how would you give an agent memory that lasts across sessions?"* — name **Mem0** as the practical choice, mention **Zep** if temporal reasoning matters, and reference **MemGPT** as the paper that named the paradigm. Then describe the extract → store → retrieve → inject loop. That's the complete answer.
+
+---
+
+## Common interview questions
+
+**Q1. Do LLMs have memory?**
+No. They are stateless. Every request is independent. Any "memory" is the application re-sending past context in the current prompt.
+
+**Q2. What's the difference between short-term and long-term memory in an LLM app?**
+Short-term memory is the current conversation — a list of messages in RAM (or in a thread's state) that you re-send each turn. Long-term memory is anything you want to remember *between* sessions — it lives in a database (Postgres, vector store, graph) and gets looked up when relevant.
+
+**Q3. Compare buffer, summary, vector, and entity memory.**
+Buffer stores raw messages verbatim — perfect recall, blows the window. Summary compresses older history into a running summary — handles unbounded length, loses specific details. Vector embeds messages and retrieves the semantically similar ones — good for very long histories where old context matters unpredictably. Entity extracts structured facts per entity — precise, queryable, brittle for unstructured info.
+
+**Q4. What is a semantic cache and when would you use one?**
+A cache keyed by embedding similarity, not exact string match. It returns a cached LLM response if the incoming query is semantically close enough to a past one (typical threshold 0.92 cosine similarity). Use it in front of any LLM app with high query duplication — support chatbots, FAQ bots, RAG apps. Kills a large fraction of duplicate LLM cost.
+
+**Q5. How is semantic cache different from Anthropic prompt caching?**
+Semantic cache skips the LLM call entirely — you return a stored response. Prompt cache still calls the LLM, but the provider skips re-processing the identical prefix (system prompt, big context) and charges 10% of input cost for those tokens. They compose — semantic cache for duplicate queries, prompt cache for the stable prefix inside non-duplicate queries.
+
+**Q6. How would you handle a conversation that grows past the context window?**
+Budget the window backwards from the response space. Compress old chat history with summary + append (keep recent turns verbatim, replace older turns with a rolling summary). Cache the stable prefix — system prompt, tool schemas, retrieved chunks that don't change — with prompt caching. If old context still matters unpredictably, add vector retrieval over the transcript.
+
+**Q7. How would you give an agent memory that lasts across sessions?**
+Extract → store → retrieve → inject. After each conversation, run an LLM extraction step that pulls durable facts. Store them in a backend keyed by user (Postgres for structured facts, a vector store for episodic snippets, a graph like Zep if temporal relationships matter). At the start of the next session, retrieve the facts relevant to the current query and inject them into the system prompt. In practice, use **Mem0** — it wraps this loop, deduplicates, and adds ADD/UPDATE/DELETE semantics so memory stays consistent.
+
+**Q8. What is a session ID / thread and why does it matter?**
+It's the identifier that ties messages together into one conversation. Same thread ID = same state. In LangGraph, a `checkpointer` auto-saves state per thread ID after every node execution — which gives you resumability (reload the tab, rehydrate the conversation), time travel (rewind to any checkpoint), and human-in-the-loop (pause, wait for approval, resume).
+
+---
+
+## Where this connects
+
+The retrieval half of this — vector stores, chunking, embedding-based lookup — is exactly the machinery in [Part 7 — Retrieval-Augmented Generation](/blog/genai-03-rag). Memory *is* RAG, when the corpus is the conversation itself. That overlap is why the two topics often blur in interviews.
+
+The other direction — memory shared *between multiple agents* — is [Part 9 — Multi-Agent Systems](/blog/genai-05-multi-agent). A supervisor agent handing off to a specialist agent needs to pass state, and that state is a memory decision (send the whole history? a summary? just the last decision?). Same question as this post, one abstraction level up.
+
+## Sources
+
+- [LangChain — Memory overview](https://docs.langchain.com/oss/python/concepts/memory)
+- [LangChain reference — ConversationSummaryBufferMemory](https://reference.langchain.com/v0.3/python/langchain/memory/langchain.memory.summary_buffer.ConversationSummaryBufferMemory.html)
+- [LangGraph — Persistence (checkpointers, threads, stores)](https://docs.langchain.com/oss/python/langgraph/persistence)
+- [Mem0 — Long-Term Memory for AI Agents](https://mem0.ai/blog/long-term-memory-ai-agents)
+- [Mem0 paper — Building Production-Ready AI Agents with Scalable Long-Term Memory (arxiv 2504.19413)](https://arxiv.org/abs/2504.19413)
+- [MemGPT paper — Towards LLMs as Operating Systems (arxiv 2310.08560)](https://arxiv.org/abs/2310.08560)
+- [Zep — A Temporal Knowledge Graph Architecture for Agent Memory (arxiv 2501.13956)](https://arxiv.org/abs/2501.13956)
+- [Anthropic — Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+- [GPT Semantic Cache paper (arxiv 2411.05276)](https://arxiv.org/abs/2411.05276)
+- [Semantic Caching for LLM Inference — GPTCache, Redis, Prompt Cache](https://www.spheron.network/blog/semantic-cache-llm-inference-gpu-cloud/)
+- [PyImageSearch — Semantic Caching for LLMs (FastAPI + Redis + embeddings)](https://pyimagesearch.com/2026/04/27/semantic-caching-for-llms-fastapi-redis-and-embeddings/)
+- [Building Long-Term Memory in AI Agents with LangGraph and Mem0 (DigitalOcean)](https://www.digitalocean.com/community/tutorials/langgraph-mem0-integration-long-term-ai-memory)

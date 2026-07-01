@@ -1,0 +1,109 @@
+---
+slug: gft-prep-strengths-weaknesses
+title: "GFT Prep · My Strengths & Weaknesses for the AI Engineer role"
+subtitle: "An honest self-assessment against the GFT AI Engineer (Generative AI & Data Science Solutions) job description — what I bring, what I'm still building, and how I'd answer the classic 'weaknesses' question without shooting myself in the foot."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "The strengths I actually have (13 blog series, 20+ deep technical posts, Python + Kaggle-style portfolio, active learning velocity), the honest gaps (production GenAI shipping, LangChain-in-anger, team lead experience the JD asks for), and the STAR-format answers I'll use when the interviewer asks about each one. Part 1 of my GenAI Engineering — Interview Prep series."
+tags:
+  - Interview prep
+  - GFT
+  - Self-assessment
+  - Career
+source: Interview prep
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 1
+seriesTotal: 15
+coverImage: "/images/blog/genai-interview-prep/page-1-foundations.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 1/15*
+
+<Callout color="blue">
+  This is the personal-preparation part of the series — the meta layer before the technical deep dives. If you're here for the concepts, skip to [Part 4: The cheatsheet](/blog/genai-interview-prep-cheatsheet) or [Part 5: LLM Foundations](/blog/genai-01-llm-foundations).
+</Callout>
+
+## The role I'm interviewing for
+
+**GFT · AI Engineer (Generative AI & Data Science Solutions)**, based in Madrid / Alicante / Lleida / Sant Cugat / Valencia / Zaragoza. Working in their AI.DA Center of Excellence on AI-centric transformation for banking, insurance, and industrial clients.
+
+The JD lists these skill areas explicitly:
+- Multi-agent patterns (skills + subagents)
+- Prompt engineering
+- State + memory management
+- RAG
+- Reasoning loops / planning
+- Tool design + error handling
+- Interoperability + LLMOps
+- Guardrails
+- Cost + latency optimization (Python, Java, Kafka, microservices)
+
+And the requirements: 5+ years software dev, Python (mandatory), 6+ months GenAI/DS (TF, PyTorch, LangChain, etc.), backend + microservices, Git + CI/CD, one cloud (AWS/GCP/Azure), team leadership, agile methodology, ideally B2/C1 English.
+
+## My strengths (honest)
+
+**1. Strong ML/DS foundation, deep and visible.**
+I don't just say "I know ML" — the [ML from Scratch](/series/ml-from-scratch) series is 12 posts covering everything from data cleaning through PCA, cross-validation, boosting, KNN. The [NLP from Scratch](/series/nlp-from-scratch) series is another 9 posts. Every post has diagrams I made, formulas I wrote out, and cheatsheets I can hand someone. That's not "I read a book" — that's "I taught it".
+
+**2. Active learning velocity.**
+The whole [GenAI Engineering series](/series/genai-interview-prep) you're reading right now was assembled in ~2 weeks specifically to close a gap I identified after reading the JD. That's the pace they need in a consultancy that ships AI transformation to enterprise clients.
+
+**3. Python + practical portfolio.**
+Kaggle-style projects across [forest cover prediction](/blog/forest-cover-type-prediction), [bike sharing demand](/blog/bike-sharing-demand), [Mercedes hackathon](/blog/mercedes-hackathon), [Instagram graph analysis](/blog/instagram-graph-analysis). All Python, all reproducible, all written up so someone else can run them.
+
+**4. Communication + teaching.**
+20+ published technical posts. Every one uses the *StatQuest school of NLP*: visual first, "you" and "imagine", zero condescension, no padding. In a consultancy where you have to explain LLMs to a bank's risk committee, this is not a bonus skill. It's the job.
+
+**5. Full-stack ownership.**
+This site — mariaa.tech — is Next.js on Vercel, GitHub main branch auto-deploys, MDX content pipeline, brand system, cheatsheet route. I built and ship it. I understand how to deploy things, not just how to model them.
+
+**6. Curiosity that shows up on the page.**
+Every post starts with "why does this exist" and ends with "here's what to try next". That mindset transfers directly to consulting engagements — you have to figure out what the *actual* problem is before you build.
+
+## My weaknesses (honest)
+
+**1. Production GenAI shipping is limited.**
+I've built visual explainers of RAG, agents, guardrails. I have not (yet) shipped a RAG system into a bank's production environment behind a real SLA. That's the gap. In the interview, I'll frame it as: *"I know the shape of the problem end-to-end; the piece I want to grow into is the production hardening — load testing, cost monitoring, incident response for LLM-based systems."*
+
+**2. Team lead experience below what the JD asks.**
+The JD says "gestión y liderazgo de equipos técnicos" and my direct team-lead history is more limited than a 5+ year senior lead. I have led project-scoped groups on hackathons and my thesis, but not a permanent team. Framing: *"I've led project-scoped teams and I want to grow into a permanent tech lead role — the CoE format is a great learning environment because senior architects are around."*
+
+**3. Java + Kafka not primary.**
+The JD lists Python, Java, Kafka, microservices. Python is home. Java + Kafka I've read and prototyped but never shipped in production. Framing: *"Python is my primary; I've done Java in one project and I'd close the Kafka gap in the first month — the concepts (event streams, async processing) map to things I already understand."*
+
+**4. LangChain in production is theoretical.**
+I've used the LangChain / LlamaIndex libraries in notebooks. I have not architected a production LangChain deployment with retries, caching, guardrails, and observability. Framing: *"I know the abstractions; I want to grow into designing the reliability layer around them — which is why LLMOps is one of the topics I studied hardest for this interview."*
+
+**5. Multi-agent at scale is a study topic, not a shipped project.**
+Same shape as #1 but specifically for orchestrator / hierarchical / network patterns. I know the patterns from the literature and from LangGraph / crewAI / AutoGen documentation. I haven't run a production multi-agent workflow. Framing: *"I've studied the patterns and prototyped a planner-executor in a notebook — the CoE would be where I get to actually ship one."*
+
+## How I'll answer "what's your weakness" in the room
+
+The wrong answer is *"I'm a perfectionist"*. The right answer names something real, shows self-awareness, and demonstrates the fix already in progress.
+
+My planned answer:
+
+> *"The honest answer is that production GenAI shipping — RAG in prod with real SLAs, multi-agent workflows with error budgets, LLMOps for cost monitoring — is where I have the most learning ahead of me. I've studied the patterns closely — this whole [GenAI interview series](/series/genai-interview-prep) I built while preparing for this role is basically that studying made visible — and the CoE at GFT is exactly the environment where I want to close the loop between what I know conceptually and what I've shipped in anger. I already know the shape of what I need to learn, which is half the battle. The other half is doing it with a senior team around me."*
+
+That answer:
+- Names a real weakness (production experience)
+- Doesn't disqualify me (I know the concepts)
+- Shows self-awareness (I built a whole series to prep)
+- Ties back to what they need (a CoE with growing engineers)
+- Ends on a positive (already in motion)
+
+## What I'll lead with
+
+If they ask *"tell me about yourself"*, my 90-second version:
+
+> *"I'm a data + AI person coming from a strong ML foundation — I built two open technical series covering the ML and NLP courses I took, plus a Kaggle-style portfolio of end-to-end projects (forest cover, bike sharing, Mercedes hackathon). Over the last few months I've been going deep on the Generative AI stack — LLMs, RAG, agents, LLMOps — because that's where the interesting engineering problems have moved. Everything I've studied is published on mariaa.tech, including a 4-page cheatsheet for this exact interview loop. I want to work at GFT specifically because the CoE model gives me both real client problems and senior architects to learn the production side from — and because AI-centric transformation for banking + insurance is where GenAI actually has to work under real constraints."*
+
+Sub-90 seconds if I'm crisp. It tells them: technical depth, communication skill, self-directed learning, clear reason for wanting this specific role.
+
+## What's next in this series
+
+- [Part 2: Why I want to work for GFT](/blog/gft-prep-why-gft) — the deeper "why this company"
+- [Part 3: Questions I have to ask GFT](/blog/gft-prep-questions-to-ask) — the questions I'll bring to the interview
+- [Part 4: The cheatsheet](/blog/genai-interview-prep-cheatsheet) — the visual overview
+- [Part 5 onwards: The technical deep dives](/blog/genai-01-llm-foundations)

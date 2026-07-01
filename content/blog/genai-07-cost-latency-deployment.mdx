@@ -1,0 +1,566 @@
+---
+slug: genai-07-cost-latency-deployment
+title: "Part 11: Cost, Latency & Deployment"
+subtitle: "The engineering discipline of shipping LLMs into production for real money — model routing, semantic caching, prompt caching, streaming responses, plus the GFT-specific stack (Python + Java + Kafka + microservices)."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "The GFT JD explicitly names Python + Java + Kafka + microservices under cost + latency management. Full walkthrough of cost optimization (model routing, semantic cache, prompt cache, batching, LLMLingua compression, quantization, small-model fine-tuning), latency optimization (streaming, speculative decoding, async, edge), and the deployment stack (FastAPI microservices, Kafka event streams, Docker/K8s, OpenTelemetry observability). With production architecture diagrams and interview questions."
+tags:
+  - GenAI
+  - Cost Optimization
+  - Latency
+  - LLM Deployment
+  - FastAPI
+  - Kafka
+  - Microservices
+  - LLMOps
+  - Interview prep
+source: Interview prep
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 11
+seriesTotal: 15
+coverImage: "/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 11 of 15*
+
+> "The bitter lesson of production LLMs: the model that wins the benchmark is almost never the model you deploy. You deploy the cheapest one that clears the bar, and you spend the rest of your time making it faster."
+
+## Part 11: Cost, Latency & Deployment
+
+If you look at the GFT job description for the AI Engineer role in Madrid, one line does a lot of work:
+
+> *"Python, Java, Kafka, microservices — designing and operating LLM systems with cost and latency in mind."*
+
+That's not a passing mention. That's the section of the interview where they check whether you have shipped a real system or whether you have only played with a notebook. Every concept in this post — model routing, semantic cache, prompt cache, streaming, Kafka consumers, OpenTelemetry — exists because someone somewhere had to make an LLM app work for real money, at real load, with a real SLA. This is where they will probe you.
+
+So the goal here is not to sound impressive. It's to give you the exact mental picture of what a production LLM system looks like — the boxes, the arrows, the trade-offs — so that when they ask *"how would you reduce cost by 50% without losing quality?"* you already have the answer laid out on a whiteboard in your head.
+
+This connects directly back to **[Part 7: RAG](/blog/genai-07-rag)** (where retrieval decides your token bill) and **[Part 10: Guardrails & LLMOps](/blog/genai-10-guardrails-llmops)** (where you learned to observe what's happening in production). Cost and latency are the third leg of that stool.
+
+<Callout color="blue">
+**How this post is organized**
+
+1. Why cost and latency are engineering concerns (not finance concerns)
+2. Cost optimization — model routing, caching, batching, compression, quantization, fine-tuning
+3. Latency optimization — streaming, speculative decoding, async, edge
+4. The GFT deployment stack — FastAPI, Java, Kafka, Docker/K8s, observability
+5. Model serving — managed vs self-hosted (vLLM, TGI, OpenRouter, Portkey)
+6. Scaling patterns — horizontal scaling, queue-based load leveling, circuit breakers
+7. Benchmarking in production — load tests, chaos, latency percentiles
+8. Worked example — a full production RAG architecture diagram
+9. Common interview questions (Q&A)
+</Callout>
+
+## 1. Why cost and latency are engineering concerns
+
+Imagine you build a chat product that costs $0.03 per response and takes 4 seconds to answer. That sounds fine. Now imagine 10,000 daily active users, each having 20 turns — that's $6,000/day, or roughly $180K/month, just in inference. And 4 seconds per response is the p50 — the p99 is 12 seconds, so 1% of your users get an answer slower than most people are willing to wait for a webpage to load.
+
+Now the thing is, none of that showed up when you were testing on your laptop. It only shows up when you plug in real traffic. That's what the interview is checking: do you know where the cost hides, and do you know where the latency hides?
+
+Cost hides in three places:
+1. **Duplicate work** — the same prompt, or a semantically identical prompt, being sent to the LLM many times a day.
+2. **Wrong-sized models** — using GPT-4 to answer "what's the weather emoji?"
+3. **Uncompressed context** — pasting 30KB of retrieved documents into every request when 3KB would do.
+
+Latency hides in three places:
+1. **Serial calls** — waiting for retrieval, then waiting for reranking, then waiting for the LLM, one after the other.
+2. **Full-response waits** — the model has generated the first token in 400ms but you keep the user staring at a spinner for the full 4-second completion.
+3. **Cold routing paths** — every request goes through the same big model even when a small one would suffice.
+
+The rest of this post walks each of those, one at a time.
+
+<img src="https://images.ctfassets.net/xjan103pcp94/2AZmZwR7z1cD8pFqSY9lVE/6b3e2f9b2f8b2f8b2f8b2f8b2f8b2f8b/llm-cost-optimization-diagram.png" alt="Cost and latency optimization stack for production LLM systems — routing, caching, batching, compression, streaming layered on top of the base model" />
+
+## 2. Cost optimization
+
+### Model routing (cheap first, escalate on low confidence)
+
+The single biggest lever. You classify the incoming query first (with a cheap classifier, or a small LLM, or heuristics) and send it to the smallest model that can handle it. If the small model's confidence is low, or the answer looks wrong, you *escalate* to a bigger one.
+
+Two flavors:
+
+- **Routing** — one-shot decision. A router picks *one* model per query. Fast, cheap, but if the router is wrong, quality drops.
+- **Cascading** — sequential. Try the small model first. If confidence is low, escalate to the mid tier. If still low, escalate to the big one. Higher latency for hard queries, but you only pay for the big model when you actually need it.
+
+Cascading typically cuts costs 45–85% while keeping ~95% of the quality of the largest model, [per this LogRocket writeup on production routing](https://blog.logrocket.com/llm-routing-right-model-for-requests/). The rule of thumb: if 70% of your queries are easy, cascading gets you a 70% discount on those queries and you only spend big-model money on the hard 30%.
+
+```python
+# Model cascade — pseudocode
+def answer(query):
+    small_response = call_llm("mistral-7b", query)
+    if confidence(small_response) > 0.85:
+        return small_response
+    mid_response = call_llm("claude-haiku", query)
+    if confidence(mid_response) > 0.9:
+        return mid_response
+    # only pay for the expensive model when we really need it
+    return call_llm("claude-opus", query)
+```
+
+*How do you measure confidence?* A few options: token-level log-probs from the small model, a self-eval prompt ("rate your own answer 0–1"), or a separate cheap verifier. None are perfect. In practice teams use a combination.
+
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*7g9y7wG5g8kSg2p8mQpS3g.png" alt="LLM model cascade — small draft model, escalation to medium, then to large model based on confidence" />
+
+### Semantic caching (embedding-similarity cache)
+
+Exact-match caching only works if two users ask *the exact same string*. Semantic caching works if they ask *the same question phrased differently*. You embed the incoming query, look up the nearest neighbor in a vector store of previous queries, and if the cosine similarity clears a threshold (typically 0.9–0.95), you return the cached response instead of calling the LLM.
+
+The pattern: **query → embed → vector search → if hit, return cached; if miss, call LLM and store**.
+
+```python
+# Semantic cache with Redis + LangChain-style embedding lookup
+from langchain_redis import RedisSemanticCache
+from langchain_openai import OpenAIEmbeddings
+
+cache = RedisSemanticCache(
+    redis_url="redis://localhost:6379",
+    embeddings=OpenAIEmbeddings(),
+    distance_threshold=0.1,  # cosine distance — tighter = fewer false hits
+)
+
+def answer(query: str) -> str:
+    hit = cache.lookup(query)
+    if hit is not None:
+        return hit  # zero LLM call
+    response = call_llm(query)
+    cache.update(query, response)
+    return response
+```
+
+Two things to watch out for:
+- **The threshold matters.** Too loose, and you return the wrong cached answer to a semantically different question. Too tight, and you never hit the cache. Instrument the hit rate and the false-hit rate on a labeled eval set before you touch production.
+- **Changing embedding model invalidates the cache.** If you re-embed with a different model, all your cached vectors are in a different space.
+
+<img src="https://redis.io/wp-content/uploads/2024/01/semantic-caching-diagram.png" alt="Semantic cache flow — query embedding compared against stored embeddings in Redis, cache hit returns stored response, cache miss triggers LLM call and stores new pair" />
+
+### Prompt caching (Anthropic + OpenAI)
+
+This one is a gift from the providers. If your prompts share a big static prefix — a long system prompt, a set of few-shot examples, retrieved documents that don't change often — you can tell the provider to *cache the prefix computation* and reuse it across requests.
+
+Numbers (per [Anthropic's prompt caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)):
+- **Cache read: ~10% of the input token cost** (a 90% discount on the cached portion).
+- **Cache write: slightly more than a normal input token** (paid once, amortized across every hit).
+- **TTL: 5 minutes standard, 1 hour extended.**
+- **Latency reduction: up to 85% on the time-to-first-token for cache hits on long prompts.**
+
+```python
+# Anthropic prompt caching — cache the system prompt and a long doc
+response = client.messages.create(
+    model="claude-3-5-sonnet",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": LONG_SYSTEM_PROMPT + LONG_STATIC_KNOWLEDGE_BASE,
+            "cache_control": {"type": "ephemeral"},  # <-- cache this block
+        },
+    ],
+    messages=[{"role": "user", "content": user_query}],
+)
+```
+
+The trick is **prompt structure**: put everything static at the top, everything dynamic at the bottom. Cache hits require the prefix to be byte-identical. Move a single character in the "static" prefix and the cache invalidates.
+
+### Response caching (exact-match)
+
+The simplest cache: hash the prompt, look up the response. Sub-millisecond. Zero LLM cost. Use it in front of the semantic cache — if the exact match hits, you skip the embedding call entirely.
+
+Order in production: **exact-match cache → semantic cache → prompt cache → LLM**. Each layer catches what the previous one missed.
+
+### Batching
+
+If your workload is not user-facing — daily summarization, bulk classification, offline embedding — batch it. Both [OpenAI's Batch API](https://developers.openai.com/api/docs/guides/batch) and Anthropic's Message Batches API give you a **50% discount** on both input and output tokens, in exchange for a 24-hour turnaround SLA and a separate rate-limit pool.
+
+Rule of thumb: if the user is not waiting for it, batch it. A single batch file can hold 50,000 requests up to 200 MB. Your nightly RAG re-indexing? Your weekly customer email summarization? Your evaluation runs? All batch. Halving those bills for basically zero engineering effort is the highest-ROI action in this whole post.
+
+### Prompt compression (LLMLingua)
+
+LLMs get a bill per token. If you can compress your prompt without losing the meaning, you save on every call. [LLMLingua](https://www.microsoft.com/en-us/research/publication/llmlingua-compressing-prompts-for-accelerated-inference-of-large-language-models/) (Microsoft Research) uses a small language model (GPT2-small, LLaMA-7B) to identify low-information tokens in the prompt and drop them.
+
+Results from the paper: **up to 20x compression with minimal performance loss.** LLMLingua-2 is 3–6x faster than the original and cuts end-to-end latency 1.6–2.9x at 2–5x compression.
+
+This shines on **long few-shot examples** and **retrieved RAG context** where a lot of the tokens are redundant scaffolding.
+
+```python
+from llmlingua import PromptCompressor
+
+compressor = PromptCompressor()
+compressed = compressor.compress_prompt(
+    context=RETRIEVED_DOCUMENTS,       # long context you want to shrink
+    instruction=USER_QUERY,
+    target_token=500,                   # target budget
+)
+# use compressed["compressed_prompt"] in your actual LLM call
+```
+
+<img src="https://www.microsoft.com/en-us/research/uploads/prod/2023/12/llmlingua-diagram.png" alt="LLMLingua prompt compression pipeline — small language model identifies non-essential tokens and drops them before sending to the large model" />
+
+### Quantization + smaller models
+
+If you self-host, quantization is basically free money. A 7B model in **4-bit precision (QLoRA-style)** takes ~6 GB of VRAM vs ~16 GB in 16-bit — and on many benchmarks the accuracy loss is under a percent. That means you can run Mistral-7B-Q4 on a single RTX 4090 (~$0.40–0.80/hour) instead of an H100.
+
+The decision framework: **is your task actually hard?** Extracting a field from a document, routing an intent, tagging a support ticket — these do not need GPT-4. A quantized Mistral-7B or Llama-3-8B, fine-tuned on your data, will crush it at a tenth of the cost.
+
+### Fine-tuning small models (LoRA / QLoRA)
+
+Fine-tuning used to mean copying every parameter of the base model. LoRA freezes the base and only trains a tiny low-rank adapter — LoRA reaches 95–99% of a full fine-tune's quality; QLoRA does it in 4-bit and cuts memory another 75–80%. And here's the killer: **you can serve 25+ LoRA adapters simultaneously off a single base model** ([LoRA Land, Predibase](https://www.databricks.com/blog/efficient-fine-tuning-lora-guide-llms)) with microsecond adapter swap. One base model → many task-specific fine-tunes, all sharing the GPU.
+
+*So when do you fine-tune vs when do you route?* If a small model with clever prompting gets you to 90% quality, don't fine-tune — just route. Fine-tune when you have a narrow, repetitive task (classification, extraction, tone matching), enough labeled data (~1K+ examples), and you need to squeeze that last 5–10%.
+
+### Trade-off table — cost optimization techniques
+
+| Technique | Cost cut | Effort | When to use | Gotcha |
+|---|---|---|---|---|
+| Exact-match cache | ~5–20% | Trivial | Any workload with query repetition | Requires exact hash match |
+| Semantic cache | 20–40% | Low | Chat, Q&A, FAQ | Wrong threshold = wrong answers |
+| Prompt caching (provider) | 30–70% on cached portion | Trivial | Long static prefix (RAG, system prompt) | Prefix must be byte-identical |
+| Model routing / cascade | 45–85% | Medium | Mixed-difficulty workload | Router failure = quality drop |
+| Batching | 50% flat | Low | Non-real-time workloads | 24h turnaround |
+| Prompt compression (LLMLingua) | 30–80% of input tokens | Medium | Long RAG context, many-shot examples | Small quality hit; extra inference for the compressor |
+| Quantization (4-bit) | 60–75% infra cost | Medium | Self-hosted | 1–3% quality loss |
+| LoRA/QLoRA fine-tune | 80–95% per query vs GPT-4 | High | Narrow repetitive task | Requires labeled data |
+
+## 3. Latency optimization
+
+### Streaming responses (SSE)
+
+The single easiest UX win. Instead of waiting 4 seconds and dumping a full response, you stream tokens as they're generated. The user sees text appearing in ~400ms. Time-to-first-token (TTFT) is what they perceive as latency, not total generation time.
+
+FastAPI + Server-Sent Events (SSE) is the modern default. SSE is a one-way HTTP stream — perfect for LLMs (server → client only, no need for WebSockets), works through proxies, has built-in reconnection via `EventSource`.
+
+```python
+from fastapi import FastAPI
+from sse_starlette.sse import EventSourceResponse
+import anthropic
+
+app = FastAPI()
+client = anthropic.Anthropic()
+
+@app.get("/chat/stream")
+async def chat_stream(query: str):
+    async def event_generator():
+        with client.messages.stream(
+            model="claude-3-5-sonnet",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": query}],
+        ) as stream:
+            for text in stream.text_stream:
+                yield {"event": "token", "data": text}
+        yield {"event": "done", "data": ""}
+    return EventSourceResponse(event_generator())
+```
+
+Watch for:
+- **Client disconnects** — if the user closes the tab, stop generating (asyncio task cancellation).
+- **Proxy timeouts** — some proxies close idle connections. Send a heartbeat event every 15s.
+- **Do not write every token to the DB.** Accumulate the full response in memory, save once at the end.
+
+### Speculative decoding
+
+Under the hood, autoregressive generation is one token per forward pass. Speculative decoding pairs your big *target* model with a small *draft* model. The draft speculates the next N tokens quickly; the target model verifies them all in a single forward pass and accepts the longest correct prefix.
+
+Result: **2–3x speedup with zero quality change** (per [NVIDIA's introduction](https://developer.nvidia.com/blog/an-introduction-to-speculative-decoding-for-reducing-latency-in-ai-inference/)). Llama 3.1-70B with a 1B draft gets 2.31x; some workloads hit 4x reduction in inter-token latency.
+
+You don't implement this yourself. It's a serving-layer feature — turn it on in vLLM or TGI.
+
+### Parallel LLM calls (async)
+
+If a request needs three LLM calls that don't depend on each other (e.g., "generate a summary," "extract entities," "classify sentiment" on the same doc), do them in parallel. `asyncio.gather` in Python, `CompletableFuture.allOf` in Java. Latency = max, not sum.
+
+```python
+import asyncio
+
+async def enrich(document: str):
+    summary, entities, sentiment = await asyncio.gather(
+        summarize(document),
+        extract_entities(document),
+        classify_sentiment(document),
+    )
+    return {"summary": summary, "entities": entities, "sentiment": sentiment}
+```
+
+### Prefetching, caching, edge
+
+For patterns where you can *predict* the next request (e.g., a chat where the user just typed "tell me more about X" — you know they're about to ask about Y), you can prefetch and prime the cache. Edge deployment (Cloudflare Workers AI, Fastly Compute) cuts the network round-trip if your users are geographically distributed.
+
+### Choosing the right model size
+
+The most under-appreciated latency lever: **use a smaller model.** Haiku is 3–5x faster than Sonnet, Sonnet is 2x faster than Opus. If a small model clears the quality bar, ship it. This is the same lever as model routing but applied at design time instead of request time.
+
+## 4. Deployment stack — the GFT-specific one
+
+The GFT JD lists Python, Java, Kafka, microservices. This is not accidental — it's the stack of European banks and consultancies (banking runs on Java, ML teams run on Python, glue is Kafka). Here's the shape of it.
+
+### Python microservices (FastAPI is the default)
+
+FastAPI is what modern LLM APIs are built on. It's async-native (perfect for streaming and concurrent LLM calls), it has automatic OpenAPI docs (the Java team can generate a typed client), and its dependency-injection model makes swapping the vector store or the LLM provider in tests trivial.
+
+The pattern: one FastAPI service per bounded concern. `retrieval-service`, `llm-orchestration-service`, `evaluation-service`. Each in its own Docker image, each scales independently.
+
+### Java as consumer / integration layer
+
+In banking, the systems of record — the core banking platform, the CRM, the workflow engine — are Java. Your LLM service publishes events to Kafka; Java consumers pick them up and route them into the existing business systems. This is the pattern GFT actually delivers to their banking clients.
+
+You don't need to write Java for the interview. You need to *understand the seam*: the LLM service exposes REST + Kafka; the Java side speaks Kafka + REST. Contracts are Avro / Protobuf / JSON Schema.
+
+### Kafka for event streaming
+
+This is the piece that turns your LLM API into a *system*. Instead of the Java front-end synchronously calling your Python LLM service (and being blocked for 4 seconds), the Java side publishes a request event to a Kafka topic. Your Python worker consumes it, does the LLM call, publishes the response back on another topic.
+
+Why this matters for LLM systems specifically:
+- **Async agent workflows** — an agent that needs to call three tools and reason across them can publish sub-tasks to Kafka and be resumed on completion. Decoupled, retryable, observable.
+- **Backpressure** — if the LLM provider slows down, Kafka just buffers. Your producers keep publishing. Nothing crashes.
+- **Replay** — you have the full event log. Reproducing a production incident is `kafka-console-consumer --from-beginning`.
+
+```python
+# Kafka consumer that processes LLM requests off a topic
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+import json, asyncio
+
+async def worker():
+    consumer = AIOKafkaConsumer(
+        "llm.requests",
+        bootstrap_servers="kafka:9092",
+        group_id="llm-workers",
+    )
+    producer = AIOKafkaProducer(bootstrap_servers="kafka:9092")
+    await consumer.start()
+    await producer.start()
+    try:
+        async for msg in consumer:
+            req = json.loads(msg.value)
+            response = await call_llm_with_cache(req["query"])
+            await producer.send(
+                "llm.responses",
+                json.dumps({
+                    "request_id": req["request_id"],
+                    "response": response,
+                }).encode(),
+            )
+    finally:
+        await consumer.stop()
+        await producer.stop()
+
+asyncio.run(worker())
+```
+
+The consumer group is where scaling happens — start 10 worker pods, they share the partitions of the topic, throughput scales linearly.
+
+<img src="https://www.confluent.io/wp-content/uploads/kafka-event-driven-microservices-architecture.png" alt="Event-driven microservices with Kafka — producers publish events to topics, consumer groups process them, decoupled services communicate asynchronously through the event log" />
+
+### Docker + Kubernetes
+
+Nothing LLM-specific here — the same rules as any microservice. One image per service. Health checks (`/healthz`, `/readyz`) so K8s knows when to route traffic. HorizontalPodAutoscaler on CPU + custom metrics (queue depth from Kafka, request-per-second from Prometheus). Rolling deploys.
+
+The LLM-specific twist: if you self-host, you need GPU nodes (`nvidia.com/gpu: 1` in the pod spec) and node selectors so LLM pods land on the GPU nodes. Everything else stays CPU.
+
+### API gateways + rate limiting
+
+An API gateway (Kong, Envoy, AWS API Gateway) in front of your FastAPI services gives you:
+- **Rate limiting per user/customer** (critical — one runaway customer can nuke your bill).
+- **Auth** (JWT validation before the request even hits your service).
+- **Circuit breakers** (if the LLM provider is down, fail fast, don't queue up dead requests).
+
+Rate-limit at two layers: at the gateway (per API key), and inside your service (per model, per provider) so that when one customer bursts, they don't drain the shared LLM quota.
+
+### Observability — logs, metrics, traces
+
+The three pillars, applied to LLMs:
+- **Logs** — every LLM request/response, tokenized and PII-scrubbed. This is your training data for the next fine-tune.
+- **Metrics** — request rate, error rate, p50/p95/p99 latency, tokens/second, cost per request, cache hit rate.
+- **Traces** — the full request span from gateway → cache lookup → retriever → reranker → LLM → post-processing. This is where you find latency.
+
+[OpenTelemetry](https://opentelemetry.io/blog/2024/llm-observability/) is the standard. Its GenAI Semantic Conventions define standard attributes like `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. Ship traces to Jaeger/Tempo, metrics to Prometheus, dashboards in Grafana.
+
+[OpenLLMetry](https://github.com/traceloop/openllmetry) (from Traceloop) is a drop-in that auto-instruments LangChain, OpenAI, Anthropic — you install it, and every LLM call becomes a span with token counts and cost baked in.
+
+```python
+# OpenTelemetry auto-instrumentation for an LLM app
+from traceloop.sdk import Traceloop
+Traceloop.init(app_name="rag-service")
+
+# Every call to OpenAI/Anthropic/LangChain is now a span with:
+# - gen_ai.request.model
+# - gen_ai.usage.input_tokens / output_tokens
+# - latency, error, cache hit
+# Ship it to Grafana Tempo / Jaeger / Datadog with zero extra code.
+```
+
+## 5. Model serving — managed vs self-hosted
+
+You have two doors. Behind door one, you pay per token and someone else deals with GPUs (OpenAI, Anthropic, Azure OpenAI, Vertex, Bedrock). Behind door two, you rent GPUs and run the model yourself (vLLM, TGI, SGLang, Ollama).
+
+### Managed (OpenAI / Anthropic / Azure OpenAI)
+
+- **Pro**: no GPU ops. State-of-the-art models. Prompt caching, batch API, streaming built in.
+- **Con**: token pricing at scale is brutal. Data goes over their network (compliance issue in banking).
+
+Azure OpenAI is the version banks accept — same models, deployed inside your Azure tenant, contractually compliant. That's what GFT will actually deliver.
+
+### Self-hosted (vLLM, TGI, SGLang, Ollama)
+
+- **vLLM** — [continuous batching + PagedAttention](https://docs.vllm.ai/) — 3–5x higher throughput than a naive PyTorch inference loop. This is the modern default for serving open-weight models.
+- **Hugging Face TGI** — Text Generation Inference, HF's answer to vLLM, similar throughput, tighter HF integration.
+- **SGLang** — newer, specializes in structured generation and multi-turn dialogues with prefix caching.
+- **Ollama** — dev machines and prototyping. Not for production traffic.
+
+Continuous batching is the key idea: instead of waiting for a fixed batch to fill up (and leaving GPU slots idle), the server dynamically adds new requests to the batch as ongoing ones finish. On the same H100, this is the difference between 100 req/s and 400 req/s.
+
+### Model routing services (OpenRouter, Portkey)
+
+- **OpenRouter** — one API, 300+ models. You call `https://openrouter.ai/api/v1`, OpenRouter picks the provider. Great for breadth and prototyping.
+- **Portkey** — you bring your own provider keys, Portkey adds observability, guardrails, fallbacks, latency- or cost-based routing, canary deploys, circuit breakers. This is what production teams use.
+
+You can stack them: **Portkey in front, OpenRouter as one of the upstream providers.** Portkey's governance + OpenRouter's breadth.
+
+### When to self-host
+
+| Reason | Self-host? |
+|---|---|
+| Data residency (banking, healthcare, EU) | Yes — or use Azure OpenAI |
+| High volume, narrow task | Yes — LoRA-tuned Mistral wins on unit economics |
+| Need low, predictable latency (edge, real-time) | Yes |
+| Need frontier reasoning quality | No — you can't beat Anthropic/OpenAI on quality per dollar of R&D |
+| Small team, prototyping | No — managed is faster to ship |
+
+## 6. Scaling patterns
+
+### Horizontal scaling of worker pools
+
+Kafka consumer groups make this trivial. Each partition of the topic is consumed by one worker in the group. Add more workers, add more partitions, throughput scales linearly. Don't try to make one process faster — spawn 10 processes.
+
+### Queue-based load leveling
+
+If your LLM provider gives you 500 req/min and your traffic bursts to 2000 req/min, you don't drop 1500 requests. You put them in Kafka (or SQS, or Redis Streams), and your workers drain the queue at a steady 500 req/min. The queue is your shock absorber.
+
+### Rate limiting per user / customer
+
+Token-bucket rate limiting at the gateway. One key = one bucket. This protects your bill and prevents one customer from starving the others. In banking, this is table stakes — no bill surprises for the client.
+
+### Circuit breakers on LLM providers
+
+If Anthropic goes down (it happens), you don't want to send 10K queued requests into the void. A circuit breaker (opossum in Node, resilience4j in Java, `pybreaker` in Python) trips after N consecutive failures, fails fast for a cooldown period, then half-opens to test. Combine it with a fallback provider: if Anthropic is down, route to OpenAI.
+
+## 7. LLM benchmarking / eval in production
+
+### Load testing (Locust, k6)
+
+Before launch, hammer your endpoint. Locust and k6 both do this well. What to measure:
+
+- **Throughput** — requests per second at target latency.
+- **p50 / p95 / p99 latency** — the tail is where users get angry.
+- **Token throughput** — tokens/second aggregated across concurrent requests. This is your GPU utilization proxy.
+- **Cost per query** — total cost / total queries under load.
+
+Don't just measure the happy path. Measure with the cache cold. Measure with 30% of queries being novel (cache misses). That's your real production p99.
+
+### Chaos testing
+
+Kill the LLM provider mid-request. Kill a Kafka broker. Kill the vector DB. Does the system degrade gracefully or catastrophically? Netflix's Chaos Monkey pattern applies just as much to LLM systems, and arguably more — because the LLM providers *do* have outages, and you *will* eventually get hit.
+
+### Cost per query monitoring
+
+Every LLM call gets tagged with model, tenant, feature, and input/output token counts (OpenTelemetry GenAI conventions again). Then a Grafana dashboard shows you cost per tenant, cost per feature, cost per query, cost per active user — the numbers your CFO and PM will ask for weekly.
+
+### Latency percentiles (p50, p95, p99)
+
+- **p50 (median)** — what a typical user experiences. Should be < 2s for chat, < 500ms for autocomplete.
+- **p95** — 5% of your users experience this or worse. Should be < 5s for chat.
+- **p99** — 1% tail. This is where retries and timeouts live. Should be < 10s.
+
+The gap between p50 and p99 is where the bugs hide — GC pauses, cache misses, rate-limit throttles, DNS lookups. Watch the gap, not just the median.
+
+## 8. Worked example — production RAG architecture
+
+Now let's stitch the whole picture together. This is the shape of what you'd whiteboard in the interview if they asked *"design a production RAG system."*
+
+<img src="https://images.datacamp.com/image/upload/v1707993926/marketing/blog/production_rag_architecture.png" alt="Production RAG architecture — client, API gateway, FastAPI microservices, semantic cache, retriever, reranker, LLM providers with model routing, Kafka event log, vector database, observability stack" />
+
+The flow, step by step:
+
+1. **Client** (web app, Java backend, mobile) sends the query to the **API Gateway** (Kong / Envoy). Gateway does auth, per-customer rate limiting, and forwards.
+2. **FastAPI orchestration service** receives the request. First move: **exact-match cache** in Redis. Hit? Return. Miss? Continue.
+3. **Semantic cache** lookup — embed the query, vector search in Redis, if cosine similarity > 0.93 return cached response.
+4. **Retriever** — dense retrieval against the vector DB (Redis / pgvector / Pinecone), plus BM25 sparse retrieval. Fuse the top-k.
+5. **Reranker** — cross-encoder scores the top-50 candidates, keeps the top-5. (See [Part 7 on RAG](/blog/genai-07-rag) for why reranking matters.)
+6. **Prompt assembly** — system prompt (cached via Anthropic prompt caching) + reranked context (optionally compressed with LLMLingua) + user query.
+7. **Model router** — cheap model first. If the query is a simple lookup, send to Haiku. If confidence low or query is complex reasoning, escalate to Sonnet or Opus. Route through Portkey with fallbacks (Anthropic → Azure OpenAI → self-hosted vLLM).
+8. **Streaming response** — tokens flow back over SSE, user sees text appearing in ~400ms.
+9. **Event log** — every request/response is published to a `llm.audit` Kafka topic. Java consumers pipe it into the bank's system of record; ML consumers pipe it into the eval dataset.
+10. **Observability** — OpenTelemetry auto-instrumentation on every span: retrieval time, rerank time, TTFT, total generation time, tokens in/out, cost. Metrics to Prometheus, traces to Tempo, dashboards in Grafana.
+11. **Circuit breakers** on every downstream (LLM provider, vector DB, reranker) — trip on N consecutive failures, cooldown, half-open.
+
+That's the whole picture. Every arrow is a place where cost and latency live.
+
+## 9. Common interview questions
+
+**Q1. Your LLM app is costing $50K/month. Where do you start looking to cut?**
+
+Rank order: (1) look at cache hit rate — if you don't have semantic caching, that's often 30–40% overnight. (2) audit which queries hit which model — you're probably paying GPT-4 prices for queries a small model would handle, so add routing/cascading. (3) turn on provider prompt caching if your prompts have a static prefix (system prompt, few-shot examples, RAG context that changes slowly). (4) move non-real-time workloads to the batch API for the 50% discount. (5) if your context is bloated, compress it with LLMLingua. Only after all of that should you think about self-hosting or quantization.
+
+**Q2. What's the difference between prompt caching and semantic caching?**
+
+Prompt caching is a **provider-side feature** that caches the *computation* of a static prefix — same prompt prefix, cheaper and faster on the next call. It requires byte-identical prefixes. Semantic caching is a **client-side feature** that caches the *response* keyed on the query's embedding — semantically similar prompts return the cached response, no LLM call at all. They stack: exact-match → semantic → prompt caching → LLM.
+
+**Q3. How do you reduce time-to-first-token for a chat product?**
+
+Stream the response over SSE so the user sees tokens as they generate. Use a smaller/faster model (Haiku or a self-hosted 7B) — model size is the biggest TTFT lever. Use provider prompt caching on the system prompt so the prefix doesn't have to be recomputed. If self-hosting, turn on speculative decoding in vLLM for a 2–3x speedup. If the retrieval step is dominating, parallelize it with LLM planning where possible.
+
+**Q4. Why Kafka in an LLM system?**
+
+Three reasons. Asynchronous decoupling — the Java front-end publishes a request event and doesn't block for 4 seconds waiting for the LLM. Backpressure — if the LLM provider slows down or hits a rate limit, Kafka just buffers instead of dropping requests. Replay — you have the full event log, so reproducing production incidents and building eval datasets is trivial. Bonus: horizontal scaling comes free through consumer groups (more workers = more throughput).
+
+**Q5. When would you self-host an LLM instead of using OpenAI or Anthropic?**
+
+When one of four things is true: (1) data residency — the data can't leave your infrastructure, common in EU banking and healthcare. (2) unit economics at high volume — for narrow repetitive tasks, a fine-tuned quantized 7B on your GPUs undercuts frontier-model per-token pricing by 10–20x. (3) low predictable latency — edge deployment or real-time systems can't afford the internet round-trip. (4) control — you need specific fine-tuning, custom sampling, or exotic decoding strategies the API doesn't expose. For everything else, managed is faster to ship and cheaper in the first year.
+
+**Q6. How do you decide between LoRA fine-tuning and prompt engineering?**
+
+Start with prompt engineering — cheaper, faster to iterate, no infra. If you plateau below the quality bar with a small model, and you have ~1000+ labeled examples for the specific task, and the task is narrow (classification, extraction, tone matching), fine-tune with LoRA. QLoRA if you're memory-constrained. Do not fine-tune to teach the model new facts (that's RAG's job) — fine-tune to teach it a new *behavior*.
+
+**Q7. What's your monitoring setup for an LLM system in production?**
+
+OpenTelemetry as the instrumentation layer with GenAI semantic conventions — every LLM call becomes a span with model, token counts, latency, and cost as attributes. Prometheus for metrics (request rate, error rate, p50/p95/p99 latency, tokens/sec, cost per request, cache hit rate). Tempo or Jaeger for traces. Grafana on top for dashboards. OpenLLMetry from Traceloop is a drop-in auto-instrumentation that gives you the LLM-specific stuff for free. Alerts on error rate spikes, latency p99 breaches, cost per query anomalies, and cache hit rate drops.
+
+**Q8. What happens when the LLM provider goes down?**
+
+Circuit breaker trips after N consecutive failures — say 5 in 30 seconds — and the service fails fast instead of queuing dead requests. Requests fall over to a secondary provider (Anthropic → Azure OpenAI, or Portkey handles the routing). If both are down, degrade gracefully — return a cached response if one exists, or a canned "we're experiencing an issue" message. Kafka absorbs the write side (events keep publishing), workers pause consuming until the circuit half-opens. Post-incident, replay from the Kafka log to backfill missing responses. Every one of those failure modes needs to be load-tested and chaos-tested *before* it happens for real.
+
+**Q9. p95 latency is 12 seconds and p50 is 2 seconds. Where do you look?**
+
+The 6x gap between p50 and p95 is where the bugs are. Check: (1) cache miss rate — cold cache paths hit the full LLM latency. (2) retrieval variance — some queries pull huge context that inflates prompt-processing time. (3) rate-limit throttling — the provider is slowing down some requests. (4) GC or connection-pool exhaustion on your service. (5) reranker latency variance if you use a cross-encoder. Traces from OpenTelemetry pinpoint which span is the culprit; the fix is usually caching, batching, or parallelizing the offending span.
+
+**Q10. Design a system that handles a bursty 10K QPS chat workload on a provider that gives you 500 req/min.**
+
+Two-layer architecture. Front: API gateway with per-user rate limiting so a single user can't monopolize. Middle: Kafka topic `chat.requests` — the client's request is published, ack returned immediately, response streams back over SSE from a separate topic once ready. Back: a consumer group of workers, one per partition, each throttled to stay under the 500 req/min shared budget. Aggressive semantic caching in Redis in front of every worker — if 60% of chat queries are similar, you cut effective load to 4K QPS. Model routing so simple queries never hit the expensive model. Fallback provider for spillover. Circuit breakers everywhere. Observability so you see the queue depth and can scale workers before backlog builds. That's the whole shape.
+
+## Where this connects
+
+Cost and latency are the third leg of production LLM engineering. The other two:
+
+- **[Part 7: Retrieval-Augmented Generation](/blog/genai-07-rag)** — retrieval decides how many tokens are in your prompt, which decides your bill and your latency. Chunking, reranking, and context compression are cost-and-latency choices as much as they're quality choices.
+- **[Part 10: Guardrails & LLMOps](/blog/genai-10-guardrails-llmops)** — the observability you built there (traces, metrics, evals) is what lets you *see* cost and latency in the first place. You can't optimize what you can't measure.
+
+The next post (Part 12) picks up where this ends — **evaluation in production** — how you know whether your cost cuts actually preserved quality. Because a 50% cost reduction that quietly tanks answer quality is not a win, it's a bug in slow motion.
+
+## Sources
+
+- [Anthropic Prompt Caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) — official docs on cache lifetimes, pricing, and cache_control blocks
+- [OpenAI Batch API guide](https://developers.openai.com/api/docs/guides/batch) — the 50% discount for 24-hour turnaround workloads
+- [vLLM documentation](https://docs.vllm.ai/) — PagedAttention, continuous batching, speculative decoding
+- [Microsoft LLMLingua](https://www.microsoft.com/en-us/research/publication/llmlingua-compressing-prompts-for-accelerated-inference-of-large-language-models/) and the [GitHub repo](https://github.com/microsoft/LLMLingua) — prompt compression, up to 20x
+- [FastAPI Server-Sent Events tutorial](https://fastapi.tiangolo.com/tutorial/server-sent-events/) — SSE for streaming LLM tokens
+- [LangChain Redis Semantic Cache](https://reference.langchain.com/python/langchain-redis/cache/RedisSemanticCache) — reference implementation
+- [Redis blog: Semantic caching with LangCache](https://redis.io/tutorials/semantic-caching-with-redis-langcache/)
+- [LogRocket: LLM routing in production](https://blog.logrocket.com/llm-routing-right-model-for-requests/) — cascading and fallback patterns
+- [Portkey vs OpenRouter vs LiteLLM comparison](https://openrouter.ai/blog/insights/openrouter-vs-portkey/) — LLM gateway choice
+- [OpenTelemetry for LLM applications](https://opentelemetry.io/blog/2024/llm-observability/) — official OTel intro
+- [OpenLLMetry by Traceloop](https://github.com/traceloop/openllmetry) — auto-instrumentation for LLM apps
+- [Grafana Labs: LLM observability guide](https://grafana.com/blog/a-complete-guide-to-llm-observability-with-opentelemetry-and-grafana-cloud/)
+- [NVIDIA: Introduction to speculative decoding](https://developer.nvidia.com/blog/an-introduction-to-speculative-decoding-for-reducing-latency-in-ai-inference/)
+- [Databricks: Efficient fine-tuning with LoRA](https://www.databricks.com/blog/efficient-fine-tuning-lora-guide-llms)
+- [Kai Waehner: Kafka + Flink for event-driven agentic AI](https://www.kai-waehner.de/blog/2025/04/14/how-apache-kafka-and-flink-power-event-driven-agentic-ai-in-real-time/)
+- [Red Hat Developer: How Kafka improves agentic AI](https://developers.redhat.com/articles/2025/06/16/how-kafka-improves-agentic-ai)
+- [Redis: Using Redis for real-time RAG](https://redis.io/blog/using-redis-for-real-time-rag-goes-beyond-a-vector-database/)

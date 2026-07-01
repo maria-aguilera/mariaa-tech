@@ -1,0 +1,419 @@
+---
+slug: genai-02-prompting-reasoning
+title: "Part 6: Prompting & Reasoning Loops"
+subtitle: "From single-shot prompts to agents that iterate — chain-of-thought, self-consistency, ToT, ReAct, planner-executor, reflection, and how to get structured output out of an LLM you did not train."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "The prompting layer of GenAI engineering. Prompt engineering principles, task decomposition, chain-of-thought and its variants (zero-shot CoT, self-consistency, Tree of Thoughts), reasoning loops (ReAct, planner-executor, reflection), and structured output (JSON mode, function calling). With example prompts, Python snippets, and interview questions."
+tags:
+  - GenAI
+  - Prompt Engineering
+  - Chain-of-Thought
+  - ReAct
+  - Tree of Thoughts
+  - Function Calling
+  - Interview prep
+source: Interview prep
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 6
+seriesTotal: 15
+coverImage: "/images/blog/genai-interview-prep/page-2-prompting-reasoning.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 6 of 15*
+
+## Why the interview cares so much about this
+
+The first thing you notice when you look at a Generative AI Engineer job description is that half of it is not about training models at all. It is about *what you do with a model you did not train*. That is the whole prompting and reasoning layer — and it is the layer that decides whether a demo works once and never again, or whether you actually ship something reliable.
+
+An LLM on its own is a next-token predictor. It answers whatever you ask, in whatever shape it feels like, and if you ask a hard question it will happily hallucinate an answer with the same confidence it uses for easy ones. The prompting layer is how you turn that raw capability into something that solves a real task. And the moment the task is not solvable in one shot, you stop writing prompts and start writing **loops** — reason, act, observe, critique, retry — until the model reaches a state you actually want.
+
+That is the mental jump the interview is testing. Anyone can write "you are a helpful assistant." What they want to see is whether you understand *why* chain-of-thought helps, *when* Tree of Thoughts is worth the token cost, *how* a ReAct agent recovers from a bad tool call, and *how* you force a free-text model into a JSON schema you can actually parse downstream. So let's walk through it, one concept per section, with the example prompts and the diagrams that make it click.
+
+## 1. Prompt engineering principles
+
+Before any of the fancy stuff, there is a base pattern that every strong prompt tends to have. Five ingredients: **task, context, constraints, examples, output format**.
+
+- **Task** — the thing you want done, stated as a single verb + object. "Summarise this email." "Classify this ticket." Not "help me with this."
+- **Context** — what the model needs to know to do the task well. Domain, audience, tone, source data.
+- **Constraints** — the boundaries. "Under 100 words." "Do not invent product names." "If you are not sure, say so."
+- **Examples** — one to five demonstrations of input → output. This is few-shot, and it is almost always the single biggest lever you have.
+- **Output format** — what the response should look like. Plain text, JSON, XML, a specific set of section headers.
+
+A good mental model is: the LLM has seen billions of documents, so it will pattern-match on the closest one it has seen. Your prompt's job is to make sure the closest one is the one you actually want. Example, side by side:
+
+```text
+# Weak prompt
+Summarise this.
+
+# Strong prompt (task + context + constraints + example + format)
+You are labelling customer support emails for a fintech app.
+
+Task: classify the email into one of {billing, bug, feature_request, other}
+and extract the user's requested action.
+
+Constraints:
+- If multiple categories apply, pick the most urgent one.
+- If the action is unclear, set "action" to null.
+- Never invent user names or account numbers.
+
+Example:
+Email: "Hi, my card was charged twice for the same transaction on Tuesday.
+Please refund the extra 42 EUR."
+Output: {"category": "billing", "action": "refund duplicate charge of 42 EUR"}
+
+Email: <<< {email_text} >>>
+Output:
+```
+
+The strong version wins for three reasons: the model knows the domain (fintech support), the label space is closed (four options), and the example anchors the output shape. Anthropic recommends the same skeleton in their [prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), and they add one Claude-specific tip: wrap parts of the prompt in XML tags (`<instructions>`, `<data>`, `<examples>`) because Claude was trained to attend to that structure.
+
+**Interview angle.** If they ask "how do you approach a new prompting task," this five-part skeleton is the answer, plus one sentence about *iterating on evals*, not on vibes. You never ship the first prompt. You build a small eval set of 20 to 50 examples and you check every prompt change against it.
+
+## 2. Task decomposition
+
+The next thing you learn the hard way is that you cannot fit an entire complex task into one prompt and expect the model to nail it. If the task has more than one "step" in a human's head, split it into more than one prompt.
+
+Think of it as a compiler pass over your task. "Draft a weekly investor update from these three notion pages and yesterday's Slack log" is not one prompt — it is at least four:
+
+1. Extract key events from each source.
+2. Deduplicate and cluster them by theme.
+3. Rank by relevance for an investor.
+4. Rewrite the top items in your tone of voice.
+
+Each sub-prompt is a small, focused task with a clear input and output. This is what Anthropic calls [prompt chaining](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/chain-prompts) and what LangChain has been building tooling around since day one. It matters because errors compound: a model that is 90% accurate on one big task will feel unreliable, but a model that is 95% accurate on each of four small tasks composes into something much more predictable, and you get to inspect and cache each intermediate step.
+
+**Interview angle.** When they hand you a scenario ("build me an agent that…"), the first move is *always* to decompose the task on the whiteboard before writing any prompt. Interviewers are watching for whether you jump straight into a giant prompt or whether you naturally break the problem down.
+
+## 3. Chain-of-thought (CoT)
+
+Chain-of-thought is the trick that turned prompting from "hope it works" into "you can reason about it." The idea is embarrassingly simple: instead of asking the model for the final answer, ask it to write out its reasoning first, then the answer.
+
+<img src="https://learnprompting.org/assets/images/chain_of_thought_example-16ac3d628b6d8213a80ba59b78ff1e2f.png" alt="Chain-of-thought prompting example from Wei et al. 2022, side by side with a standard prompt. The standard prompt asks a math word problem and the model answers wrong. The CoT prompt gives an example that includes intermediate reasoning steps, and the model produces the same style of reasoning and gets the answer right." />
+
+Wei et al. introduced this in [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903) (2022). The paper showed that on arithmetic, commonsense and symbolic reasoning tasks, prompting a 540B model with just eight CoT exemplars beat fine-tuned GPT-3 with a verifier on GSM8K. Reasoning is not something you have to fine-tune in — you can *elicit* it with the prompt.
+
+There are two flavours you should be able to name in an interview:
+
+**Few-shot CoT (the original).** You provide worked examples that show the reasoning explicitly.
+
+```text
+Q: Roger has 5 tennis balls. He buys 2 more cans of tennis balls.
+Each can has 3 tennis balls. How many tennis balls does he have now?
+
+A: Roger started with 5 balls. 2 cans of 3 balls each is 6 balls.
+5 + 6 = 11. The answer is 11.
+
+Q: The cafeteria had 23 apples. If they used 20 to make lunch and
+bought 6 more, how many apples do they have?
+
+A:
+```
+
+The model continues the pattern and shows its steps before the answer. Accuracy on multi-step problems jumps because each step is short and easier to get right than one long jump to a final number.
+
+**Zero-shot CoT.** Kojima et al. showed in [Large Language Models are Zero-Shot Reasoners](https://arxiv.org/abs/2205.11916) that you don't even need the exemplars. Just append **"Let's think step by step."** to the prompt and the model does CoT anyway. On InstructGPT this took MultiArith accuracy from 17.7% to 78.7% and GSM8K from 10.4% to 40.7%. One line. That is the entire trick.
+
+Modern models (Claude with extended thinking, o-series reasoning models, Gemini deep think) do this internally now — they produce a hidden reasoning trace before the visible answer. But the *pattern* is the same, and knowing when to force it explicitly is still part of the job.
+
+**Interview angle.** Two common follow-ups. First: "when does CoT not help?" Answer: when the task is a single-step lookup or a classification with no reasoning to do — you just spend tokens and slow things down. Second: "does CoT actually make the model reason, or does it just condition on the right tokens?" Honest answer: the reasoning trace is not a mechanistic explanation of what the model is doing internally, but it *does* steer the sampling process towards more correct final tokens. That distinction is worth naming because it comes up in safety and alignment questions.
+
+## 4. Self-consistency
+
+Chain-of-thought gives you one reasoning path. Self-consistency gives you a bag of them and picks the most common answer.
+
+The idea, from Wang et al.'s [Self-Consistency Improves Chain of Thought Reasoning in Language Models](https://arxiv.org/abs/2203.11171) (2022): sample **N** independent CoT traces at a non-zero temperature (say `temperature=0.7`, N=10 or 40), extract the final answer from each, and take the majority vote.
+
+<img src="https://learnprompting.org/assets/images/self_consistency_prompting-b9f14ce4d13ad7f28edb1c5836bd35b6.png" alt="Self-consistency diagram: one question is fed to the LLM multiple times with different sampling. Each run produces a different reasoning path but they mostly converge to the same final answer, and the majority vote wins." />
+
+The intuition is that the greedy path is not necessarily the best one — a wrong reasoning chain tends to be *individually* wrong in its own way, while correct chains tend to converge on the same answer. Sampling multiple traces lets the correct-answer basin dominate.
+
+Two things to remember:
+
+- It only works when the final answer is **checkable for equality** (a number, a label, a JSON with fixed keys). You cannot majority-vote free-form paragraphs without a comparator.
+- It is expensive. You pay N× the token cost for one query. Reserve it for problems where accuracy really matters (math, code, structured extraction), not chatbot turns.
+
+**Interview angle.** If they ask "how would you improve accuracy on this math task without fine-tuning?" self-consistency is the second answer after CoT. They also love the trade-off question: "how do you set N?" You test on your eval set — usually you see diminishing returns after 10 to 20 samples.
+
+## 5. Tree of Thoughts (ToT)
+
+If self-consistency is "sample many chains, vote," Tree of Thoughts is "search over reasoning paths on purpose."
+
+<img src="https://learnprompting.org/assets/images/tree_of_thoughts-6c86e75b4a08a1f3eb9c39d5c50f2d31.png" alt="Tree of Thoughts diagram from Yao et al. 2023. Comparison of four approaches: (a) Input-Output prompt goes straight from input to output. (b) Chain of Thought goes input to reasoning to output as a linear chain. (c) Self-Consistency samples multiple chains and votes. (d) Tree of Thoughts explores a tree of reasoning steps, with each node being a thought and the tree being navigated by BFS or DFS, with an evaluator scoring which nodes to expand." />
+
+Yao et al. proposed ToT in [Tree of Thoughts: Deliberate Problem Solving with Large Language Models](https://arxiv.org/abs/2305.10601) (2023). Each node in the tree is a *thought* — a coherent intermediate reasoning step. The LLM plays two roles: a **generator** that proposes several next thoughts, and an **evaluator** that scores each thought's promise (e.g., "sure / likely / impossible"). You then navigate the tree with BFS or DFS, pruning branches the evaluator kills.
+
+On the Game of 24 task, chain-of-thought scored 4% on GPT-4. Tree of Thoughts got it to 74%. That is the kind of jump that made this paper matter — the same base model, just given room to backtrack.
+
+The template for the generator step looks something like:
+
+```text
+You are solving Game of 24. Given the numbers {left}, propose 3 possible
+next steps. For each, show the arithmetic operation, the resulting numbers
+still to combine, and rate how likely it is to reach 24 (sure / likely / impossible).
+```
+
+Then you take the "sure" nodes, expand each of them the same way, and repeat until you either hit 24 or exhaust the tree.
+
+**When to reach for ToT.** Tasks with search structure and a way to evaluate partial progress — planning problems, puzzles, code with test cases, multi-step math. **When to skip it.** Anything where the reasoning is not really a tree — summarisation, classification, most chatbot turns. You will pay a lot of tokens and get nothing back.
+
+**Interview angle.** They may ask you to compare ToT with self-consistency. The short version: self-consistency is parallel independent chains with a vote at the end, ToT is a search tree with an evaluator pruning as it goes. ToT can backtrack; self-consistency cannot.
+
+## 6. ReAct (Reason + Act)
+
+Everything so far has been the model reasoning inside its own head. ReAct is the first pattern where the model gets to *act on the world* between reasoning steps.
+
+<img src="https://blog.tobiaszwingmann.com/content/images/2024/02/react_prompt.png" alt="ReAct loop diagram: an LLM alternates between Thought (reasoning about the state), Action (calling a tool like search or a calculator), and Observation (reading the tool result), then loops back to Thought until it produces a final Answer." />
+
+Yao et al. introduced ReAct in [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) (2022). The pattern is a loop:
+
+1. **Thought** — the model reasons about the current state and decides what to do next.
+2. **Action** — the model emits a tool call in a structured format (e.g., `Search[query]` or `Calculator[expression]`).
+3. **Observation** — the runtime executes the tool and appends the result to the context.
+4. Back to Thought, with the new observation now available.
+
+A concrete trace on a Wikipedia question looks like:
+
+```text
+Question: What is the elevation of the Aiguille du Midi cable car top station?
+
+Thought 1: I need to look up the Aiguille du Midi cable car and find the
+top station's elevation.
+Action 1: Search["Aiguille du Midi cable car"]
+Observation 1: The Aiguille du Midi cable car is in Chamonix, France.
+Its top station sits on the summit at 3,842 m.
+
+Thought 2: The top station is at 3,842 m. That is the answer.
+Action 2: Finish[3,842 m]
+```
+
+Why this matters: reasoning without action means the model can only work with what is inside its context window, and it will hallucinate when the context is missing. Action without reasoning means every tool call is blind — the model cannot recover from a bad result or plan a chain of calls. ReAct interleaves them so the model can adapt: "that search did not return what I expected, let me try a different query."
+
+The [Prompt Engineering Guide's ReAct page](https://www.promptingguide.ai/techniques/react) has good end-to-end walkthroughs, and both LangChain (`create_react_agent`) and LangGraph ship reference implementations you can steal.
+
+**Interview angle.** ReAct is the default agent pattern to reach for in a system design question. If they ask "how would you build an agent that answers questions using a search API and a database," the answer starts with a ReAct loop with two tools. Follow-up they love: "how do you stop it from looping forever?" Answer: a max-iterations budget, plus a termination tool (`Finish[answer]`) the model has to call to end the loop.
+
+## 7. Planner-Executor pattern
+
+ReAct decides one step at a time. That works, but it has a real weakness: the model rethinks the whole strategy on every turn, and for long horizon tasks it drifts. The planner-executor pattern separates concerns.
+
+- **Planner LLM** — sees the full task and outputs a step-by-step plan up front.
+- **Executor LLM** (often smaller/cheaper, sometimes a ReAct agent itself) — takes one step at a time and does it.
+
+LangChain wrote a good breakdown in their [Plan-and-Execute Agents](https://blog.langchain.dev/planning-agents/) post. The claim is that separating planning from execution has three concrete benefits: you can use a bigger model for planning and a cheaper one for execution, you avoid re-running the planner on every step, and the plan becomes an artefact you can *inspect and edit* before the executor touches anything.
+
+A prompt sketch:
+
+```text
+# Planner prompt
+You are a planner. Given the user's task, write a numbered list of concrete
+steps to solve it. Each step should be actionable by an agent with these
+tools: {tools}. Return only the numbered list.
+
+Task: {task}
+
+# Executor prompt (called once per step)
+You are an executor. The overall plan is:
+{plan}
+
+You have completed steps 1..{i-1}. Their results were:
+{past_step_results}
+
+Execute step {i}: {step_i}
+```
+
+There is a common upgrade to this called **ReWOO** (Reasoning WithOut Observation) where the planner also writes out the *dependencies* between steps so downstream steps can reference upstream results by variable name.
+
+**When it beats ReAct.** Multi-step research tasks, long tool-use chains, anything where you want the human in the loop to review the plan before execution starts (compliance-sensitive workflows, for example).
+
+**When to stick with ReAct.** Short tasks, exploratory work where you cannot plan the whole thing up front, tasks where the environment changes and the plan will need to change anyway.
+
+**Interview angle.** They may ask you to compare ReAct with plan-and-execute. The one-liner is: ReAct is reactive and re-plans on every step; plan-and-execute commits to a plan up front and pays less planning cost per step, at the cost of being worse at recovering when a step fails unexpectedly.
+
+## 8. Reasoning loops and iterative refinement
+
+The general shape underneath ReAct, planner-executor, and reflection is the same: **run the model, evaluate the output, feed the evaluation back in, run again**. That is the reasoning loop.
+
+The simplest version is a retry loop with a validator:
+
+```python
+def generate_with_retry(prompt, validator, max_attempts=3):
+    feedback = ""
+    for attempt in range(max_attempts):
+        output = llm(prompt + feedback)
+        ok, error = validator(output)
+        if ok:
+            return output
+        # append the validator's feedback and retry
+        feedback = f"\n\nPrevious attempt was rejected because: {error}\nPlease try again."
+    raise RuntimeError("max attempts exceeded")
+```
+
+The validator can be anything — a JSON schema check, a unit test, a regex, a call to another LLM acting as a judge. The important design choice is: **feed the specific error back into the next attempt**, not just "try again." That single change is what makes iterative refinement actually converge, instead of the model making the same mistake three times in a row.
+
+**Interview angle.** They will ask about latency and cost. A retry loop can 3× your token bill in the worst case. Guardrail it: cap `max_attempts`, log every retry so you can see when your prompt is systematically failing, and if retries are common you have a prompt problem, not a runtime problem.
+
+## 9. Reflection and self-critique
+
+Reflection is the specific case of an iterative loop where **the model evaluates its own output**. The pattern:
+
+1. Generate an initial answer.
+2. Ask the same (or another) LLM to critique it: what is wrong, what could be better?
+3. Rewrite the answer using the critique.
+4. Repeat until the critique says "good enough" or a max-iterations budget hits.
+
+<img src="https://cdn.prod.website-files.com/6473d8d02092c4e7a5b31648/66c48b73dc1cad7e11bf16d3_650bc98e50c7a4930cef6ce6_reflexion.png" alt="Reflexion diagram from Shinn et al. 2023: an actor LLM produces an action trajectory, an evaluator scores it, a self-reflection module writes verbal feedback based on the score, and that feedback is stored in an episodic memory buffer and used to condition the actor on the next trial." />
+
+Shinn et al. formalised this in [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) (2023). Their framing is important: the reflection is *verbal* — natural-language feedback stored in an episodic memory buffer, not a gradient. The agent gets a task, tries it, an evaluator (which can be a test suite, a rubric, another LLM) scores the attempt, and then the self-reflection module writes down what went wrong in plain English. That reflection joins the context for the next attempt.
+
+The numbers made people pay attention: Reflexion + ReAct hit 97% success on AlfWorld in 12 trials versus 75% for base ReAct. On HumanEval it got 91% pass@1, beating GPT-4's raw 80%.
+
+Prompt sketch for a lightweight reflect-and-rewrite loop:
+
+```text
+# Generator
+Task: {task}
+Attempt:
+
+# Critic
+Here is a candidate answer to the task "{task}":
+{candidate}
+
+List concrete problems with this answer (accuracy, completeness, style,
+compliance with constraints). If it is good enough, respond only with "OK".
+
+# Rewrite
+Task: {task}
+Previous attempt: {candidate}
+Critique: {critique}
+Improved answer:
+```
+
+**Watch out.** Self-critique is not magic. Two failure modes to know: (1) the model is often *overconfident* in its own critique — it will say "OK" when the answer is still wrong, especially on tasks it cannot verify (open-ended factual claims). (2) Iterating too many times can cause *degradation* — the answer drifts stylistically or the critic starts nitpicking. Cap iterations at 2 or 3 and use an external validator wherever you can.
+
+**Interview angle.** If they ask about improving agent reliability, reflection is the canonical answer *after* you have already talked about tests, evals, and structured output. It is a nice-to-have, not a fix for a bad prompt.
+
+## 10. Structured output
+
+Everything above assumes you can actually read the model's answer. In practice, "read" means "parse as JSON with a fixed schema so my downstream code doesn't crash." Getting reliable structured output is the single most important production-grade prompting skill.
+
+There are three levels of enforcement, in order of strength.
+
+**Level 1 — Ask nicely.** Put the schema in the prompt, add "return only valid JSON, no prose." Works ~90% of the time on strong models. Fails at the worst possible moment. Do not ship this alone.
+
+```text
+Return only JSON matching this schema, nothing else:
+{"category": "billing|bug|feature_request|other", "action": "string or null"}
+```
+
+**Level 2 — Function calling / tool use.** The provider API guarantees the model's output matches a JSON schema you supply. OpenAI, Anthropic, and Google all support this now. See [OpenAI's Function Calling docs](https://developers.openai.com/api/docs/guides/function-calling) and [Structured Outputs docs](https://developers.openai.com/api/docs/guides/structured-outputs). With `strict: true`, the model is *guaranteed* to produce a value that parses against your schema.
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+
+class TicketLabel(BaseModel):
+    category: str  # billing | bug | feature_request | other
+    action: str | None
+
+client = OpenAI()
+resp = client.beta.chat.completions.parse(
+    model="gpt-4o-2024-08-06",
+    messages=[
+        {"role": "system", "content": "Label the support ticket."},
+        {"role": "user", "content": email_text},
+    ],
+    response_format=TicketLabel,  # SDK converts Pydantic → JSON schema
+)
+label: TicketLabel = resp.choices[0].message.parsed
+```
+
+Note the Pydantic model *is* the schema. That is huge — the same object that validates at runtime is the one the model constrains to at generation time. No drift.
+
+**Level 3 — Constrained decoding.** Libraries like Outlines, Guidance, and llama.cpp's grammar mode mask the token distribution at each step so *only* tokens that keep the output on a valid path can be sampled. This is the strongest guarantee, and it works even for models that don't natively support function calling. Slower per token, but 100% valid outputs.
+
+**LangChain / LlamaIndex parsers.** If you are already in one of these frameworks, `PydanticOutputParser` (LangChain) or `PydanticProgram` (LlamaIndex) gives you the same idea with retry-on-parse-error built in. Docs: [LangChain Structured Output](https://docs.langchain.com/oss/python/langchain/structured-output).
+
+```python
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import PromptTemplate
+
+parser = PydanticOutputParser(pydantic_object=TicketLabel)
+prompt = PromptTemplate(
+    template="Label this ticket.\n{format_instructions}\n\nTicket:\n{ticket}",
+    input_variables=["ticket"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+chain = prompt | llm | parser
+result: TicketLabel = chain.invoke({"ticket": email_text})
+```
+
+**Interview angle.** They will ask "how do you make sure the output is parseable?" The good answer is a stack: function calling / structured outputs as the primary mechanism, Pydantic (Python) or Zod (TS) as the schema, and a retry loop with the parse error fed back into the prompt as the fallback. If you name constrained decoding as an option when function calling isn't available, that is bonus points.
+
+## When to use what — one table to remember
+
+| Technique | What it does | Cost | Use when | Skip when |
+|---|---|---|---|---|
+| **Chain-of-Thought** | Model writes reasoning steps before answer | ~2× tokens | Multi-step reasoning, math, complex logic | Single-step lookups, classification |
+| **Self-Consistency** | Sample N CoTs, majority vote on final answer | N× tokens | Answers are checkable for equality; accuracy matters | Open-ended text, tight latency budget |
+| **Tree of Thoughts** | Generate + evaluate + search over reasoning tree | Very high | Search-structured problems (puzzles, planning, code with tests) | Anything without a natural tree structure |
+| **ReAct** | Loop of Thought → Action → Observation with tools | Medium | Agent with tools, dynamic environment | No tools, or task is fully solvable in one shot |
+| **Planner-Executor** | One LLM plans upfront, another executes each step | Medium (cheaper executor) | Long-horizon, plan is worth inspecting | Short tasks, environment changes mid-run |
+| **Reflection / Reflexion** | Self-critique + rewrite loop | 2–3× tokens per pass | Task has a verifier or clear rubric | Self-critique unreliable (open-ended facts) |
+| **Structured output** | Force response into JSON schema via API or decoding | Free-ish | Any output that feeds a downstream system | Free-form chat replies |
+
+## Common interview questions
+
+**Q1. When would you use zero-shot CoT versus few-shot CoT?**
+Zero-shot ("Let's think step by step") when you don't have curated worked examples and the task is common enough that the model has seen the reasoning pattern in training. Few-shot when the task is unusual, domain-specific, or has a specific output format you need to demonstrate. Few-shot is more reliable but more expensive per prompt and requires you to curate good exemplars. On modern reasoning models (Claude with extended thinking, GPT-o series) neither is usually necessary — internal reasoning is on by default.
+
+**Q2. Explain self-consistency in one paragraph and tell me when it stops helping.**
+Self-consistency samples N independent chain-of-thought traces at a non-zero temperature and takes the majority vote on the final answer. It helps because wrong reasoning tends to fail in different ways while correct reasoning converges on the same answer. It stops helping when the answer is not checkable for equality (open-ended text), when N pushes you past your latency budget, and empirically past N=20 to 40 the marginal gain flattens.
+
+**Q3. What is the difference between ReAct and Plan-and-Execute?**
+ReAct interleaves reasoning and acting one step at a time — the model decides the next action based on the last observation. Plan-and-Execute first has a planner LLM output the full sequence of steps, then an executor LLM (often smaller) runs each step. ReAct is more adaptive but pays the planning cost every turn. Plan-and-Execute is cheaper per step and gives you an inspectable plan artefact, but is worse at recovering when a step fails. In practice you often combine them: the executor for each planned step is itself a small ReAct agent.
+
+**Q4. How do you make LLM output reliably parseable as JSON?**
+Best: use the provider's function calling / structured outputs feature with `strict: true` and a Pydantic (or Zod) schema — the API guarantees the response matches. Next best: constrained decoding libraries like Outlines that mask invalid tokens during sampling. Worst but sometimes necessary: ask nicely in the prompt plus a retry loop that feeds the parse error back on failure. Always define the schema in one place (a Pydantic model) and use it for both validation and prompting.
+
+**Q5. Your agent keeps looping forever. What do you do?**
+Cap `max_iterations` (typically 5–15 depending on task). Add an explicit termination action the model must call (`Finish[answer]`). Log every step so you can see where it gets stuck — often it is a tool that returns unhelpful observations, and the fix is to improve the tool description or the observation format, not the agent prompt. If it loops on genuinely hard tasks, switch to plan-and-execute so you can bound the number of steps upfront.
+
+**Q6. When is Tree of Thoughts worth the extra token cost?**
+When the problem has search structure — Game of 24, planning puzzles, code generation with test cases, multi-hop reasoning where partial progress can be scored. Also when a single wrong step early is expensive to recover from, so backtracking pays. Not worth it for summarisation, classification, chatbot turns, or anything where the model reasoning is basically one shot.
+
+**Q7. Reflexion sounds like magic. What is the failure mode?**
+Two big ones. First, self-critique is often overconfident — the same model that got the answer wrong will happily say the answer looks fine. That means you want an *external* verifier (tests, rubric, judge model with a different prompt) rather than raw self-critique wherever possible. Second, iterating too many times can cause stylistic drift or nitpicking. Cap iterations at 2 or 3 and stop the moment the critique returns "OK" or the external verifier passes.
+
+## What to read next
+
+The prompting layer is one half of the story. The other half is what the model gets to see and do outside the prompt.
+
+- **[Part 7: RAG and Retrieval](/blog/genai-03-rag)** — how you give the model access to information it does not have in its weights: chunking, embeddings, vector search, reranking. Every prompt in this post assumed you already had the right context in the window. Part 7 is how you actually put it there.
+- **[Part 9: Multi-Agent Systems](/blog/genai-04-multi-agent)** — what happens when one agent is not enough. Roles, communication patterns, supervisor architectures, and where the trade-offs stop being about a single reasoning loop and start being about coordination.
+
+Everything in this post — CoT, self-consistency, ToT, ReAct, planner-executor, reflection, structured output — shows up inside those two topics. They are the building blocks, and every serious agent architecture is a specific combination of them wired together with tools and memory.
+
+## Sources
+
+- Wei et al., 2022 — [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903)
+- Kojima et al., 2022 — [Large Language Models are Zero-Shot Reasoners](https://arxiv.org/abs/2205.11916)
+- Wang et al., 2022 — [Self-Consistency Improves Chain of Thought Reasoning](https://arxiv.org/abs/2203.11171)
+- Yao et al., 2023 — [Tree of Thoughts: Deliberate Problem Solving with Large Language Models](https://arxiv.org/abs/2305.10601)
+- Yao et al., 2022 — [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629)
+- Shinn et al., 2023 — [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366)
+- Anthropic — [Prompting best practices for Claude](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)
+- Anthropic — [Chain prompts](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/chain-prompts)
+- OpenAI — [Function Calling guide](https://developers.openai.com/api/docs/guides/function-calling)
+- OpenAI — [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
+- OpenAI — [Structured Outputs announcement](https://openai.com/index/introducing-structured-outputs-in-the-api/)
+- LangChain — [Plan-and-Execute Agents](https://blog.langchain.dev/planning-agents/)
+- LangChain — [Structured output docs](https://docs.langchain.com/oss/python/langchain/structured-output)
+- Prompt Engineering Guide — [Chain-of-Thought](https://www.promptingguide.ai/techniques/cot)
+- Prompt Engineering Guide — [Tree of Thoughts](https://www.promptingguide.ai/techniques/tot)
+- Prompt Engineering Guide — [ReAct](https://www.promptingguide.ai/techniques/react)
+- Prompt Engineering Guide — [Reflexion](https://www.promptingguide.ai/techniques/reflexion)
+- IBM — [What is chain of thought (CoT) prompting?](https://www.ibm.com/think/topics/chain-of-thoughts)
+- IBM — [What is a ReAct agent?](https://www.ibm.com/think/topics/react-agent)
+- IBM — [What is Tree of Thoughts prompting?](https://www.ibm.com/think/topics/tree-of-thoughts)
