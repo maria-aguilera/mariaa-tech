@@ -1,0 +1,95 @@
+---
+slug: genai-interview-prep-cheatsheet
+title: "GenAI Engineering — Interview Prep Cheatsheet"
+subtitle: "A dense 4-page cheatsheet for a Generative AI Engineer interview — LLMs, prompting, RAG, agents, guardrails, LLMOps. Everything I studied in one place."
+date: "July 2026"
+updated: "July 2026"
+excerpt: "A 4-page visual cheatsheet covering the modern GenAI engineering interview surface: LLM foundations (transformers, tokens, RLHF, sampling), prompting and reasoning loops (CoT, ReAct, self-consistency, ToT), RAG + memory + state (retrieval, chunking, reranking, semantic cache), and agents + tools + guardrails + LLMOps (multi-agent patterns, tool calling, prompt injection defense, cost and latency). Downloadable PDF included. Assembled while preparing for a real AI Engineer interview."
+tags:
+  - GenAI
+  - LLM
+  - RAG
+  - Agents
+  - Prompt Engineering
+  - LLMOps
+  - Interview prep
+  - Cheatsheet
+source: Notes
+topic: NLP
+series: "GenAI Engineering — Interview Prep"
+seriesPart: 1
+seriesTotal: 6
+coverImage: "/images/blog/genai-interview-prep/page-1-foundations.png"
+---
+
+*GenAI Engineering — Interview Prep · Part 1*
+
+<Callout color="blue">
+  📄 **[Download the full 4-page PDF](/notes/genai-interview-prep-cheatsheet.pdf)** — printable, easy to skim on the train the morning of.
+</Callout>
+
+## What this is
+
+I built this while prepping for a real interview for a **Generative AI Engineer** role. The scope was very specific — modern LLM engineering, not classical NLP or ML. Every topic on these four pages appeared in either the job description or an interview loop.
+
+It's dense on purpose. Three columns per page, one concept per numbered block, small diagrams where they add signal. Use it as revision — read the deeper material in [the rest of this series](/series/genai-interview-prep) if a concept is still fuzzy.
+
+## Page 1 · LLM Foundations
+
+<Image
+  src="/images/blog/genai-interview-prep/page-1-foundations.png"
+  alt="Page 1 of 4 — LLM Foundations. Nine numbered concept blocks in a dense 3-column layout: (1) What is a Large Language Model, (2) Transformer + self-attention, (3) Tokens and context window, (4) Pretraining → instruction tuning → RLHF / DPO three-stage pipeline, (5) Sampling: temperature / top-k / top-p / greedy, (6) Prompt structure: system / user / assistant roles, (7) Zero-shot vs one-shot vs few-shot in-context learning, (8) Chain-of-thought prompting basics, (9) Scaling laws + emergent behavior. Navy headings, slate-blue accents, off-white background."
+  caption="The transformer + LLM refresher. If you can't explain the three-stage post-training pipeline (pretrain → instruction-tune → RLHF/DPO), start here."
+/>
+
+## Page 2 · Prompting + Reasoning Loops
+
+<Image
+  src="/images/blog/genai-interview-prep/page-2-prompting-reasoning.png"
+  alt="Page 2 of 4 — Prompting + Reasoning Loops. Ten numbered concept blocks: (10) Prompt engineering principles (task/context/constraints/examples/output format), (11) Task decomposition, (12) Chain-of-thought (deeper — reasoning traces), (13) Self-consistency (sample multiple CoTs, majority vote), (14) Tree of Thoughts (ToT), (15) ReAct pattern (Reason + Act loop), (16) Planner-Executor pattern, (17) Reasoning loops / iterative refinement, (18) Reflection / self-critique, (19) Structured output (JSON mode, function calling). Includes a ReAct loop diagram and a small tree diagram for ToT."
+  caption="From single-shot prompts to reasoning loops. ReAct and the planner-executor pattern are the ones that come up in agent design questions."
+/>
+
+## Page 3 · RAG + Memory + State
+
+<Image
+  src="/images/blog/genai-interview-prep/page-3-rag-memory.png"
+  alt="Page 3 of 4 — RAG + Memory + State. Nine numbered concept blocks: (20) RAG pipeline overview (query → retriever → context → LLM → answer), (21) Embeddings + vector databases with a comparison chart, (22) Chunking strategies (fixed, semantic, sliding window), (23) Retrieval: sparse (BM25) vs dense vs hybrid, (24) Reranking with cross-encoders, (25) Short-term vs long-term memory, (26) Session state / conversation memory, (27) Semantic cache, (28) RAG evaluation (faithfulness, context precision, answer relevance). Includes a compact end-to-end RAG diagram and a sparse-vs-dense-vs-hybrid trade-off table."
+  caption="The retrieval half of production LLM systems. RAG is the single most-asked topic in this class of interview — the questions almost always drill into chunking, reranking, and evaluation."
+/>
+
+## Page 4 · Agents + Tools + Guardrails + LLMOps
+
+<Image
+  src="/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
+  alt="Page 4 of 4 — Agents + Tools + Guardrails + LLMOps. Ten numbered concept blocks: (29) Multi-agent patterns (single, orchestrator, hierarchical, network), (30) Skills + subagents, (31) Tool / function calling design (name, description, args schema), (32) Tool error handling (retries, timeouts, fallbacks, arg validation), (33) Guardrails: input filters + output filters, (34) Prompt injection defense (allowlists, delimiters, LLM firewall), (35) Security: PII redaction, data leakage, allowlisted tools, (36) LLMOps: monitoring, tracing, evaluation, dataset curation, (37) Cost + latency: batching, streaming, model routing, caching, quantization, (38) Deployment: Python + microservices + Kafka + observability. Includes a multi-agent diagram, a tool schema example, and a cost/latency trade-off table."
+  caption="The engineering side. Multi-agent patterns, tool calling, prompt injection defense, LLMOps, cost and latency — the stuff that turns a chat model into a shipping product."
+/>
+
+## The recommended study path
+
+For each cheatsheet topic, here is the deeper post to read if you want the *why*:
+
+1. **LLM foundations (page 1)** — [NLP Part 5: Language Modeling](/blog/nlp-from-scratch-05-language-modeling) covers n-grams → RNN → transformers → BERT → GPT → distillation. Read this if the three-stage pipeline is fuzzy.
+2. **Fine-tuning + transfer learning** — [NLP Part 7: Text Classification (Deep Learning)](/blog/nlp-from-scratch-07-text-classification-dl) walks the transfer-learning workflow that most fine-tuning questions are actually about (catastrophic forgetting, LR finder, gradual unfreezing).
+3. **Retrieval (page 3)** — [NLP Part 8: Information Retrieval](/blog/nlp-from-scratch-08-information-retrieval) covers the classical retrieval stack (inverted index, TF-IDF, BM25) that RAG rebuilds on top of.
+4. **QA + tool-use patterns** — [NLP Part 9: Question Answering](/blog/nlp-from-scratch-09-question-answering) is the closest existing post to reasoning-loop and tool-use questions. Read alongside page 2 of the cheatsheet.
+
+The full recommended path lives at **[/series/genai-interview-prep](/series/genai-interview-prep)**.
+
+## What's still coming
+
+Two topic areas from the cheatsheet are only lightly covered in the current series posts and deserve their own deep dives. Both are on the list to write next:
+
+- **Modern GenAI Engineering** — a full post covering the pages 2, 3, 4 material (prompting patterns, RAG in production, agents, LLMOps) at the same depth as the NLP from Scratch series.
+- **RAG in production** — chunking strategies, hybrid retrieval, reranking, semantic caching, and how the classical IR from Part 8 becomes the R in RAG.
+
+For now, the cheatsheet is the summary. If you're prepping for a similar interview and want a specific topic expanded first, that's the shortest way to make it happen.
+
+## What was in the job description
+
+For context — the interview this was built for asked explicitly about: *multi-agent patterns · prompting · state and memory management · RAG · reasoning loops · tooling design · tool error handling · security and LLMOps · guardrails · cost and latency*. Every one of those maps to a concept block above (numbers 6–38). The mapping is annotated on the [series page](/series/genai-interview-prep).
+
+If your interview looks similar — GenAI-focused, LangChain-adjacent, cloud + microservices deployment context — the four pages should cover most of the surface. If it's more traditional Data Science or classical ML, you probably want the [ML from Scratch](/series/ml-from-scratch) series instead.
+
+Good luck.

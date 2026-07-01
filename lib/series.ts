@@ -58,4 +58,17 @@ export const series: Series[] = [
       { part: 10, title: "Transformers & the Modern Stack",             slug: "nlp-from-scratch-10-transformers",            published: false },
     ],
   },
+  {
+    id: "genai-interview-prep",
+    title: "GenAI Engineering — Interview Prep",
+    description: "Curated study path for a Generative AI Engineer interview — LLMs, prompting, RAG, agents, guardrails, LLMOps. A 4-page visual cheatsheet plus the deeper posts each topic came from. Public but assembled for one-week revision.",
+    posts: [
+      { part: 1, title: "The 4-page cheatsheet (start here)",                slug: "genai-interview-prep-cheatsheet",             published: true  },
+      { part: 2, title: "Language Modeling — the LLM foundation",           slug: "nlp-from-scratch-05-language-modeling",       published: true  },
+      { part: 3, title: "Text Classification — Deep Learning + Fine-tuning", slug: "nlp-from-scratch-07-text-classification-dl",  published: true  },
+      { part: 4, title: "Information Retrieval — the R in RAG",             slug: "nlp-from-scratch-08-information-retrieval",   published: true  },
+      { part: 5, title: "Question Answering — LLM pipelines",               slug: "nlp-from-scratch-09-question-answering",      published: true  },
+      { part: 6, title: "Modern GenAI Engineering — agents, guardrails, LLMOps", slug: "nlp-modern-genai-engineering",             published: false },
+    ],
+  },
 ];
