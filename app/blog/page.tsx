@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
 import BlogIndex, { type BlogIndexPost } from "@/components/BlogIndex";
 import { blogPosts } from "@/lib/blog-posts";
-import { getAllMdxPostMeta } from "@/lib/mdx";
+import { getPublicMdxPostMeta } from "@/lib/mdx";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function BlogPage() {
-  const mdxPosts = getAllMdxPostMeta();
+  const mdxPosts = getPublicMdxPostMeta();
   const blogSlugs = new Set(blogPosts.map((post) => post.slug));
   const mdxBySlug = new Map(mdxPosts.map((post) => [post.slug, post]));
 

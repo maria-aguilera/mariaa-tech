@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
 import SeriesCard, { type SeriesCardPost } from "@/components/SeriesCard";
 import { series } from "@/lib/series";
-import { getAllMdxPostMeta } from "@/lib/mdx";
+import { getPublicMdxPostMeta } from "@/lib/mdx";
 import { blogPosts } from "@/lib/blog-posts";
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 function buildSlugToCover(): Map<string, string> {
   const map = new Map<string, string>();
-  for (const post of getAllMdxPostMeta()) {
+  for (const post of getPublicMdxPostMeta()) {
     if (post.coverImage) map.set(post.slug, post.coverImage);
   }
   for (const post of blogPosts) {
@@ -42,7 +42,7 @@ export default function SeriesIndexPage() {
 
       <section className="series-index__inner">
         <ul className="series-index__list">
-          {series.map((s) => {
+          {series.filter((s) => !s.private).map((s) => {
             const posts: SeriesCardPost[] = s.posts.map((p) => ({
               part: p.part,
               title: p.title,

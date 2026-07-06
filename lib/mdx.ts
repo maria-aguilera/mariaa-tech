@@ -33,6 +33,8 @@ export type MdxPostMeta = {
   unlisted?: boolean;
   /** If true, hidden from every index (/blog, /projects, etc.). URL still works. */
   draft?: boolean;
+  /** If true, this post lives in the private work-OS at /private/*, not the public site. */
+  private?: boolean;
 };
 
 export type MdxPost = {
@@ -118,8 +120,19 @@ export function getAllMdxPostMeta(): MdxPostMeta[] {
       seriesTotal: typeof data.seriesTotal === "number" ? data.seriesTotal : undefined,
       unlisted: data.unlisted === true,
       draft: data.draft === true,
+      private: data.private === true,
     };
   });
+}
+
+/** Public routes should use this — excludes anything marked `private: true`. */
+export function getPublicMdxPostMeta(): MdxPostMeta[] {
+  return getAllMdxPostMeta().filter((post) => !post.private);
+}
+
+/** Private-only listing for the work-OS at /private/*. */
+export function getPrivateMdxPostMeta(): MdxPostMeta[] {
+  return getAllMdxPostMeta().filter((post) => post.private);
 }
 
 export function getMdxPostBySlug(slug: string): MdxPost | null {

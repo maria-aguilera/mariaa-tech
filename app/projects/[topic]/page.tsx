@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import PageHero from "@/components/PageHero";
 import TopicSection from "@/components/TopicSection";
 import { blogPosts } from "@/lib/blog-posts";
-import { getAllMdxPostMeta } from "@/lib/mdx";
+import { getPublicMdxPostMeta } from "@/lib/mdx";
 
 const TOPIC_LABELS: Record<string, string> = {
   "machine-learning": "Machine Learning",
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function TopicPage({ params }: { params: Params }) {
   const { topic: topicSlug } = await params;
 
-  const mdxPosts = getAllMdxPostMeta();
+  const mdxPosts = getPublicMdxPostMeta();
   const mdxBySlug = new Map(mdxPosts.map((p) => [p.slug, p]));
   const blogSlugs = new Set(blogPosts.map((p) => p.slug));
   const mergedPosts = blogPosts.map((p) => mdxBySlug.get(p.slug) ?? p);

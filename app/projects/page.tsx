@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
 import TopicSection, { type SeriesCard } from "@/components/TopicSection";
 import { blogPosts } from "@/lib/blog-posts";
-import { getAllMdxPostMeta } from "@/lib/mdx";
+import { getPublicMdxPostMeta } from "@/lib/mdx";
 import { series as allSeries } from "@/lib/series";
 
 export const metadata: Metadata = {
@@ -43,7 +43,7 @@ function dateSortKey(s: string): number {
 }
 
 export default function BlogIndexPage() {
-  const mdxPosts = getAllMdxPostMeta();
+  const mdxPosts = getPublicMdxPostMeta();
   const blogSlugs = new Set(blogPosts.map((post) => post.slug));
   const mdxBySlug = new Map(mdxPosts.map((post) => [post.slug, post]));
 

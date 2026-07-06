@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -30,7 +30,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const description = meta?.subtitle ?? fallback?.subtitle ?? fallback?.excerpt;
   const coverImage = meta?.coverImage ?? fallback?.coverImage;
 
-  if (!title) {
+  if (!title || meta?.private) {
+    // Private posts are excluded from crawlable metadata; the /private route
+    // handles their own noindex meta.
     return {};
   }
 
@@ -55,7 +57,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 }
 
 export function generateStaticParams() {
-  const mdxPosts = getAllMdxPostMeta();
+  // Private MDX posts live at /private/blog/[slug]; only pre-render public ones here.
+  const mdxPosts = getAllMdxPostMeta().filter((p) => !p.private);
   const slugs = new Set([
     ...blogPosts.map((post) => post.slug),
     ...mdxPosts.map((post) => post.slug),
@@ -132,6 +135,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
   const mdxPost = getMdxPostBySlug(decodedSlug);
+
+  // Private posts live under /private/blog/[slug] and require the unlock cookie.
+  if (mdxPost?.meta.private) {
+    redirect(`/private/blog/${decodedSlug}`);
+  }
 
   if (mdxPost) {
     const { meta, content } = mdxPost;

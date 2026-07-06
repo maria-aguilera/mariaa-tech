@@ -14,6 +14,8 @@ export type Series = {
   title: string;
   description: string;
   posts: SeriesPost[];
+  /** If true, this series lives in the private work-OS at /private/series/[id]. */
+  private?: boolean;
 };
 
 /**
@@ -61,7 +63,8 @@ export const series: Series[] = [
   {
     id: "genai-interview-prep",
     title: "GenAI Engineering — Interview Prep",
-    description: "The full study path I'm following for a Generative AI Engineer interview at GFT — starting with self-assessment and prep questions, then a deep dive into every concept on the 4-page cheatsheet: LLMs, prompting, RAG, agents, guardrails, LLMOps. Public but assembled for my own revision.",
+    description: "The full study path I'm following for a Generative AI Engineer interview at GFT — starting with self-assessment and prep questions, then a deep dive into every concept on the 4-page cheatsheet: LLMs, prompting, RAG, agents, guardrails, LLMOps. Private — only accessible from /private/*.",
+    private: true,
     posts: [
       { part:  1, title: "My Strengths & Weaknesses for this role",        slug: "gft-prep-strengths-weaknesses",               published: true  },
       { part:  2, title: "Why I want to work for GFT",                     slug: "gft-prep-why-gft",                            published: true  },

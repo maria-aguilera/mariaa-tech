@@ -8,6 +8,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
+        // Private work-OS — behind cookie-based unlock. Excluded from indexing.
+        disallow: ["/private/", "/api/private/"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

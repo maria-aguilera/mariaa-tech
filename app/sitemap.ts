@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogPosts } from "@/lib/blog-posts";
-import { getAllMdxPostMeta } from "@/lib/mdx";
+import { getPublicMdxPostMeta } from "@/lib/mdx";
 
 const SITE_URL = "https://mariaa.tech";
 
@@ -16,7 +16,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/privacy`, lastModified: now, priority: 0.3 },
   ];
 
-  const mdxSlugs = new Set(getAllMdxPostMeta().map((post) => post.slug));
+  // Private posts (private: true) and the /private/* work-OS are excluded
+  // from the sitemap and robots — see app/robots.ts.
+  const mdxSlugs = new Set(getPublicMdxPostMeta().map((post) => post.slug));
   const allPostSlugs = new Set<string>([
     ...blogPosts.map((post) => post.slug),
     ...mdxSlugs,

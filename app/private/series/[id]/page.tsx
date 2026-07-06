@@ -9,30 +9,24 @@ type SeriesPageProps = {
 };
 
 export function generateStaticParams() {
-  // Private series live at /private/series/[id]; only pre-render public series here.
-  return series.filter((s) => !s.private).map((s) => ({ id: s.id }));
+  return series.filter((s) => s.private).map((s) => ({ id: s.id }));
 }
 
 export async function generateMetadata({ params }: SeriesPageProps): Promise<Metadata> {
   const { id } = await params;
   const s = series.find((entry) => entry.id === id);
-  if (!s || s.private) return {};
+  if (!s?.private) return { robots: { index: false, follow: false } };
   return {
-    title: s.title,
+    title: `${s.title} · Private`,
     description: s.description,
-    alternates: { canonical: `/series/${s.id}` },
-    openGraph: {
-      title: `${s.title} · Maria Aguilera`,
-      description: s.description,
-      url: `/series/${s.id}`,
-    },
+    robots: { index: false, follow: false },
   };
 }
 
-export default async function SeriesPage({ params }: SeriesPageProps) {
+export default async function PrivateSeriesPage({ params }: SeriesPageProps) {
   const { id } = await params;
   const s = series.find((entry) => entry.id === id);
-  if (!s || s.private) notFound();
+  if (!s?.private) notFound();
 
   return (
     <main id="main-content" className="blog-page">
@@ -42,7 +36,7 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
         <div className="blog-body__container">
           <div className="series-detail">
             <p className="series-detail__intro">
-              {s.posts.length} parts. Posts marked <em>Coming soon</em> are still being written.
+              {s.posts.length} parts. Private — only visible to unlocked visitors.
             </p>
 
             <ol className="series-detail__list">
@@ -57,7 +51,10 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
                 if (p.published) {
                   return (
                     <li key={p.slug} className="series-detail__item">
-                      <Link href={`/blog/${p.slug}`} className="series-detail__link">
+                      <Link
+                        href={`/private/blog/${p.slug}`}
+                        className="series-detail__link"
+                      >
                         {content}
                         <span className="series-detail__cta">Read →</span>
                       </Link>
@@ -65,7 +62,10 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
                   );
                 }
                 return (
-                  <li key={p.slug} className="series-detail__item series-detail__item--soon">
+                  <li
+                    key={p.slug}
+                    className="series-detail__item series-detail__item--soon"
+                  >
                     {content}
                     <span className="series-detail__chip">Coming soon</span>
                   </li>
