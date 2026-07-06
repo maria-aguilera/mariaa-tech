@@ -1,21 +1,23 @@
 ---
 slug: ml-from-scratch-04-classification-metrics
-title: "Part 4 — Classification Metrics: Why Accuracy Lies"
-subtitle: "The confusion matrix as the foundation. Why accuracy fails on imbalanced data. Precision vs recall as the two questions that actually matter, plus F1, MCC, and Cohen's Kappa for when accuracy isn't enough."
+title: "Part 4 — Evaluation Metrics"
+subtitle: "Different problems need different metrics. The confusion matrix as the foundation of every classification metric. Why accuracy lies on imbalanced data. Precision vs recall. F1, MCC, Cohen's Kappa, Specificity. Regression metrics — RMSE, MAE, R². Probability models, the threshold, ROC and double-density plots. Clustering evaluation. The principle: pick your metric before you train."
 date: "February 2022"
 updated: "June 2026"
-excerpt: "Part 4 of the ML from Scratch series — model evaluation vs validation, the four problem types, the confusion matrix as the source of every classification metric, why accuracy lies on imbalanced data (the lottery model that scores 99%), precision vs recall through the covid-and-jail trade-off, F1, MCC, Cohen's Kappa. The principle: pick your metric before you train."
+excerpt: "Part 4 of the ML from Scratch series — every kind of evaluation metric from the Session 7-8 notes. Model evaluation vs validation. The four problem types and their metrics. The confusion matrix as the source of every classification metric. Why accuracy lies on imbalanced data (the lottery model that scores 99%). Precision vs recall through the covid-and-spam trade-off, F1, MCC, Cohen's Kappa, Specificity. Regression: RMSE, MAE, R², residuals. Probability models: threshold tuning, ROC, AUC, double-density plots. Clustering: compactness, silhouette. The principle — pick your metric before you train."
 tags:
   - Machine Learning
-  - Classification
   - Evaluation
+  - Classification
+  - Regression
+  - ROC AUC
   - Precision & Recall
 source: Notes
 topic: Machine Learning
 series: "Machine Learning from Scratch"
 seriesPart: 4
 seriesTotal: 12
-coverImage: "/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-quadrant.svg"
+coverImage: "/images/blog/ml-from-scratch/evaluation-metrics/four-problem-types.png"
 ---
 
 *Machine Learning from Scratch · Part 4/12*
@@ -24,9 +26,9 @@ There's a classic ML trap that everyone falls into once. You build a model to de
 
 The model is useless. The metric lied.
 
-This post is about not getting fooled. It covers what evaluation actually means, why accuracy fails on imbalanced data, and the metrics — precision, recall, F1, MCC, Cohen's Kappa — that tell you the truth.
+This post is about not getting fooled. It covers what evaluation actually means, the four kinds of ML problem and what to measure for each, and how to read each metric without being tricked by accuracy on imbalanced data, a high R² that hides a bad model, or an AUC that doesn't translate to anything a stakeholder can act on.
 
-A note on scope: this is half of the original Session 7-8. The other half (cross-validation, probability models, the bias-variance trade-off, regression metrics) lives in [Part 5](/blog/ml-from-scratch-05-cross-validation).
+A note on scope: this is the full first half of Session 7-8 — every metric on the slides, including the ones for regression, probability, and clustering. The other half (cross-validation, train/validation/test splits, bias-variance, bootstrap, significance) lives in [Part 5](/blog/ml-from-scratch-05-cross-validation).
 
 ## Two different things: evaluation vs validation
 
@@ -35,7 +37,15 @@ People mix these constantly. Worth pinning down:
 - <KeyTerm>Model evaluation</KeyTerm> — *how good is the model on data?* You pick a score (accuracy, F1, RMSE, whatever) and assign it to your model. This is what this post is about.
 - <KeyTerm>Model validation</KeyTerm> — *will the model still be good in production?* The process of making sure your evaluation generalises. Cross-validation is the practical tool. ([Part 5](/blog/ml-from-scratch-05-cross-validation) covers this.)
 
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/evaluation-vs-validation.png"
+  alt="Two side-by-side panels — Model evaluation (blue): assign a score to model performance, examples accuracy/RMSE/AUC, choose a metric that matches the business goal, answers 'how good is the model on this metric'. Model validation (green): checks if the model will work on unseen data, do we have enough representative training data, will it generalize in production, tools hold-out validation and cross-validation. Between them, the caption: a good score is not enough."
+  caption="Evaluation is the score; validation is the trust that the score will hold up. A model can ace one and fail the other."
+/>
+
 You can have a model that evaluates beautifully but doesn't validate (overfit). You can have one that validates but evaluates poorly (under-fit on a hard problem). You need both.
+
+The other thing the lecturer kept hammering: **the metric you pick has to be correlated with what the business actually cares about.** Churn → did they leave the company? Fraud → did they steal money? Accuracy on its own doesn't translate to a business outcome — you have to be the one who connects them.
 
 <Callout color="yellow">
   🔑 <strong>The metric you pick is the thing your model will optimise for.</strong> Pick the wrong metric and you'll optimise the wrong thing — and worse, you won't notice. The single biggest mistake people make in ML is <Highlight>not picking the metric carefully before they train</Highlight>.
@@ -46,13 +56,34 @@ You can have a model that evaluates beautifully but doesn't validate (overfit). 
 Different problems need different metrics. Before you reach for accuracy, figure out which kind of problem you're solving:
 
 1. **Classification** — assign labels (categories) to observations. Binary (spam / not spam) or multi-class (digit recognition). You can always turn a binary classifier into a multi-class one. Confusion-matrix-based metrics.
-2. **Scoring / Regression** — predict a number. House prices, time to event, customer lifetime value. RMSE, MAE, R². (Covered in [Part 5](/blog/ml-from-scratch-05-cross-validation).)
-3. **Probability estimation** — like classification, but the model outputs a probability for each class instead of a hard label. Allows threshold tuning, ROC curves. ([Part 5](/blog/ml-from-scratch-05-cross-validation).)
-4. **No-target problems / clustering** — no outcome to predict. Apriori (recommendation systems), clustering, association rules. Compactness-based metrics. ([Part 5](/blog/ml-from-scratch-05-cross-validation).)
+2. **Scoring / Regression** — predict a number. House prices, time to event, customer lifetime value. RMSE, MAE, R².
+3. **Probability estimation** — like classification, but the model outputs a probability for each class instead of a hard label. Allows threshold tuning, ROC curves, double-density plots.
+4. **No-target problems / clustering** — no outcome to predict. Apriori (recommendation systems), clustering, association rules, nearest neighbour. Compactness-based metrics like Silhouette.
 
-This post focuses on classification — which is the most common case and the place where metric choice matters most.
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/four-problem-types.png"
+  alt="A 2x2 grid of problem types. Classification — output: label/category, examples spam vs not spam, fraud vs not fraud, typical metrics accuracy/precision/recall/F1/MCC/Kappa. Scoring/regression — output: number, examples sales/price/credit score, typical metrics RMSE/MAE/R squared. Probability estimation — output: probability/confidence, examples P(spam)=0.91 / P(churn)=0.34, typical tools thresholds/ROC/AUC. No-target/clustering — output: structure/groups, examples customer segments/similar items, typical checks compactness/separation/silhouette. Caption: same dataset idea, different success criteria."
+  caption="Pick the metric family from the problem type first, then pick the metric inside that family."
+/>
 
-## The confusion matrix: where every classification metric is born
+The four families share one rule: **what you measure has to match what the model is being asked to do.** A regression model with a great accuracy is a category error; a classifier with a great RMSE is the same mistake going the other way. Pick the metric family first, then pick the metric inside the family.
+
+## Parameters vs hyperparameters — a short detour before the metrics
+
+One quick distinction from my notes that matters once you start picking metrics. There are two kinds of things you can change about a model:
+
+- <KeyTerm>Model parameters</KeyTerm> — the values the model *learns from the data*. Weights in a linear model. Coefficients. Split points in a decision tree. Fitted values. You don't set these — the training process does, by minimising some loss on the training set.
+- <KeyTerm>Hyperparameters</KeyTerm> — the values *you choose around the training process*. `k` in k-NN, `max_depth` in a tree, regularisation strength `λ`, learning rate, the architecture of a neural net. These are knobs you turn *before* training to control how the training goes.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/parameters-vs-hyperparameters.png"
+  alt="Three columns. Model parameters (green) — learned from training data: weights/coefficients, tree split values, fitted values. Label: 'the model learns these'. Middle column shows the training process: choose hyperparameters → fit model on training data → learn parameters. Hyperparameters (blue) — chosen or tuned before/around training: k, max_depth, λ, learning rate. Label: 'we tune these'. Caption: tuning changes the training process; fitting learns the model."
+  caption="The model learns parameters from data; you choose hyperparameters around the model. Both have to be right — but they're different jobs."
+/>
+
+This distinction matters here because **the metric you pick is what tells you which hyperparameter setting is best.** Two trees with different `max_depth` will both fit the training data; the metric on held-out data tells you which one to keep. So everything in this post — accuracy, F1, MCC, RMSE, AUC, Silhouette — is also the language you'll use to *tune hyperparameters*. The actual tuning machinery (cross-validation, grid search) is the job of [Part 5](/blog/ml-from-scratch-05-cross-validation); here the question is *which number do we even look at* when we compare two configurations.
+
+## Classification — the confusion matrix is where every metric is born
 
 Almost every classification metric is a different way of dividing one small table. It counts *what actually happened* against *what the model predicted*:
 
@@ -63,13 +94,21 @@ Almost every classification metric is a different way of dividing one small tabl
 
 Four numbers. Once you have these, every metric in this post is just one ratio or another. **Internalise this matrix — every metric in classification flows from it.**
 
-Why don't we just report the matrix and stop? Because four numbers don't summarise to one score. You can't say "is model A better than model B" by glancing at two matrices side by side. You need a single number. The rest of this post is about *which* single number to pick.
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/confusion-matrix-card.png"
+  alt="The 2x2 confusion matrix annotated. Rows are Actual (Positive/Negative); columns are Predicted (Positive/Negative). TP top-left — correctly found positives. FN top-right — missed positives. FP bottom-left — false alarms. TN bottom-right — correctly rejected negatives. Below the matrix, four formula cards: Accuracy = (TP+TN)/(TP+TN+FP+FN), Precision = TP/(TP+FP), Recall = TP/(TP+FN), Specificity = TN/(TN+FP)."
+  caption="Four cells. Every classification metric in this post is a different way of dividing them."
+/>
+
+Why don't we just report the matrix and stop? Because four numbers don't summarise to one score. You can't say "is model A better than model B" by glancing at two matrices side by side. You need a single number. The rest of this section is about *which* single number to pick.
 
 ## Accuracy
 
 The most common starting point. The fraction of predictions you got right:
 
-`Accuracy = (TP + TN) / (TP + FP + TN + FN)`
+$$
+\text{Accuracy} = \frac{TP + TN}{TP + FP + TN + FN}
+$$
 
 Between 0 (failed at everything) and 1 (perfect).
 
@@ -82,6 +121,12 @@ The lottery example from my notes. Suppose you're predicting whether someone win
 99.99% accuracy. Useless model. Has learned nothing.
 
 Same with predicting fraud (rare), disease detection (rare), churn (often rare), security breaches (rare). On any imbalanced dataset, **accuracy is fundamentally misleading**.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/accuracy-balanced-vs-imbalanced.png"
+  alt="Two-panel comparison. Left (green): Balanced classes — 50 positives and 50 negatives in a 100-item example; model gets 90 correct; accuracy = 90%; 'reasonable summary when classes are balanced'. Right (red): Rare-event prediction — 1,000 items with 990 negatives and 10 positives; a trivial model that predicts negative for everyone; accuracy = 99%; 'looks great, finds zero positives'. Bottom caption: for imbalanced data, accuracy can hide failure."
+  caption="The same metric tells the truth on the left and lies on the right. Accuracy is only as honest as the class balance underneath it."
+/>
 
 <Callout color="red">
   ⚠️ <Highlight>Never use accuracy for imbalanced classes.</Highlight> The classic trap: a model that always predicts the majority class scores great on accuracy and has learned nothing. The confusion matrix exposes this in one glance; accuracy hides it.
@@ -102,16 +147,26 @@ Two complementary questions about the model:
 
 <KeyTerm>Precision</KeyTerm> — *of everything I predicted positive, how much actually is?* The measure of **confirmation**: when my model raises its hand, how often is it right?
 
-`precision = TP / (TP + FP)`
+$$
+\text{Precision} = \frac{TP}{TP + FP}
+$$
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/precision-card.png"
+  alt="Precision card. Left panel: a bucket labelled 'Predicted Positive' containing green TP dots and red FP dots — the prompt asks 'among predicted positives, how many are truly positive?'. Formula shown: Precision = TP / (TP + FP). Right panel: high precision = very few false positives; use when false alarms are costly (spam filtering, legal review, expensive interventions); scale from low to high precision."
+  caption="Precision lives inside the basket of predicted positives. It asks: of everything I flagged, how much was real?"
+/>
 
 <KeyTerm>Recall</KeyTerm> — *of everything that is positive, how much did I catch?* The measure of **utility**: how much of what I needed did I find?
 
-`recall = TP / (TP + FN)`
+$$
+\text{Recall} = \frac{TP}{TP + FN}
+$$
 
 <Image
-  src="/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-quadrant.svg"
-  alt="A vertical decision threshold splits the four outcomes. Move it right (only flag when very sure) and precision rises but recall falls; move it left and you catch more positives at the cost of false alarms."
-  caption="A vertical decision threshold splits the four outcomes. Move it right (only flag when very sure) and precision rises but recall falls. Move it left and you catch more positives at the cost of false alarms."
+  src="/images/blog/ml-from-scratch/evaluation-metrics/recall-card.png"
+  alt="Recall card. Left panel: a grid of green TP dots (found positives) and red FN dots (missed positives) — the prompt asks 'among all real positives, how many did we detect?'. Formula: Recall = TP / (TP + FN). Right panel: high recall = very few false negatives; use when missing a positive is costly (disease screening, fraud detection, safety alerts); a coverage gauge from low to high recall."
+  caption="Recall lives inside the population of actual positives. It asks: of everything I needed to find, how much did I catch?"
 />
 
 ### Which one matters more? Depends on the cost of mistakes.
@@ -131,13 +186,27 @@ You can't maximise both at once. The decision threshold gives you a sliding bar:
 
 You can trick precision to 1.0 by only flagging the cases you're 100% sure about — but then your recall is terrible because you miss most of the positives. Conversely you can trick recall to 1.0 by flagging everything — but then precision is roughly the prevalence rate.
 
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/precision-recall-tradeoff-card.png"
+  alt="Precision-recall trade-off curve with precision on the y-axis and recall on the x-axis. Three annotated points: high precision / low recall on the top left ('only predict positive when very sure'), a balanced operating point in the middle, and higher recall / lower precision at the bottom right ('catch more positives, accept more false alarms'). A horizontal slider beneath the chart: higher threshold = be more selective, lower threshold = be more inclusive. Caption: every point corresponds to a different decision threshold."
+  caption="The precision-recall curve is the trade-off made visible. Each point on the curve is one choice of threshold."
+/>
+
 There's no free lunch. Pick the balance that matches your costs.
 
 ## F1 — one number to balance them
 
 When you want a single number that captures both:
 
-`F1 = 2 · precision · recall / (precision + recall)`
+$$
+F_1 = \frac{2 \cdot \text{precision} \cdot \text{recall}}{\text{precision} + \text{recall}}
+$$
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/f1-score-card.png"
+  alt="F-measure (F1 score) card. Centre: F1 = 2 × (precision × recall) / (precision + recall). Flanked by Precision (are positive predictions correct?) on the left and Recall (did we find the positives?) on the right. Three bottom panels: F1 drops if either precision or recall is low; useful when you need a balance between false alarms and missed positives; better summary than accuracy when class imbalance matters and the positive class is important."
+  caption="F1 is the harmonic mean of precision and recall — one number that can't be gamed by maximising only one."
+/>
 
 The **harmonic mean** of precision and recall. The reason it's harmonic instead of arithmetic: the harmonic mean is much more sensitive to the lower value. A model that drives one of them down will see F1 drop hard.
 
@@ -151,22 +220,30 @@ The caveat (again): F1 is also not ideal under heavy class imbalance. It's bette
 
 Matthew's Correlation Coefficient. The metric that doesn't lie.
 
-`MCC = (TP·TN − FP·FN) / √((TP+FP)(FN+TN)(FP+TN)(TP+FN))`
+$$
+\text{MCC} = \frac{TP \cdot TN - FP \cdot FN}{\sqrt{(TP+FP)(FN+TN)(FP+TN)(TP+FN)}}
+$$
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/mcc-card.png"
+  alt="Matthews correlation coefficient card. Three columns. Left — Why MCC is useful: uses all four confusion-matrix cells, more reliable than accuracy on imbalanced data, good summary of binary-classifier quality. Badge: 'handles imbalance better'. Middle — Formula and interpretation: MCC = (TP×TN − FP×FN) / sqrt((TP+FP)(TP+FN)(TN+FP)(TN+FN)) with a -1 / 0 / +1 axis labelled perfectly wrong, random / no correlation, perfect classifier. 'It rewards getting the whole confusion matrix right.' Right — Why accuracy can hide failure: 'Always predict negative' yields Accuracy = 99% but MCC = 0.0. 'A model can look accurate and still learn nothing about the positive class.' Badge: 'MCC reveals this better.'"
+  caption="MCC uses every cell of the confusion matrix and goes from −1 to +1. The only way to score high is to get all four cells right."
+/>
 
 Three properties make it special:
 
 - **Range:** −1 (perfectly wrong) through 0 (random) to +1 (perfect). No metric on a 0–1 scale tells you whether the model is doing worse than random; MCC does.
 - **Uses all four cells.** Most metrics ignore one or more cells (accuracy ignores nothing but treats FP and FN symmetrically; precision ignores TN; recall ignores TN and FP). MCC uses TP, TN, FP, and FN.
-- **Fair under imbalance.** It only scores high when the model does well across *all four* quadrants — a model that just predicts the majority class can't fool it.
+- **Fair under imbalance.** It only scores high when the model does well across *all four* quadrants — a model that just predicts the majority class can't fool it. It does not care whether your dataset is balanced.
 
-The killer example from my notes. On imbalanced data, you might see a model with:
+The killer example from my notes — three confusion matrices side by side, same dataset of 351 patients (24 actually sick, 327 actually healthy):
 
-- **Accuracy: 0.93** — looks great.
-- **Recall: 1.0** — perfect.
-- **MCC: 0.0** — quietly telling you the truth.
+- **Predict "no" for everyone:** Accuracy = 0.932, **MCC = 0.0**. The accuracy looks great. MCC tells the truth — the model learned nothing.
+- **Predict "yes" for everyone:** Recall = 1.0, **MCC = 0.0**. Recall says perfect detection. MCC sees through it — it caught every positive but only by flagging every negative too.
+- **Predict everything correctly:** **MCC = 1.0** — and you only get MCC = 1 when FP and FN are both zero.
 
 <Callout color="yellow">
-  🔑 A degenerate classifier on imbalanced data can show <strong>Accuracy 0.93</strong> and <strong>Recall 1.0</strong> — and <strong>MCC 0.0</strong>, telling you what you needed to know: <Highlight>the model learned nothing</Highlight>.
+  🔑 A degenerate classifier on imbalanced data can show <strong>Accuracy 0.932</strong> and <strong>Recall 1.0</strong> — and <strong>MCC 0.0</strong>, telling you what you needed to know: <Highlight>the model learned nothing</Highlight>.
 </Callout>
 
 **Use MCC** whenever your data is imbalanced and you need to know whether the model is actually picking up signal.
@@ -175,15 +252,69 @@ The killer example from my notes. On imbalanced data, you might see a model with
 
 Another metric for the imbalanced case. Cohen's Kappa measures how much better your model is doing than **random guessing weighted by the class frequencies**.
 
-`κ = (p_observed − p_chance) / (1 − p_chance)`
+$$
+\kappa = \frac{P(o) - P(e)}{1 - P(e)}
+$$
 
-- `κ = 0` — the model is no better than guessing at the marginal rate.
-- `κ = 1` — perfect agreement with the labels.
-- `κ < 0` — worse than guessing (yes, possible).
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cohens-kappa-card.png"
+  alt="Cohen's kappa card. Subtitle: how much better is your classifier than chance-level guessing? Three columns. Left — Why not just use accuracy: 'accuracy can be high just by following the majority class' with a histogram showing one dominant class; a 'random guesser predicts the majority class every time'; kappa asks whether the model beats chance. Middle — Core idea: kappa formula κ = (P(o) − P(e)) / (1 − P(e)) with P(o) = observed agreement, P(e) = expected agreement by chance; 'kappa corrects raw agreement for lucky guessing.' Right — Reading kappa: axis from 0 (no better than chance) to between-0-and-1 (some useful agreement) to 1 (perfect agreement); useful for imbalanced classes, good when chance agreement matters. Bottom: 'Kappa is a fairness check on classifier agreement.'"
+  caption="Kappa subtracts what chance alone would have got you. A degenerate model that always predicts the majority class lands at κ = 0."
+/>
+
+Where $P(o)$ is the *observed* agreement (your model's accuracy) and $P(e)$ is the agreement you'd *expect* by chance from a random model guessing according to the class distribution.
+
+- $\kappa = 0$ — the model is no better than guessing at the marginal rate.
+- $\kappa = 1$ — perfect agreement with the labels.
+- $\kappa < 0$ — worse than guessing (yes, possible).
 
 The intuition: if your dataset is 90% class A and 10% class B, a model that randomly picks based on those proportions would get 82% accuracy *by chance*. Kappa tells you whether you're meaningfully above that floor.
 
 When to reach for Kappa: when you want to know whether the model's accuracy is genuinely better than a dumb baseline, accounting for class imbalance. Especially common in inter-rater agreement studies (medical diagnoses, content moderation labels).
+
+## Specificity — the negative-class twin of recall
+
+Recall asks *of all the actual positives, how many did I catch?* The mirror question is *of all the actual negatives, how many did I correctly leave alone?* That's **Specificity** — also called the True Negative Rate.
+
+$$
+\text{Specificity} = \frac{TN}{TN + FP}
+$$
+
+When you'd reach for it: domains where leaving the healthy / innocent / non-spam alone matters as much as catching the positives. A spam filter that quarantines real emails is failing on specificity even if its recall on spam is great. A covid test that quarantines healthy people is failing on specificity even if it catches every infection.
+
+In symmetric terms: **recall protects the positive class; specificity protects the negative class.** A complete picture often needs both, especially in medical and security applications where both error directions have a cost.
+
+## Reading the metrics — what each number is actually telling you
+
+The most useful thing about classification metrics isn't the formulas — it's the *intuition* of what the number is saying about the model. From the notes:
+
+| Measure | Formula | Example value | What it's telling you |
+|---------|---------|---------------|------------------------|
+| Accuracy | $\frac{TP + TN}{TP + FP + TN + FN}$ | 0.9214 | Overall, the model is predicting the correct class in 92.14% of cases, missing in 7.86% |
+| Precision | $\frac{TP}{TP + FP}$ | 0.9187 | In 8.13% of cases, the model is **including false predictions** of the positive class |
+| Recall | $\frac{TP}{TP + FN}$ | 0.8778 | The model is **missing 12.22% of the positive cases** |
+| Specificity | $\frac{TN}{TN + FP}$ | 0.9496 | The model is **missing 5.04% of the negative cases** |
+
+Notice the framing in the right column — it's not "Precision = 0.9187," it's "8.13% of my positive predictions are wrong." That's the version a stakeholder understands. Practice translating the numbers into that sentence.
+
+## How metric choice maps to a real product question — the spam example
+
+When you're talking to a non-technical stakeholder, they're not going to ask for precision and recall. They're going to express a business need in plain language, and your job is to translate that into the right metric. The table from my notes does exactly that:
+
+| Measure | What the stakeholder says | The follow-up question that exposes the trade-off |
+|---------|----------------------------|-----------------------------------------------------|
+| Accuracy | "We need most of our decisions to be correct." | Can we tolerate being wrong 5% of the time? And do users see spam-marked-as-email and email-marked-as-spam as equivalent? |
+| Precision | "Most of what we marked as spam had darn well better be spam." | That guarantees most of what is in the spam folder is in fact spam, but isn't the best way to measure what fraction of the user's legitimate email is lost. Maybe we really want good specificity. |
+| Recall | "We want to cut the amount of spam a user sees by a factor of 10 (eliminate 90% of the spam)." | If 10% of the spam gets through, will the user see mostly non-spam mail or mostly spam? Will this result in a good user experience? |
+| Specificity | "We must be at least three nines on legitimate email; the user must see at least 99.9% of their non-spam email." | Will the user tolerate missing 0.1% of their legitimate email, and should we keep a spam folder the user can look at? |
+
+The lesson: a single sentence from a stakeholder usually has a metric hiding inside it. The trick is to surface it with the *follow-up question* that makes the trade-off explicit.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/metric-by-application.png"
+  alt="Choosing the right metric by application — four cards. Accuracy: do we mostly care about overall correctness? Best when classes are balanced and error costs are similar. Example: generic document classification. Badge: 'overall summary'. Precision: are false alarms expensive? Best when you only want to predict positive when you are confident. Example: spam filtering, expensive interventions. Badge: 'trust positive predictions'. Recall / Sensitivity: is missing a positive very costly? Best when you want to catch as many true positives as possible. Example: disease screening, fraud detection. Badge: 'find the real cases'. Specificity: do we need to correctly reject negatives? Best when false positives create too much noise. Example: rule-out tests, avoiding unnecessary alerts. Badge: 'reject false alarms'. Bottom callout: 'Business cost should choose the metric.'"
+  caption="Each metric protects a different kind of mistake. The business cost of being wrong is what decides which one you optimise for."
+/>
 
 ## Multi-class — one-vs-rest, micro vs macro
 
@@ -197,7 +328,303 @@ In multi-class problems you still have a confusion matrix, but it's K×K instead
 - **Weighted average** — weight by class size. Use when overall accuracy on the population is what you care about.
 - **Micro average** — pool all the TPs, FPs, FNs across classes, then compute one score. Equivalent to accuracy for many metrics. Use when you don't care which class the error was on.
 
-The choice depends on whether minority classes carry equal weight, or larger classes dominate. In my experience: macro for fairness audits, weighted for product metrics, micro when you don't care.
+The choice depends on whether minority classes carry equal weight, or larger classes dominate. In practice: macro for fairness audits, weighted for product metrics, micro when you don't care.
+
+## When your dataset is imbalanced — your toolkit
+
+The notes have a clean list of moves you can make when the dataset is the problem, not the model. Before you blame the algorithm, run through these:
+
+- **Collect more data.** The boring answer. Often the right one.
+- **Change the metric.** Use MCC, Kappa, or read the confusion matrix directly. Stop reporting accuracy.
+- **Resample with bootstrapping.** Draw the minority class with replacement until both classes are balanced.
+- **Generate synthetic samples.** SMOTE and its cousins — interpolate new minority examples between existing ones.
+- **Change the algorithm.** Trees (Random Forest, Gradient Boosting) handle imbalance better than logistic regression out of the box. Trees still need care with imbalance, but they're less catastrophic.
+- **Change the approach entirely.** Instead of classifying, treat it as anomaly detection — *learn what "normal" looks like, flag everything else.* This is often the right move at extreme imbalance ratios (1:1000 and worse).
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/imbalanced-data-toolkit.png"
+  alt="What to do with imbalanced data — six cards in a 3x2 grid. Collect more data: especially more examples of the rare class. Badge: 'best long-term fix'. Change the metric: prefer F1, MCC, kappa, precision-recall, not plain accuracy. Badge: 'measure the right thing'. Resample the data: oversample the minority or undersample the majority. Badge: 'rebalance the training set'. Generate synthetic samples: create extra minority examples when appropriate. Badge: 'synthetic support'. Change the algorithm: try models that handle imbalance better, like trees. Badge: 'different models, different behavior'. Change the approach: reframe as anomaly detection if the positive class is extremely rare. Badge: 'rare-event strategy'. Bottom callout: 'Imbalance is a modelling problem, a metric problem, and often a data problem.'"
+  caption="Six moves for imbalanced data, grouped by where they intervene — the data, the metric, or the algorithm."
+/>
+
+(Source: [Tactics to combat imbalanced classes](https://machinelearningmastery.com/tactics-to-combat-imbalanced-classes-in-your-machine-learning-dataset/), which is what the lecturer pointed at on the slide.)
+
+## Scoring (regression) — measuring how far off
+
+A different question — *how far off?* instead of *right or wrong?*
+
+The whole regression-metric family is built on one quantity: the <KeyTerm>residual</KeyTerm>, which is just the difference between the prediction and the actual value.
+
+$$
+\text{residual}_i = y_i - \hat{y}_i
+$$
+
+Every regression metric is some way of squashing the *vector* of residuals into a *single number*. The difference between RMSE, MAE, and R² is just how you do the squashing.
+
+**An optimal model is a model with low residuals.** Big-residual rows are the rows the model is most wrong about. If you understand the residuals, you understand the model.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/residuals-card.png"
+  alt="Residuals — the raw material of regression metrics. Left panel — Visual intuition: a scatter plot with a regression line and dashed vertical segments connecting each point to the line; residual = actual − predicted; 'larger vertical gap = larger error'. Right panel — Definition: residual_i = y_i − ŷ_i; positive residual = model predicted too low; negative residual = model predicted too high; small residuals mean better predictions; 'errors live in the residuals'. Bottom — Where we go next: RMSE squares them, MAE takes absolute values, R² compares explained vs total variation."
+  caption="Every regression metric is just a different way of squashing the residual vector into one number."
+/>
+
+## RMSE — Root Mean Squared Error
+
+The most common goodness-of-fit measure for regression.
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+$$
+
+Read it inside-out:
+
+1. Compute each residual.
+2. Square it.
+3. Take the mean across all rows.
+4. Square root to get back to the original units.
+
+**Why squared?** Two reasons. First, the absolute value would also work, but squaring is differentiable everywhere — which matters when you're optimising with gradients. Second, **squaring penalises large errors disproportionately**: if one residual goes from 10 to 100, its contribution to the sum goes from $10^2 = 100$ to $100^2 = 10{,}000$. The big mistakes dominate the metric, which is what you usually want — getting one prediction wildly wrong is much worse than getting ten predictions slightly off.
+
+**Why root?** So the number is in the **same units as $y$**. If $y$ is in dollars, RMSE is in dollars. You can read it as "the typical prediction error, in the same currency as the prediction." That makes it explainable to non-technical stakeholders, which MSE alone is not.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/rmse-card.png"
+  alt="Root mean square error (RMSE) card. Three columns. Left — Formula: RMSE = sqrt(1/n × sum (y_i − ŷ_i)²); a four-step pipeline: residual → square → average → root; badge: 'same units as the target'. Middle — Why squaring matters: a bar chart showing residuals 1, 2, 2, 6 with their squared contributions 1, 4, 4, 36; the 36 dominates; 'large errors count much more' and 'small misses matter less'. Right — When to use RMSE: good default regression metric; use when large mistakes are especially costly; lower RMSE is better; warning 'penalizes outliers more strongly'. Bottom callout: 'RMSE rewards models that avoid big misses.'"
+  caption="Squaring is where RMSE's behaviour comes from — one big residual contributes much more than ten small ones."
+/>
+
+RMSE is interpreted, roughly, as the **standard deviation of the prediction error**. Same units as the target, big errors weighted heavily, easy to compare across models trained on the same dataset.
+
+## MAE — Mean Absolute Error
+
+Like RMSE without the squaring.
+
+$$
+\text{MAE} = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|
+$$
+
+Penalises errors **linearly**. A 10× larger residual contributes exactly 10× as much to the metric.
+
+That makes MAE **more robust to outliers** than RMSE — one wildly wrong prediction won't dominate the metric the way it would with squaring. Use MAE when:
+
+- The dataset has a few extreme outliers you don't want to over-punish.
+- The cost of error is roughly linear in the error size (a $1000 mistake is 10× as bad as a $100 mistake, not 100×).
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/mae-card.png"
+  alt="Mean absolute error (MAE) card. Three columns. Left — Formula: MAE = (1/n) × sum |y_i − ŷ_i|; three-step pipeline: residual → absolute value → average; badge: 'easy to interpret'. Middle — Visual example: errors (y − ŷ) = −2, +1, −4, +3 transform into absolute errors 2, 1, 4, 3; MAE = average of these absolute misses; 'direction disappears, size stays'. Right — MAE vs RMSE: MAE treats errors linearly (linear curve), RMSE penalizes large errors more (curved); use MAE when you want a more even treatment of errors; warning: less sensitive to big outliers than RMSE. Bottom callout: 'Lower MAE means predictions are, on average, closer to reality.'"
+  caption="MAE is RMSE without the squaring — every residual contributes in proportion to its size, so one big outlier can't dominate."
+/>
+
+When *not* to use MAE: when the cost of error is non-linear and big mistakes are *especially* bad. Then squaring (RMSE) reflects the cost structure better.
+
+The note from my deck: **don't make absolute error the project goal.** Report it if you want, but optimising MAE tends to give models that "get the aggregates right" less reliably than RMSE-optimised ones. If you only optimise MAE, the model can systematically over- or under-shoot for a sub-population in a way that squared-error optimisation would have caught.
+
+## R² — Coefficient of Determination
+
+The metric that's on a 0-to-1 scale instead of in your target's units. The fraction of variance the model explains.
+
+$$
+R^2 = 1 - \frac{\text{RSS}}{\text{TSS}} = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}
+$$
+
+Breaking that down:
+
+- **TSS** = total sum of squares = $\sum (y_i - \bar{y})^2$. The variance of the target without your model — how scattered the $y$ values are around their mean.
+- **RSS** = residual sum of squares = $\sum (y_i - \hat{y}_i)^2$. The variance the model *couldn't* explain.
+- $R^2 = 1 - \text{RSS}/\text{TSS}$ is the fraction of the variance the model *did* explain.
+
+Read the boundaries:
+
+- $R^2 = 1$ — perfect prediction, RSS = 0.
+- $R^2 = 0$ — model is no better than predicting the mean.
+- $R^2 < 0$ — model is *worse* than predicting the mean. Yes, this is possible if your model is badly miscalibrated or overfit.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/r-squared-card.png"
+  alt="R² — coefficient of determination card. Top — Core formula: R² = 1 − RSS/TSS; TSS = total sum of squares = total variation in y; RSS = residual sum of squares = unexplained variation; 'the better the model explains the data, the smaller RSS becomes.' Bottom left — Visual intuition: scatter with model line ŷ and mean line ȳ; RSS = variation from each point to the model prediction (green), TSS = variation from each point to the mean (red); 'explained variation shrinks the leftover error'. Bottom right — Reading R²: scale 0 to 1; near 0 = weak explanatory power; near 1 = strong explanatory power; higher is better; useful for comparing regression fits; not always easy to explain to business users. Bottom callout: 'R² is about explained variation, not raw error size.'"
+  caption="R² compares two variances — the variance the model leaves unexplained vs the variance you'd have without the model at all."
+/>
+
+The caveat from the lecturer: **R² is hard to explain to the business.** "We explain 87% of the variance in customer lifetime value" doesn't translate to a dollar amount or a decision. RMSE in dollars does. R² is a model-comparison metric; RMSE is a stakeholder-communication metric.
+
+## Choosing between RMSE, MAE, and R²
+
+A small decision table:
+
+- **Want the same units as the target so a non-technical reader can read it?** → RMSE or MAE.
+- **Want big mistakes punished disproportionately?** → RMSE.
+- **Worried about outliers dominating the metric?** → MAE.
+- **Want one comparable score across models trained on different datasets?** → R² (because it's unitless).
+- **Reporting to a business stakeholder?** → RMSE (most explainable).
+
+You don't have to pick one. Most regression reports include RMSE and R² together — RMSE for the units, R² for the comparison.
+
+## Probability models — when the output isn't a label
+
+So far, every classification metric has assumed the model outputs a hard label. But many models — logistic regression, Naïve Bayes, neural nets — actually output a **probability** instead. "I am 97% sure this is positive."
+
+The lecturer's exact words: *probability models give you a degree of confidence on the prediction.* Naïve Bayes doesn't output 0 or 1 — it outputs something like "97% probability of class A, 3% probability of class B."
+
+That confidence is information. And it raises a question that didn't exist in the hard-label case: **where do you put the threshold?**
+
+## The threshold is a knob
+
+By default, the threshold is 0.5 — anything above 0.5 is predicted positive, anything below is negative. But the threshold is a knob you can turn. Where you put it changes the model's behaviour dramatically:
+
+- **High threshold (e.g., 0.9).** Only predict positive when very confident. **Precision goes up, recall goes down.** Use when false positives are expensive — fraud accusation, spam quarantine, anything where a wrong "yes" is costly.
+- **Low threshold (e.g., 0.3).** Predict positive on the slightest signal. **Recall goes up, precision goes down.** Use when false negatives are catastrophic — covid screening, security breaches.
+
+The exact framing from my notes: imagine the model says "51% sure this is positive, 49% sure it's negative." For covid, you *want* to flag that as positive — false alarms are cheap, missing real cases is expensive. So you set the threshold low. For a fraud accusation that will freeze someone's account, you probably want to *require* 95%+ confidence before triggering — set the threshold high.
+
+A subtle point that's easy to miss: **the threshold is a model-deployment decision, not a model-training decision.** The model itself outputs probabilities. The threshold turns those probabilities into a decision, and *that's where the business cost asymmetry enters the system.* It's the most important hyperparameter you'll set after the model is trained.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/probability-threshold-card.png"
+  alt="Probability models need a threshold card. Top — Probability outputs: model output = probability / confidence; four example scores 0.91 (positive), 0.74 (positive), 0.49 (uncertain), 0.18 (negative); 'not all classifiers give only 0 or 1'. Bottom left — Decision threshold: slider showing 0.50 threshold and 0.80 threshold; 'lower threshold → more items predicted positive', 'higher threshold → fewer, more selective positives'. Bottom right — Why it matters: threshold too low (too permissive) → more false positives; threshold too high (too strict) → more false negatives; 'threshold choice changes model behavior'; 'pick the threshold that matches the business cost'. Bottom callout: 'Classification from probabilities is a decision rule, not just a score.'"
+  caption="The threshold is the bridge between the model's probability output and a hard decision. Where you set it is a cost-of-mistakes call."
+/>
+
+## The ROC curve
+
+Once threshold is a knob, you can sweep it from 0 to 1 and plot the trade-off. That's the **ROC curve** — also called the Receiver Operating Characteristic curve, or the True Operating Characteristic curve.
+
+For each threshold value, you compute two things:
+
+- **True Positive Rate (TPR)** = recall = $\frac{TP}{TP + FN}$. On the y-axis.
+- **False Positive Rate (FPR)** = $\frac{FP}{FP + TN}$. On the x-axis.
+
+Each threshold gives you one point in (FPR, TPR) space. Sweep all thresholds, you get a curve.
+
+An ideal model hugs the **top-left corner** (TPR = 1, FPR = 0 — catches everything, false-alarms nothing). A random model is the diagonal line (TPR = FPR — same hit rate as the false-alarm rate). A model *worse* than random sits below the diagonal.
+
+ROC is not a metric — it's a curve. To get a single number for model comparison, you take the **Area Under the Curve**, or AUC.
+
+## AUC — the area under ROC
+
+$$
+\text{AUC} \in [0, 1]
+$$
+
+- AUC = 0.5 — the model is random.
+- AUC = 1.0 — the model is perfect.
+- AUC > 0.5 — better than random by some amount.
+
+The intuition: AUC is the probability that, if you randomly pick one positive example and one negative example, the model assigns the positive one a higher probability score than the negative one. Higher AUC = the model's score actually separates the two classes.
+
+The caveats from the lecturer — and these matter:
+
+- **AUC doesn't have a clean business intuition.** "Our AUC is 0.87" doesn't translate to a decision the way "we miss 12% of fraud cases" does. Difficult to explain to non-technical stakeholders.
+- **The threshold you pick from the ROC curve is local to your problem.** It doesn't transfer to a different classifier on the same data or to the same classifier on a different dataset.
+- **ROC is for choosing the threshold, not for evaluating the final model.** Once you've committed to a threshold, evaluate the final model with classification metrics (accuracy, precision, recall, F1) at that threshold. AUC is a means; classification metrics are the end.
+
+When to use AUC: model selection, especially when you'll choose the operating threshold later. When *not* to use it: as the headline production metric, because at production time you've committed to a threshold and what you actually care about is precision and recall at *that* threshold.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/roc-auc-card.png"
+  alt="ROC curve and AUC card. Left panel — ROC curve: trade-off between true positives and false positives; axes FPR (x) and TPR (y); annotated thresholds at 0.8, 0.5, 0.2 along a curving line that hugs the top-left; dashed diagonal labelled 'random'; 'better region' tag in the top-left. Right panel — AUC = area under the curve: scale from 0.5 (random ranking) to 1.0 (perfect ranking) with green gradient; larger area = better overall threshold behavior; useful for comparing probability models; still choose a final threshold later; badge: 'threshold-agnostic comparison'. Bottom callout: 'ROC/AUC helps you compare ranking quality, but the final deployed model still needs an operating threshold and a task-specific classification metric.'"
+  caption="ROC sweeps every threshold; AUC compresses the sweep into one number. Useful for ranking models, not for the final deployed score."
+/>
+
+If you need a single value summary and have to pick one, **F1 (or precision/recall together) is the better headline than AUC.** AUC is for the model-selection step; the headline number for the deployed model should be at the chosen threshold.
+
+## Double density plots — easier to explain than ROC
+
+The complementary visualisation. Plot the model's predicted probabilities, with separate density curves for the actual positives and actual negatives:
+
+- One curve = the distribution of scores for items that *are* spam.
+- The other curve = the distribution of scores for items that are *not* spam.
+
+A **great model** has the two curves separated — actual positives clustering near 1.0, actual negatives clustering near 0.0. A **bad model** has them overlapping in the middle.
+
+Where you put the threshold is a vertical line on this plot. Move it right, you correctly classify more negatives but misclassify positives that fell below the line. Move it left, you catch more positives but pick up false alarms from the negative tail.
+
+Why this is more useful than ROC for explaining a model to stakeholders: **you can point at the overlap and say "this is where the model is unsure."** A stakeholder understands "the model can't tell these apart" more readily than they understand a curve in TPR/FPR space.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/double-density-plots-card.png"
+  alt="Double density plots — a more intuitive way to explain thresholds. Left panel: two density curves on the same x-axis (model score from 0 to 1). The blue curve is the score distribution for actual negatives, the green curve for actual positives. Two vertical dashed thresholds at 0.35 and 0.70, labelled 'lower threshold → more false positives' and 'higher threshold → more false negatives'. The overlap region in the middle is annotated 'overlap = hard-to-separate cases'. Right panels: Why people like this view — easy to explain, shows threshold trade-offs visually, connects directly to business mistakes. Compared with ROC/AUC — less abstract, easier for non-technical audiences, still useful for choosing a threshold. Bottom: 'same model, different cut-offs, different business outcomes.'"
+  caption="Double-density plots make the threshold trade-off visible at the data level. Where the curves overlap is where the model is unsure."
+/>
+
+In practice: use double density plots for stakeholder conversations and intuition; use the ROC curve + AUC for the technical model selection.
+
+## Always evaluate the final model with classification metrics
+
+A note from my deck that's worth repeating: even when you're working with a probability model and you've used ROC/AUC to pick a threshold, *the final model you ship is a classifier* — it outputs hard labels at the chosen threshold. **Evaluate the final model with classification metrics at that threshold** (accuracy / precision / recall / F1 / MCC / specificity, whichever is right for the problem). ROC is a tool you use to get to that point, not the report you hand in at the end.
+
+## Clustering — when there is no target
+
+In unsupervised clustering, the model has no target variable. You can't compute accuracy, precision, F1, or RMSE because there are no labels to compare against. So how do you measure quality?
+
+You measure **structural properties of the clustering itself**: how compact each cluster is, how separated the clusters are from each other.
+
+The general principle: **clustering metrics measure how compact your clusters are and how distinct they are from one another.**
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/choosing-k-clusters.png"
+  alt="Choosing the number of clusters (k). Three side-by-side scatter plots. k=2: two big mixed blobs labelled 'too coarse' — visible structure within each blob is being ignored. k=3: three clearly separated clusters in blue, green, purple labelled 'clear structure'. k=5: five clusters that include some over-fragmented groups labelled 'too fragmented'. Below: what are we looking for — points close to their own cluster, clusters separated from each other, interpretability, stability across runs. Bottom callout: 'there is no universal best k — choose the most meaningful structure'."
+  caption="Picking k is its own evaluation problem. Too few clusters hide structure; too many invent it."
+/>
+
+## Compactness — the core idea
+
+A good clustering has:
+
+- Small **intra-cluster distance** — points within the same cluster are close to each other.
+- Large **inter-cluster distance** — points in different clusters are far apart.
+
+Concretely: **mean intra-cluster distance must be smaller than mean inter-cluster distance.** If it isn't, your clusters aren't really clusters — they're overlapping blobs.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/compactness-vs-separation.png"
+  alt="Compactness vs separation in clustering. Left panel — Good clustering: three tight clusters (green, blue, purple) with arrows showing small within-cluster distances inside each blob and large between-cluster distances between them. Middle panel — Goal: intra-cluster distance < inter-cluster distance. Right panel — Poor clustering: points spread out, clusters overlap, no clear structure. Bottom: 'compactness measures cohesion; separation measures distinctness'."
+  caption="Two questions, one rule: are points tight inside their cluster, and are the clusters far apart? Mean intra-cluster distance must be smaller than mean inter-cluster distance."
+/>
+
+This single rule covers a surprising amount of intuition. If you can answer "are the points inside each cluster close to each other?" and "are the clusters themselves far apart?", you can usually tell whether a clustering is reasonable without any formal metric.
+
+## Silhouette
+
+The most common single-number metric for clustering quality. The Silhouette coefficient combines cohesion (intra-cluster compactness) and separation (inter-cluster distance) into one number per point, then averages across all points.
+
+$$
+s \in [-1, +1]
+$$
+
+- $s$ near +1 — the point is much closer to its own cluster than to any other. Good.
+- $s$ near 0 — the point is on the boundary between clusters. Ambiguous.
+- $s$ near −1 — the point is *closer to a different cluster* than to its own. The clustering has the wrong assignment.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/silhouette-score-card.png"
+  alt="Silhouette score. Left panel: a point sitting on the boundary between two clusters; dashed lines from the point to other members of its own cluster (labelled 'a = average distance to own cluster', in blue) and to members of the nearest neighbouring cluster (labelled 'b = average distance to nearest other cluster', in green). Below: formula s = (b − a) / max(a, b). Right panel: axis from -1 (bad assignment) through 0 (borderline) to +1 (well clustered); higher is better; close to 1 means strong fit; below 0 suggests the point may belong elsewhere. Bottom callout: 'silhouette balances cohesion and separation.'"
+  caption="Silhouette compares each point's distance to its own cluster against its distance to the nearest other cluster. One number captures both cohesion and separation."
+/>
+
+You report either the per-point silhouette scores (in a plot, to see which clusters are clean and which are mushy) or the average silhouette across the dataset (one summary number). Pick the value of $k$ (number of clusters) that maximises the average silhouette.
+
+## Other clustering metrics worth knowing
+
+- **Davies-Bouldin Index** — average similarity between each cluster and its most similar one. **Lower is better.**
+- **Calinski-Harabasz Score** — ratio of between-cluster dispersion to within-cluster dispersion. **Higher is better.**
+- **Clustering-as-classification.** If you happen to *have* labels (you held them out, you weren't training on them), you can evaluate the clustering as if it were a classifier by mapping each cluster to its majority label and computing the usual metrics. **But do not use labels to drive the clustering itself** — they're only for evaluation after the fact.
+
+## Useful sanity checks
+
+Before you reach for any single metric, two cheap visual checks catch the most common clustering failures:
+
+- **Clusters with very few samples** — probably noise that wandered off into its own group. Usually means $k$ is too high.
+- **Clusters with too many samples** — the algorithm couldn't find structure, so it dumped everything together. Usually means $k$ is too low (or the algorithm is the wrong choice for the data shape).
+
+And the obvious one: **try different algorithms.** K-means, K-medoids, K-medians, Gaussian Mixture Models, density-based clustering (DBSCAN, HDBSCAN). Each makes different assumptions about cluster shape and density. If K-means gives you nonsense, the data probably isn't blob-shaped — try DBSCAN.
+
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/clustering-algorithms-shapes.png"
+  alt="Different clustering algorithms find different shapes. Four panels. (1) k-means — partitioning: three round blob clusters with centroids; 'works best for round clusters'. (2) k-medoids / k-medians — partitioning: similar three blobs with a few outlier points scattered around; 'more robust to outliers'. (3) Gaussian mixtures — probabilistic: three elliptical clusters overlaid as ellipses; 'probabilistic, can model ellipses'. (4) Density-based clustering — density-based: two crescent-moon shaped clusters with scattered noise points; 'finds arbitrary shapes and noise'. Bottom callout: 'if one algorithm fails to reveal useful structure, try another.'"
+  caption="The algorithm bakes assumptions about cluster shape. If K-means returns nonsense, the data probably isn't blob-shaped — try GMM or DBSCAN."
+/>
 
 ## The honest workflow
 
@@ -206,14 +633,17 @@ If you take one thing from this post:
 <Callout color="green">
   <strong>Pick your metric before you train.</strong>
   <br/><br/>
-  1. Start from the confusion matrix to ground yourself in what FP and FN actually mean.<br/>
-  2. Distrust accuracy on imbalanced data. Default to MCC or Kappa when you're worried.<br/>
-  3. Choose precision vs recall by the cost of mistakes.<br/>
-  4. Use F1 for a balanced single number; MCC under imbalance.<br/>
-  5. For multi-class, pick macro / weighted / micro based on whether minorities matter.<br/><br/>
+  1. Figure out which kind of problem you have — classification, regression, probability estimation, clustering. The metric family follows from that.<br/>
+  2. Start from the confusion matrix (for classification) or the residuals (for regression) to ground yourself in what the errors actually look like.<br/>
+  3. Distrust accuracy on imbalanced data. Default to MCC or Kappa when you're worried.<br/>
+  4. Choose precision vs recall by the cost of mistakes. Use F1 for a balanced single number; MCC under imbalance.<br/>
+  5. For regression, RMSE for the headline; MAE if outliers worry you; R² for cross-model comparison.<br/>
+  6. For probability models, the threshold is the most important hyperparameter you set after training. Use ROC/AUC to pick it, then evaluate the final classifier with classification metrics at that threshold.<br/>
+  7. For clustering, check compactness and separation; Silhouette is the default single-number metric. Try different algorithms before blaming the data.<br/>
+  8. For multi-class, pick macro / weighted / micro based on whether minorities matter.<br/><br/>
   <Highlight>If you pick the metric after training, you'll end up optimising for whichever metric makes your model look best — not for what actually matters.</Highlight>
 </Callout>
 
 ---
 
-**Next up — [Part 5: Cross-Validation & Probability Models](/blog/ml-from-scratch-05-cross-validation).** Now that we have metrics, we need to use them honestly. That means knowing whether the score we measured will hold up in production — which is what cross-validation is for.
+**Next up — [Part 5: Cross-Validation & Model Validation](/blog/ml-from-scratch-05-cross-validation).** Now that we have metrics, we need to use them honestly. That means knowing whether the score we measured will hold up in production — which is what cross-validation, train/validation/test splits, and the bias-variance trade-off are for.

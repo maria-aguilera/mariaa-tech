@@ -1,5 +1,6 @@
 import type { LucideProps } from "lucide-react";
 import {
+  ArrowDown,
   ArrowRight,
   ArrowUp,
   Award,
@@ -53,6 +54,7 @@ function GithubGlyph(props: LucideProps) {
 
 const ICON_MAP = {
   "arrow-right": ArrowRight,
+  "arrow-down": ArrowDown,
   "arrow-up": ArrowUp,
   award: Award,
   "bar-chart-3": BarChart3,

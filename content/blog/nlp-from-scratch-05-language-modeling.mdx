@@ -1,0 +1,717 @@
+---
+slug: nlp-from-scratch-05-language-modeling
+title: "Part 5: Language Modeling"
+subtitle: "From document-term matrices to Word2Vec to language models — the representation story behind modern NLP."
+date: "January 2026"
+updated: "June 2026"
+excerpt: "Part 5 of the NLP from Scratch series. What a language model actually is, the chain rule and the Markov assumption, n-grams (and why they're not enough), perplexity, RNNs and LSTMs, ELMo, the transformer and self-attention, BERT and masked language modeling, transfer learning, GPT-3 and zero-shot prompting, and model distillation."
+tags:
+  - NLP
+  - Language Modeling
+  - N-grams
+  - Perplexity
+  - LSTM
+  - ELMo
+  - Transformer
+  - BERT
+  - GPT-3
+source: Notes
+topic: NLP
+series: "NLP from Scratch"
+seriesPart: 5
+seriesTotal: 10
+coverImage: "/images/blog/nlp-from-scratch/language-modeling/cheatsheet.png"
+---
+
+*NLP from Scratch · Part 5/10*
+
+<Callout color="blue">
+  📋 **In a hurry?** Read the [one-page cheat sheet](/cheatsheets/nlp-from-scratch-05-language-modeling) — what a language model is, n-grams, perplexity, RNNs, ELMo, transformers, BERT, GPT-3, all condensed for fast revision (or `⌘ P` to print it).
+</Callout>
+
+> *"Language modelling is the main representation we use in NLP."*
+> — The idea that makes this session click.
+
+## Language modeling is the main representation we use in NLP
+
+No matter what NLP problem you're trying to solve — text classification, translation, question answering, anything — somewhere under the hood is a **representation of text**. A way to turn words into numbers a model can compute with. The whole NLP from Scratch series so far has been a tour of these representations, each one better than the last at preserving meaning. Language modeling is the next, and currently best, stop on that tour.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/intro-main-representation-card.png"
+  alt="A clean editorial card titled 'Language modelling is the main representation in NLP'. It shows language modeling sitting at the center of several NLP tasks: text classification, translation, question answering, retrieval, and generation. A note says that no matter the task, the model needs a representation of text first. Warm off-white background, navy text, slate-blue accents, Inter/Geist typography."
+  caption="The notes start here on purpose: before we talk about GPT, BERT, or perplexity, we need the representation story straight."
+/>
+
+It really helps to see the whole arc at once. Pick a fixed downstream task — say, **text classification** — and watch what changes as we swap the representation underneath:
+
+- **Application 1 — Document-term matrix.** From Part 2. Rows are documents, columns are words, cells are counts (or TF-IDF). A single document is a vector with tens of thousands of dimensions, almost entirely zeros. It works. But the dimensions encode nothing meaningful — column 9,872 might be `apple` and column 9,873 might be `aardwolf`. Neighbours by accident of alphabet, not meaning. **Sparse, high-dimensional, no semantics.**
+
+- **Application 2 — Word2Vec.** From Part 4. Replace each word with a small dense vector — say, 300 dimensions — that was learned by predicting the surrounding context. Same downstream classifier on top. Suddenly each dimension is *learned* and similar words have similar vectors. `king − man + woman ≈ queen`. **Dense, low-dimensional, encodes semantics.** This was the 2013 revolution. Just by changing the representation, NLP systems started outperforming everything that came before.
+
+- **Application 3 — Language model.** This post. Same idea — feed text into a downstream task — except the representation now comes from a model that has been trained to predict the next word on billions of tokens. That training process forces it to encode syntax, semantics, context, and a lot of world knowledge into the vectors it produces. **Even denser meaning, and crucially: context-aware.**
+
+Same downstream task. Same pipeline shape. What changes is the representation underneath. And we keep changing it because the representations keep getting better.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/representations-progression.png"
+  alt="A poster-style three-step diagram titled 'The arc of NLP representations'. A horizontal flow with three labelled stages feeding into a single downstream box on the right labelled 'Text Classifier'. Stage 1 (red accent): 'Document-term matrix' — a tall sparse vector of mostly zeros with a small number 3.21 at the bottom, labelled 'App 1 — high-dimensional, sparse, no semantics'. Stage 2 (amber accent): 'Word2Vec' — a short dense vector with values like [2, 0.11, ..., 9.3] labelled '300-d, dense, encodes meaning, App 2'. Stage 3 (slate-blue accent): 'Language Model' — a vector pointed at the classifier labelled 'App 3 — context-aware, even richer meaning'. All three arrows converge on the Text Classifier box on the right. Brand off-white background #FAFAF7, navy headings, Inter/Geist sans-serif."
+  caption="The throughline. Same downstream task — text classification, say — keeps getting better as the representation underneath gets richer."
+/>
+
+Before we move on, keep the earlier pieces in your head:
+
+- The **document-term matrix** is useful, but it is mostly zeros and the dimensions are just vocabulary slots.
+- **Distributional semantics** says words that appear in similar contexts tend to have related meanings.
+- **Word2Vec** turns that idea into a dense vector by training a neural net to predict context words.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/document-term-matrix-card.png"
+  alt="A card titled 'Document-term matrix (DTM)'. It shows a small document-by-word matrix with many zeros, a note that rows are documents and columns are terms, and a warning that sparse vectors do not encode meaning well. Warm off-white background, navy text, slate-blue accents."
+  caption="Part 2 representation: rows, columns, counts. Useful, but sparse and not very semantic."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/distributional-semantics-card.png"
+  alt="A card titled 'Distributional semantics'. It shows the idea that words appearing in similar contexts tend to have similar meanings, with small context windows and a simple vector-space grouping. Warm off-white background, navy text, slate-blue and green accents."
+  caption="The bridge from counts to meaning: context is the clue."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/semantics-word2vec-card.png"
+  alt="A card titled 'Semantics and Word2Vec'. It connects distributional semantics to Word2Vec: words appearing in similar contexts get placed near each other in vector space. It includes small people/word icons and a simple vector-space sketch. Warm off-white background, navy text, slate-blue and green accents."
+  caption="Part 4 representation: use context to learn meaning. This is why Word2Vec was such a big jump."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/why-word2vec-big-deal-card.png"
+  alt="A card titled 'Why Word2Vec was a big deal'. It shows Word2Vec replacing sparse count vectors with dense semantic vectors, producing better representations for NLP tasks. Warm off-white background, navy text, amber trophy accent, slate-blue diagram lines."
+  caption="The practical result: change the representation, and many downstream NLP systems get better without changing the task."
+/>
+
+## Why Word2Vec wasn't enough
+
+Word2Vec was the breakthrough. But three years of using it in production exposed three limitations we couldn't engineer around:
+
+1. **No polysemy.** `bank` has one vector. The river bank and the financial institution are smushed into the same point in space. You lose the sense distinction completely.
+2. **No word order.** Word2Vec sees a bag of context words. `"dog bites man"` and `"man bites dog"` look identical to it — same words, same bag, same representation.
+3. **No domain specificity.** A Wikipedia-trained Word2Vec doesn't know what `tweet` means in finance, or what `cell` means in biology. The vectors are general-purpose, which means they're nobody's specialty.
+
+Language modeling is what fixes all three. The representation it produces is **context-aware** (fixes polysemy), **order-aware** (fixes word order), and can be **fine-tuned on your domain** (fixes domain). That's the whole motivation for this post.
+
+So at this point, the question is not *"can we represent words better?"* Word2Vec already showed that we can.
+
+The question is: **can the representation change depending on the sentence?**
+
+That is where language models come in.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/limitations-of-word2vec-card.png"
+  alt="A card titled 'Limitations of Word2Vec'. It lists three limitations with small examples: one vector for bank despite polysemy, bag-of-context loses word order, and general vectors are not domain-specific. Warm off-white background, navy text, red and amber warnings."
+  caption="This is the exact pressure point from the notes: Word2Vec is powerful, but not contextual enough."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/word2vec-predicts-context-card.png"
+  alt="A card titled 'Word2Vec predicts the context'. It shows a target word in the middle and a context window with two words before and two words after. A small neural-net sketch maps the target word to probabilities over context words. Warm off-white background, navy text, slate-blue accents."
+  caption="Word2Vec learns meaning through the prediction game: given a word, predict the nearby context."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/word2vec-limitations-recap.png"
+  alt="A three-card poster titled 'Why Word2Vec is not enough'. Card 1 (polysemy, red accent): the word 'bank' is shown twice — once next to a finance icon (depository), once next to a river icon — both pointing to the same single vector. Caption: 'One word, many meanings. Word2Vec collapses them all.' Card 2 (word order, amber accent): two sentences 'dog bites man' and 'man bites dog' both pointing to the same bag of context. Caption: 'Order is lost — both look identical.' Card 3 (domain, slate-blue accent): a single set of Wikipedia-trained vectors fanning out to three domain icons: medicine, finance, law. Caption: 'One model, every domain — master of none.' Brand off-white background #FAFAF7, navy headings, Inter/Geist sans-serif, editorial poster style."
+  caption="The three things Word2Vec couldn't do — and the three things language models do."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/why-language-models-instead-card.png"
+  alt="A card titled 'Why language models instead?'. It shows three checks: solve polysemy with context-aware vectors, preserve word order with sequential or attention-based models, and adapt to domains with fine-tuning. A bottom note says larger models create better representations. Warm off-white background, navy text, green checks, slate-blue accents."
+  caption="The reason for switching representations: language models are built to fix the exact limitations we just hit."
+/>
+
+## What a language model actually is
+
+Strip away the hype and a language model is one thing: **a probability distribution over sequences of words**.
+
+That's it. Given a sequence `w_1, w_2, ..., w_n`, a language model assigns it a number `P(W)`. High number means "this looks like English (or whatever language we trained on)". Low number means "this looks weird".
+
+There are two equivalent ways to write what a language model computes — and both forms matter, so the notes show both:
+
+**Probability of a sequence:**
+
+$$
+P(W) = P(w_1, w_2, w_3, w_4, w_5, \ldots, w_n)
+$$
+
+**Probability of an upcoming word, given the previous ones** — for example, the fifth word given the first four:
+
+$$
+P(w_5 \mid w_1, w_2, w_3, w_4)
+$$
+
+In general:
+
+$$
+P(w_n \mid w_1, w_2, \ldots, w_{n-1})
+$$
+
+A language model is **any model that can compute either** $P(W)$ or $P(w_n \mid w_1, w_2, \ldots, w_{n-1})$. That's the whole definition — everything in this post is just engineering on top of those two formulas.
+
+These probabilities are very hard to compute exactly. The whole story of language modeling — from n-grams to GPT-3 — is the story of how we approximate them well enough to be useful.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/what-is-a-language-model.png"
+  alt="A poster-style card titled 'What is a language model?'. Subtitle: 'A probability distribution over sequences of words.' Two equations centered, navy text: top — P(W) = P(w_1, w_2, w_3, ..., w_n) labelled 'probability of a sequence'. Bottom — P(w_n given w_1, w_2, ..., w_{n-1}) labelled 'probability of the next word'. Below, a small green callout: 'A model that computes either of these is a language model.' Brand off-white background, navy and slate-blue text, Inter/Geist sans-serif."
+  caption="A language model is a function from sequences to probabilities — either joint, or next-word."
+/>
+
+### Why does this matter?
+
+Because a model that can predict the next word has learned a great deal about your language. To predict the next word in `"its water is so transparent that ___"`, you need to know syntax (the next slot is probably an adjective or noun), semantics (water-related words are more likely), and the world (you can see through transparent things). The task looks simple, but to do it well the model has to learn syntax, meaning, context, and some world knowledge.
+
+Hold that thought. It comes back hard when we get to BERT and GPT-3.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/language-modeling-examples-card.png"
+  alt="A card titled 'Language modelling in examples'. It shows two examples: a text prompt that continues into generated text, and an English instruction translated into another language or code. A note says the model was trained on language modeling, not manually programmed for each task. Warm off-white background, navy text, slate-blue accents."
+  caption="This is the part that feels weird at first: train on next-word prediction, and the model starts doing generation, translation, and code-like transformations."
+/>
+
+## Joint probability and the chain rule
+
+We want the probability of the whole joint event $P(\text{its, water, is, so, transparent, that})$. How do we even compute that?
+
+The **chain rule of probability** says we can decompose a joint probability into a product of conditional probabilities:
+
+$$
+P(x_1, x_2, \ldots, x_n) = P(x_1) \cdot P(x_2 \mid x_1) \cdot P(x_3 \mid x_1, x_2) \cdots P(x_n \mid x_1, \ldots, x_{n-1})
+$$
+
+Applied to our sentence:
+
+$$
+\begin{aligned}
+P(\text{its water is so transparent}) = \; & P(\text{its}) \\
+& \cdot \, P(\text{water} \mid \text{its}) \\
+& \cdot \, P(\text{is} \mid \text{its water}) \\
+& \cdot \, P(\text{so} \mid \text{its water is}) \\
+& \cdot \, P(\text{transparent} \mid \text{its water is so})
+\end{aligned}
+$$
+
+Each piece on the right looks like something we could estimate. To get $P(\text{its})$ you count how often `its` appears in your corpus and divide by total tokens. To get $P(\text{water} \mid \text{its})$ you count `its water` and divide by `its`. Just counting.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/chain-rule-decomposition.png"
+  alt="A poster-style card titled 'Chain rule of probability'. Top: large formula P(x_1, x_2, ..., x_n) = P(x_1) · P(x_2 given x_1) · P(x_3 given x_1, x_2) · ... · P(x_n given x_1, ..., x_{n-1}). Below: a worked example for the sentence 'its water is so transparent', showing each conditional probability stacked: P(its), P(water given its), P(is given its water), P(so given its water is), P(transparent given its water is so). Each conditional highlighted with a slate-blue underline. Brand off-white #FAFAF7, navy text, Inter/Geist sans-serif."
+  caption="Joint probabilities turn into products of conditionals. Now each piece is something we can count."
+/>
+
+### How would we estimate each piece?
+
+The same way we estimate any probability — by counting. To predict the next word, say `the`, given everything before it, we want:
+
+$$
+P(\text{the} \mid \text{its water is so transparent that})
+$$
+
+And the natural estimator from the data is:
+
+$$
+P(\text{the} \mid \text{its water is so transparent that}) \;=\; \frac{\operatorname{count}(\text{its water is so transparent that the})}{\operatorname{count}(\text{its water is so transparent that})}
+$$
+
+In English: out of all the times we saw *"its water is so transparent that"* in our corpus, how many times was the next word `the`? If the phrase appeared 500 times and 237 of those continuations were `the`, then $P(\text{the} \mid \ldots) = 237 / 500 \approx 0.47$. Just counting.
+
+### The catch — data sparsity
+
+In Naïve Bayes (Part 6 of the ML series) we made the *naïve* assumption that words are independent. We knew that was wrong; we did it anyway because it was easy.
+
+Here we're trying to be exact. We're not assuming independence. We're conditioning on the entire history.
+
+The problem is that long sequences are rare. **Very** rare. In the Europarl corpus, 92.2% of 5-grams appear only once. So if we want `count(its water is so transparent that)`, we'll likely see it `0` or `1` times in our entire corpus. **You can't estimate a probability distribution from one observation.** The numerator and denominator both have to be large for the ratio to mean anything.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/data-sparsity-table.png"
+  alt="A poster-style card titled 'Why we never see enough data'. Subtitle: 'Long sequences are essentially unique — you cannot estimate probabilities from one observation.' A small table with three columns (Order, Unique n-grams, Singletons) and five rows: unigram 86,700 / 33,447 (38.6%); bigram 1,948,935 / 1,132,844 (58.1%); trigram 8,092,798 / 6,022,286 (74.4%); 4-gram 15,303,847 / 13,081,621 (85.5%); 5-gram 19,882,175 / 18,324,577 (92.2%). The 5-gram row is highlighted in amber. Bottom caption: 'In Europarl, 92% of 5-grams appear only once.' Brand off-white background, navy text."
+  caption="The data sparsity problem in one table. We will never see enough text to estimate joint probabilities of long sequences directly."
+/>
+
+So we need to cheat. Not naïvely, but smartly.
+
+## The Markov assumption — n-gram models
+
+This is not a *naïve* assumption — that one (Naïve Bayes) said words are fully independent, which is wildly wrong. This is a **simplifying assumption**: we'll pretend the next word depends only on the last $k$ words, not on the whole history.
+
+Formally:
+
+$$
+P(w_n \mid w_1, w_2, \ldots, w_{n-1}) \;\approx\; P(w_n \mid w_{n-k}, \ldots, w_{n-1})
+$$
+
+That's the **Markov assumption**. Make $k$ small enough that you'll actually see the n-grams in your corpus; large enough that the approximation is decent.
+
+To see it in action, take the same sentence we've been working with. With the **bigram** assumption ($k = 1$), we condition only on the previous word:
+
+$$
+P(\text{the} \mid \text{its water is so transparent that}) \;\approx\; P(\text{the} \mid \text{that})
+$$
+
+With the **trigram** assumption ($k = 2$), we condition on the previous two:
+
+$$
+P(\text{the} \mid \text{its water is so transparent that}) \;\approx\; P(\text{the} \mid \text{transparent that})
+$$
+
+And once we make that approximation, the estimate goes back to the same count-ratio idea:
+
+$$
+P(w_i \mid w_{i-k}, \ldots, w_{i-1})
+=
+\frac{\operatorname{count}(w_{i-k}, \ldots, w_{i-1}, w_i)}
+{\operatorname{count}(w_{i-k}, \ldots, w_{i-1})}
+$$
+
+That is why the size of `k` matters so much. Increase `k`, and the model sees more context. Increase it too far, and the denominator becomes tiny again.
+
+The full sentence probability under a bigram model is then just the product of these conditionals:
+
+$$
+P(w_1, w_2, \ldots, w_n) \;\approx\; \prod_i P(w_i \mid w_{i-1})
+$$
+
+And under a trigram model:
+
+$$
+P(w_1, w_2, \ldots, w_n) \;\approx\; \prod_i P(w_i \mid w_{i-2}, w_{i-1})
+$$
+
+The names:
+
+- `k = 0` → **unigram model**. Words are independent. Each word's probability is just its frequency. Awful at generation — you get word salad.
+- `k = 1` → **bigram model**. Each word depends on the previous one. Better.
+- `k = 2` → **trigram model**. Each word depends on the previous two. Better still.
+- `k = 4` → **5-gram model**. The largest that's typically practical.
+
+The model gets better as `k` grows — until you run out of data, because longer n-grams are rarer (see the sparsity table above). 4-grams and 5-grams are the practical sweet spot. Push past that and the data sparsity problem reappears with a vengeance.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/markov-assumption.png"
+  alt="A poster-style card titled 'The Markov assumption'. Subtitle: 'The probability of seeing a word depends only on the last k words.' Three rows showing progressively richer conditioning: 'unigram: P(w_n) — depends on nothing'; 'bigram: P(w_n given w_{n-1}) — depends on previous word'; 'trigram: P(w_n given w_{n-2}, w_{n-1}) — depends on previous two'. Each row has a small arrow icon. Bottom amber callout: 'Bigger k means richer model — until you run out of data.' Brand off-white #FAFAF7, navy and slate-blue."
+  caption="Trade history depth for data sufficiency. The Markov assumption is the dial that lets you do it."
+/>
+
+### Approximating Shakespeare
+
+Let's see how the n-gram model fares as we crank `k` up. Trained on the complete works of Shakespeare:
+
+- **Unigram** generates: *"To him swallowed confess hear both. Which. Of save on trail for are ay device and rote life have."* — Words are right, but it's nonsense.
+- **Bigram**: *"What means, sir. I confess she? then all sorts, he is trim, captain."* — Local fluency is there. Globally still nonsense.
+- **Trigram**: *"Sweet prince, Falstaff shall die. Harry of Monmouth's grave."* — Genuinely Shakespearean phrases.
+- **Quadrigram**: *"King Henry. What! I will go seek the traitor Gloucester. Exeunt some of the watch. A great banquet serv'd in."* — Almost copy-pasting fragments of the original.
+
+This is the trade. Longer context means more fluent output. But longer n-grams also approach **memorisation** — the model can only generate what it has seen.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/shakespeare-ngrams.png"
+  alt="A poster-style card titled 'Approximating Shakespeare with n-grams'. Four boxed text samples stacked vertically, each labelled with its model order in slate-blue caps. Box 1 'Unigram' (red border): 'To him swallowed confess hear both. Which. Of save on trail for are ay device and rote life have.' Box 2 'Bigram' (amber border): 'What means, sir. I confess she? then all sorts, he is trim, captain.' Box 3 'Trigram' (green border): 'Sweet prince, Falstaff shall die. Harry of Monmouth's grave.' Box 4 'Quadrigram' (slate-blue border): 'King Henry. What! I will go seek the traitor Gloucester. Exeunt some of the watch.' Below, a green callout: 'More context → more fluent. But also closer to memorising.' Brand off-white background, Inter/Geist sans-serif."
+  caption="Shakespearean text generated at unigram, bigram, trigram, and quadrigram order. Watch how fast quality jumps."
+/>
+
+Google eventually released an enormous n-gram dataset — roughly a trillion words. That helped a lot, but it did **not** solve the core problem. Even with huge data, fixed windows are still fixed windows. They still miss long-range relationships, and the exact long sequences are still rare.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/google-ngram-release.png"
+  alt="A 16:9 card titled 'Even Google-scale n-grams were not enough'. It shows a large database stack labelled Google n-gram release, n-gram blocks from 1-gram to 5-gram, and a warning card explaining that long sequences remain sparse and fixed windows miss distant context. No number badge, no footer."
+  caption="More data helps, but it does not remove the Markov assumption."
+/>
+
+The same pattern shows up with a Wall Street Journal-style corpus: unigram text is word salad, bigram text starts to sound local, trigram text starts to sound like the domain, and longer n-grams get smoother but closer to memorisation.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/wsj-ngrams.png"
+  alt="A 16:9 card titled 'Approximating the Wall Street Journal'. It shows unigram, bigram, trigram, and 4-gram generated snippets becoming more coherent as context increases, with an arrow labelled more context. No number badge, no footer."
+  caption="N-gram quality improves with context, but the improvement is bought with sparsity."
+/>
+
+### The fundamental limitation
+
+N-grams are insufficient because language has **long-distance dependencies** that a fixed window cannot capture. Classic example:
+
+> *"The computer which I had just put into the machine room on the fifth floor crashed."*
+
+The verb `crashed` agrees with `computer` — which is fifteen words back. No 4-gram or 5-gram is going to capture that. You'd need an infinite window.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/long-distance-dependency.png"
+  alt="A 16:9 card titled 'Why fixed windows fail'. It shows the sentence 'The computer which I had just put into the machine room on the fifth floor crashed', highlights computer and crashed, and draws a long dependency arrow between them. A 5-token window near crashed is marked as missing the subject. No number badge, no footer."
+  caption="The problem is not just data size. Some relationships are simply farther away than a practical n-gram window."
+/>
+
+We need a model that can remember things from far back without exploding the parameter count. That's where neural networks come in.
+
+But first — how do we even tell whether one language model is better than another?
+
+## Evaluation: how do we know our model is any good?
+
+There are two ways to evaluate a language model. They measure different things and you need both.
+
+### Extrinsic evaluation — the gold standard
+
+Drop your language model into a downstream task — machine translation, spam detection, question answering — and measure how well the task performs. If your shiny new LM gives 91% accuracy on text classification and the old one gives 82%, the new one is better.
+
+This is the most honest evaluation. It directly measures what you care about: does this model make the application work?
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/extrinsic-evaluation.png"
+  alt="A 16:9 card titled 'Extrinsic evaluation'. It shows Word2Vec, Language Model 1, and Language Model 2 feeding the same text classifier and producing 82%, 91%, and 97% accuracy. The 97% row is highlighted. No number badge, no footer."
+  caption="Extrinsic evaluation asks: when this representation is used inside the real task, does the task improve?"
+/>
+
+Two problems:
+
+1. **Slow.** Training a downstream model takes hours to days. You can't iterate on the LM with this loop.
+2. **Indirect.** You're measuring the LM through the task. Maybe both LMs are equally good and the task is the bottleneck.
+
+So we need a faster, more direct proxy. That proxy is **perplexity**.
+
+### Intrinsic evaluation — perplexity
+
+The intuition is Shannon's: *how well can the model predict the next word?* If the next word is `mushrooms`, a good LM should give `mushrooms` a high probability. A bad LM gives it a tiny probability — it's *perplexed* by what comes next.
+
+Perplexity formalises that intuition by asking: how surprised was the model by the real test sequence?
+
+For a sequence $W = w_1, w_2, \ldots, w_N$, one common form is:
+
+$$
+\operatorname{PP}(W) = P(w_1, w_2, \ldots, w_N)^{-1/N}
+$$
+
+Using the chain-rule version of the language model, the same idea is:
+
+$$
+\operatorname{PP}(W)
+=
+\sqrt[N]{\prod_{i=1}^{N}\frac{1}{P(w_i \mid w_1, \ldots, w_{i-1})}}
+$$
+
+So if the model assigns high probability to the words that actually appear, the fractions are small and perplexity goes down. If the model assigns tiny probability to the real next words, perplexity explodes.
+
+- **Perplexity measures how confused the model is by the test set.**
+- **Lower is better.** Lower perplexity means the model assigned high probability to what actually happened.
+- **You compare LMs by their perplexity on the same test set.** Different test sets, different scales — perplexity is not a universal number.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/perplexity-formula-card.png"
+  alt="A 16:9 card titled 'Perplexity'. It shows PP(W) = P(w_1, ..., w_N)^(-1/N), the chain-rule version as the Nth root of a product of inverse conditional probabilities, and a low-perplexity versus high-perplexity comparison. No number badge, no footer."
+  caption="Perplexity is just surprise, written as a number. Lower means the real next words were not surprising to the model."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/shannon-game.png"
+  alt="A poster-style card titled 'The Shannon game'. Subtitle: 'How well can the model predict the next word?' Top: three example prompts each with a blank: 'I always order pizza with cheese and ___', 'The 33rd President of the US was ___', 'I saw a ___'. Right side: a small ranked list of candidate next words with probabilities — mushrooms 0.1, pepperoni 0.1, anchovies 0.01, fried rice 0.0001, ... and 1e-100. The good predictions (mushrooms, pepperoni) are highlighted green; absurd ones (and) red. Bottom callout: 'A confident, correct guess = low perplexity. A confused guess = high perplexity.' Brand off-white background."
+  caption="Perplexity in one picture. Good LMs give high probability to plausible next words. Bad ones spread their bets everywhere."
+/>
+
+### Two limitations of perplexity to remember
+
+1. **Perplexity is only a good approximation if the test set looks like the training set.** Test on Twitter with a Wikipedia LM and your perplexity numbers lie to you.
+2. **Perplexity is only useful for early-stage experiments.** Before shipping, you still run extrinsic evaluation. Perplexity orders models; extrinsic decides who wins.
+
+In practice: use perplexity to triage. Use extrinsic to crown.
+
+## Recurrent neural networks — the first big jump
+
+The Markov assumption is brutal: even at 4 or 5 words back, we throw away most of the sentence. We want a model that can carry information forward indefinitely. That's what an RNN does.
+
+### How an RNN models a sentence
+
+An RNN processes a sentence one word at a time. At each step:
+
+1. It takes the current word's embedding (often from Word2Vec — that's how we use it here, as input features).
+2. It mixes it with a **hidden state** carried from the previous step.
+3. It produces a new hidden state, and (optionally) a prediction for the next word.
+
+The hidden state is the model's "memory". In principle, information from word 1 can propagate to word 50 through the chain of hidden states.
+
+In practice, plain RNNs forget. The signal decays as it passes through each step. To fix that, in practice we use a **LSTM** — Long Short-Term Memory — a specific type of RNN with internal gates that decide what to remember and what to forget. LSTMs were the workhorse of NLP from roughly 2014 to 2018.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/rnn-architecture.png"
+  alt="A poster-style architecture diagram titled 'RNN / LSTM for language modeling'. A horizontal sequence of three time steps. At the bottom, three input word tokens 'what', 'is', 'the' shown as small orange boxes labelled x_1, x_2, x_3 (input embeddings). Above each, a green box labelled h_1, h_2, h_3 (hidden states), connected left-to-right by curved arrows labelled W_hh. Vertical arrows from x to h labelled W_xh. Above the hidden states, three blue output boxes y_1='is', y_2='the', y_3='problem' (predicted next words) connected with arrows labelled W_hy. Brand off-white background, navy text, Inter/Geist sans-serif."
+  caption="An RNN reads one word at a time, carries a hidden state across the sequence, and outputs the next word at each step."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/rnn-cells-chain-card.png"
+  alt="A card titled 'Recurrent neural networks (RNNs)'. It shows a chain of RNN cells where each hidden state passes information to the next time step, with input words below and next-word predictions above. Warm off-white background, navy text, slate-blue arrows, green hidden states."
+  caption="The mechanics behind the intuition: each cell sees the current word plus the memory carried from the previous word."
+/>
+
+### The payoff
+
+Plugging an LSTM into language modeling crushed n-grams. From the literature:
+
+| Model | Test perplexity |
+|---|---|
+| 5-gram Katz back-off | 167 |
+| 9-gram Katz back-off | 182 |
+| Interpolated Kneser-Ney 5-gram | 143 |
+| LSTM (medium) | 84 |
+
+LSTM cut perplexity nearly in half. **This was the first deep-learning win in NLP**, and it set off the entire revolution.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/rnn-performance-table.png"
+  alt="A 16:9 card titled 'RNNs changed language-modeling performance'. It shows a table of test perplexity: 5-gram Katz back-off 167, 9-gram Katz back-off 182, interpolated Kneser-Ney 5-gram 143, and LSTM medium 84, with the LSTM row highlighted. No number badge, no footer."
+  caption="This is why RNNs mattered: the first big neural sequence model made the perplexity number move dramatically."
+/>
+
+But there's a wrinkle. LSTMs still struggle with very long-range dependencies — the gradient signal still decays, just more slowly than vanilla RNNs. And we still have a more fundamental problem we haven't fixed: the input embeddings (Word2Vec) are **context-free**. The word `bank` gets the same vector whether the sentence is about money or rivers.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/rnn-gains-limitations-card.png"
+  alt="A card titled 'RNNs: gains and limitations'. It shows gains: model word order, learn sequence relationships, improve perplexity. It also shows limitations: long-range dependencies are still hard, training is sequential, and input vectors may still be context-free. Warm off-white background, navy text, green checks and red warnings."
+  caption="RNNs are the first big neural jump, but they do not end the story. They improve sequence modeling while leaving enough pain to motivate ELMo and transformers."
+/>
+
+How do we make the embeddings context-aware?
+
+## ELMo — letting context shape the embedding
+
+ELMo (Embeddings from Language Models, 2018) was the next big move. The idea is clean:
+
+> Use a deep LSTM language model. Take its **internal hidden states** as the embedding for each word in the sentence.
+
+Two implications:
+
+1. **The same word gets a different vector in different sentences.** `bank` in *"I deposited the cheque at the bank"* gets a different ELMo vector than `bank` in *"we sat by the river bank"*. Polysemy: solved.
+2. **The vector is a function of the whole sentence.** ELMo runs a bidirectional LSTM — it reads left-to-right and right-to-left. So the embedding for word 3 depends on words 1, 2, 4, 5, ... — the full sentence.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/elmo-architecture.png"
+  alt="A poster-style architecture diagram titled 'ELMo — embeddings from a language model'. Bottom: three input word tokens. Above them: a stack of two bidirectional LSTM layers (LSTM Layer 1, LSTM Layer 2) drawn as green rectangles with both left and right arrows. Top: an output layer producing a softmax distribution labelled 'Possible classes: All English words' with example probabilities (e.g. 0.1% aardvark, 10% improvisation, 0% zyzzyva). Caption strip on the right with three bullets: 'Embedding based on the context'; 'ELMo looks at the entire sentence before assigning each word an embedding'; 'Trained on classical LM objective: predict the next word in a sequence of words.' Brand off-white #FAFAF7."
+  caption="ELMo's trick: train a deep bidirectional LSTM as a language model, then use its internal states as context-aware embeddings."
+/>
+
+### How we actually use ELMo
+
+Counter-intuitively, **we don't use ELMo's predictions**. We don't care that it predicts the next word well.
+
+We care about its **internal representations**. When ELMo reads a sentence, each hidden layer encodes a different aspect of each word — syntax, semantics, sense — conditioned on the rest of the sentence. We grab those hidden states and feed them as features into a downstream classifier.
+
+The result: take a classical text classifier, swap one-hot encoded words for ELMo vectors, and accuracy jumps massively across virtually every NLP task. This was the **second big step** of the deep learning revolution in NLP — the first was Word2Vec, the second was ELMo.
+
+### What ELMo solves (and what it doesn't)
+
+ELMo fixes all three Word2Vec problems:
+
+- ✅ **Polysemy** — different sentence, different vector.
+- ✅ **Word order** — the LSTM processes the sequence.
+- ✅ **Domain** — you can fine-tune ELMo on your domain.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/elmo-solves-limitations.png"
+  alt="A 16:9 card titled 'ELMo solves the Word2Vec limitations'. It shows three green-check cards: polysemy with bank in two sentences producing two vectors, word order through a bidirectional sequence, and domain adaptation through fine-tuning. No number badge, no footer."
+  caption="The small shift is the whole point: same word, different sentence, different embedding."
+/>
+
+What's left? LSTMs still struggle with very long range. And processing happens **sequentially** — you can't easily parallelise. Each step needs the previous one. On a GPU that's painful.
+
+Enter the transformer.
+
+## Transformers — attention is all you need
+
+In 2017 Vaswani et al. published *Attention is All You Need*. The thesis: drop the recurrence entirely. Replace it with a layer that lets every word **look at every other word directly**, in parallel. This layer is **self-attention**.
+
+### The intuition behind self-attention
+
+Take the sentence:
+
+> *"The animal didn't cross the street because it was too tired."*
+
+What does `it` refer to? `The animal`. How do you know? You looked at the surrounding words and figured out which one is most related to `it` here.
+
+That's exactly what self-attention does. For each word in the sentence, the model learns which **other** words it should attend to. `it` learns to attend to `animal`. The attention layer outputs a new representation of `it` that mixes in information from `animal`.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/self-attention-example.png"
+  alt="A poster-style card titled 'Self-attention — the animal example'. Left: the sentence vertical 'The_ animal_ didn'_ t_ cross_ the_ street_ because_ it_ was_ too_ tire_ d_' shown twice in parallel columns. From the word 'it' in the right column, multiple curved arrows fan out toward words in the left column — the thickest arrow goes to 'animal' (highlighted green), thinner arrows go to 'street' and 'tired' (slate-blue). Right side caption strip with three bullets: 'Based on the idea of Self-Attention (Attention is all you need)'; 'For each word in the input sentence, create an attention vector'; 'Attention vector focuses on the sentence itself (hence the self) to find words related to the target word.' Brand off-white background."
+  caption="Self-attention: every word can look at every other word in one step, in parallel. The 'it' learns to attend to 'animal'."
+/>
+
+### Why this is a big deal
+
+Three reasons:
+
+1. **No recurrence.** Every position is processed in parallel. GPUs love it. Training is dramatically faster.
+2. **Direct connections.** The path from word 3 to word 50 is one attention step. Compare with an RNN where information has to travel through 47 hidden states. Long-range dependencies become trivial.
+3. **Many heads, many relationships.** Transformers stack multiple "heads" of attention, each learning a different relationship — one head learns subject-verb agreement, another learns pronoun reference, another learns syntactic structure. You don't program any of this; it emerges from training.
+
+This is the architecture behind BERT, GPT, T5 — all of modern NLP.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/transformers-vs-rnns-card.png"
+  alt="A two-column comparison poster titled 'Transformers vs RNNs'. Left column (slate-blue) labelled RNN: 'Processes tokens one after another' with a horizontal chain of word tokens I → like → deep → learning each feeding a hidden-state node h_1 → h_2 → h_3 → h_4. Three property cards stacked below: sequential, harder long-range memory, slower to train. Right column (green) labelled Transformer: 'All tokens are processed together with attention' with the same four tokens connected to four output nodes via a fully-connected attention web. Three property cards: parallel processing, direct access to distant words, scales better. Green callout at bottom: 'Transformers replaced RNNs for many NLP tasks because they capture context better and train more efficiently.' Brand off-white background, Inter/Geist sans-serif."
+  caption="Transformers vs RNNs side by side. Sequential and slow vs parallel and scale-friendly."
+/>
+
+## BERT — masked language modeling
+
+BERT (Bidirectional Encoder Representations from Transformers, 2018) was the first transformer-based language model to take NLP by storm. Two key choices:
+
+### The training task: fill in the blank
+
+Instead of predicting the next word (left-to-right), BERT randomly **masks** words in the sentence and trains the model to predict the masked words. This is **masked language modeling**.
+
+Why does this matter? Because to fill in a blank, BERT needs to use both **left and right** context. If you mask the word `bank` in *"I deposited the cheque at the [MASK]"*, you can't guess it from "I deposited the cheque at the" alone — you'd want to also know what comes after. BERT is bidirectional by design.
+
+BERT is also trained on a secondary task — **next sentence prediction** — given two sentences, predict whether sentence B follows sentence A. This teaches discourse-level coherence.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/bert-architecture.png"
+  alt="A poster-style architecture diagram titled 'BERT — masked language modeling'. Center: a stack of transformer blocks labelled (bottom to top): Input Embedding + Positional Encoding, Multi-Head Attention, Add and Norm, Feed Forward, Add and Norm — repeated N times. Top: a Linear layer then Softmax producing 'Output Probabilities'. Right side caption strip with four bullets: 'Masked Language Modeling — predict the missing word'; 'Stack many self-attention layers (plus other DL bits)'; 'Each layer focuses on a different piece of the sentence'; 'Gather billions of documents'; 'Throw some dollars to rent GPUs'. Brand off-white background, navy text."
+  caption="BERT's recipe: stack a bunch of self-attention layers, train them to fill in masked words on a huge corpus. That's it."
+/>
+
+But keep the representation spine in mind. We are not excited about BERT only because it can guess `[MASK]`. We are excited because the work of guessing `[MASK]` forces the model to build internal representations that know syntax, meaning, context, and sentence relationships. Those representations are what we reuse.
+
+### Training cost
+
+BERT cost roughly $250,000 to train in 2018, on billions of tokens (Wikipedia + BookCorpus). And BERT is not the largest model — by GPT-3 and beyond the costs balloon. The carbon footprint is genuinely significant: training a single big transformer can emit more CO₂ than the average American produces in a year.
+
+This is the **economics** of language modeling we have to come to terms with. The good news: you almost never train from scratch. You **transfer**.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/bert-cost-card.png"
+  alt="A 16:9 card titled 'Training BERT is expensive'. It shows a BERT stack surrounded by three metric cards: roughly $250k training cost, billions of tokens, and large CO2 footprint. A green callout says most people do not train from scratch; they transfer. No number badge, no footer."
+  caption="The cost section matters because it motivates transfer learning. We use these giant models because someone else already paid the pretraining bill."
+/>
+
+## Transfer learning — the reason BERT matters
+
+Here's the killer move. Most NLP problems share a lot of structure. To do spam detection, sentiment analysis, question answering, or named entity recognition you need to:
+
+- Know syntax (subject-verb agreement, parts of speech).
+- Know semantics (what words mean).
+- Know discourse (how sentences connect).
+- Know facts about the world.
+
+If you trained a separate model for each task, you'd be redundantly learning all of this every time. Massive waste.
+
+Transfer learning splits the work in two:
+
+1. **Self-supervised pretraining.** Train a huge model — BERT — on a huge unlabelled corpus. The task is "fill in the blank". This is *self-supervised*: the labels come for free from the text itself. The model learns language.
+2. **Supervised fine-tuning.** Take pretrained BERT, add a small task-specific head (a linear layer for classification, say), and train on your small labelled dataset. The model adapts to your domain.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/self-supervised-transfer-card.png"
+  alt="A 16:9 card titled 'Why language modeling is self-supervised'. It shows a raw sentence, a masked version, and the missing word label coming from the sentence itself, then a two-step transfer learning flow: pretrain on unlabelled text and fine-tune on a small labelled task. No number badge, no footer."
+  caption="For us, no manual labels. For the model, still a supervised prediction problem: predict the word the text already contains."
+/>
+
+You don't have to gather millions of labelled examples for your task. You just need a few thousand. BERT brings the knowledge of all of Wikipedia with it.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/transfer-learning-pipeline.png"
+  alt="A poster-style two-panel diagram titled 'Transfer learning with BERT'. Left panel (orange-dashed border, labelled 'Step 1 — Self-supervised pretraining'): a large BERT model icon with arrows pointing to two source datasets (books, Wikipedia). Objective: 'Predict the masked word (language modeling)'. Right panel (blue-dashed border, labelled 'Step 2 — Supervised fine-tuning on a specific task'): a smaller version of the same BERT model with a classifier head on top, labelled 'Spam classifier', with a small labelled dataset on the side (email examples tagged Spam / Not Spam). Output: predicted labels with percentages (75% Spam, 25% Not Spam). Brand off-white #FAFAF7, navy headings."
+  caption="Transfer learning in two steps. Pretrain once, fine-tune many times. The pretrained model brings the knowledge; your small labelled dataset specialises it."
+/>
+
+This is why BERT is such a big deal. The pretrained model is the *general-purpose knowledge*. The fine-tuned head is the *specialisation*. We've finally separated the two.
+
+## GPT-3 — what if we removed step 2?
+
+OpenAI asked an interesting question. What if the pretrained model is big enough that we don't need fine-tuning at all? What if we just **prompt** it?
+
+GPT-3 has 175 billion parameters — about 500× bigger than BERT. Trained the same way: predict the next word, on a huge corpus.
+
+The shocking finding: **just prompting GPT-3 with a description of the task can produce competitive results on tasks it has never been trained on**. You don't need labelled data, you don't need fine-tuning. You just describe the task.
+
+This is **zero-shot learning** (zero training examples) and **few-shot learning** (a handful of examples in the prompt). Some examples:
+
+- *"Translate English to French: cheese →"* — GPT-3 outputs *"fromage"*.
+- *"Question: What is the capital of France? Answer:"* — *"Paris"*.
+
+You didn't train GPT-3 to translate. You didn't train it to do QA. It just learned the underlying patterns from predicting the next word on enough text.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/zero-shot-scaling.png"
+  alt="A line chart titled 'GPT-3 — accuracy scales with model size'. X-axis: 'Parameters in LM (Billions)' logarithmic from 0.1B to 175B. Y-axis: 'Accuracy' from 0 to 70. Three lines: blue 'Zero-Shot' (lowest), green 'One-Shot' (middle), orange 'Few-Shot (K=64)' (highest). All three rise steeply with model scale; few-shot approaches a dashed horizontal reference line labelled 'Fine-tuned SOTA'. Brand off-white background, slate-blue gridlines, Inter/Geist."
+  caption="The bigger you make the model, the better zero-shot and few-shot get. At 175B parameters, few-shot prompting can approach the accuracy of fine-tuned state-of-the-art."
+/>
+
+### The big picture move
+
+GPT-3 reframes the entire field. Every NLP problem becomes a **language modeling problem**. Translation? Predict the next word in *"English: X. French:"*. Sentiment? Predict the next word in *"Review: X. Sentiment:"*. QA? Predict the next word in *"Question: X. Answer:"*.
+
+This is why "predict the next word" turned out to be the most important task in NLP. It's not that we love next-word prediction. It's that **any task can be cast as next-word prediction with the right prompt**, and a model trained on enough next-word prediction picks up everything else along the way.
+
+## Model distillation — getting smaller
+
+There's one practical problem left: these models are huge. BERT-base has 110 million parameters and you need a GPU to even use it for inference. GPT-3 needs many GPUs and considerable money. That's a serious deployment problem.
+
+**Distillation** is the standard trick. The idea is simple:
+
+1. Train a big model (the **teacher**) — say, BERT.
+2. Train a smaller model (the **student**) to mimic the teacher's outputs.
+
+Surprisingly, the student can recover most of the teacher's performance with a fraction of the parameters. **DistilBERT** achieves ~95% of BERT's performance with ~half the parameters.
+
+Why does this work? Because most of the teacher's capacity is redundant. Large language models over-parameterise. There's a much smaller function inside that does almost the same job, and the student is being trained directly on that smoothed-out function.
+
+For deployment — mobile, browser, low-latency APIs — you'll often run a distilled model rather than the parent.
+
+<Image
+  src="/images/blog/nlp-from-scratch/language-modeling/model-distillation-card.png"
+  alt="A poster-style card titled 'Model distillation'. Top: a large slate-blue 'Teacher model (large)' box with a dense neural-net node graph, an arrow labelled 'distill' pointing to a smaller green 'Student model (smaller)' box with a sparser node graph. Four labelled rows below with icons: Goal — reduce model size without losing too much performance (target icon); Assumption — big models contain redundancy (magnifier icon); Student learns to mimic the teacher's soft outputs (graduation cap); Example — DistilBERT keeps most of BERT's performance with fewer parameters. Green callout at bottom: 'Smaller, faster models can keep most of the power.' mariaa.tech footer. Brand off-white background."
+  caption="Distillation in one picture. A big teacher trains a small student to copy its outputs. The student keeps most of the power."
+/>
+
+## Putting it all together
+
+Step back. Here's the arc of language modeling:
+
+1. **Probability over sequences.** A language model assigns probability to word sequences. Chain rule lets us decompose, but data sparsity wrecks the exact form.
+2. **N-grams.** Markov assumption — truncate the history. Bigrams, trigrams, 4-grams. Works locally. Fails on long-range dependencies. Best practical perplexity around 143–167.
+3. **RNN/LSTM.** Add a hidden state that carries through the sequence. Perplexity drops to ~84. Still sequential.
+4. **ELMo.** Bidirectional LSTM language model. Use the **internal representations** as context-aware embeddings. Polysemy fixed.
+5. **Transformer.** Drop recurrence, use self-attention. Every position sees every other position in one step. Parallelisable on GPUs.
+6. **BERT.** Train a transformer with masked language modeling on a huge corpus. Use it for transfer learning — pretrain once, fine-tune many times.
+7. **GPT-3.** Scale up the autoregressive transformer to 175B parameters. Skip fine-tuning entirely; prompt instead. Zero-shot and few-shot become viable.
+8. **Distillation.** Compress the giants into deployable students.
+
+Every step removes a limitation of the step before it. Every step is, at its core, about better **representing language** by training on **predict the next (or masked) word**.
+
+The simple task that we picked because it was the only one with limitless labelled data turned out to be the right task all along.
+
+## What we covered
+
+In this post we walked through:
+
+- Why Word2Vec wasn't enough (polysemy, word order, domain).
+- What a language model is (a probability distribution over sequences).
+- The chain rule, joint probability, and why data sparsity makes the exact form impossible.
+- The Markov assumption and n-gram models, with the Shakespeare and WSJ approximation examples.
+- The fundamental n-gram limitation: long-range dependencies.
+- Evaluation: extrinsic vs intrinsic, the Shannon game, perplexity.
+- RNNs and LSTMs — the first big deep-learning win, perplexity from 167 to 84.
+- ELMo — bidirectional LSTM for context-aware embeddings.
+- Transformers and self-attention — the parallelisable architecture that replaced recurrence.
+- BERT and masked language modeling.
+- Transfer learning — pretrain once, fine-tune many times.
+- GPT-3 — scale + prompting → zero-shot and few-shot learning.
+- Model distillation — DistilBERT and friends.
+
+Next up — **Part 6: Text Classification (Classical)** — where we put language models to work and finally start solving real downstream NLP problems.
+
+**Sources**
+
+- [*Speech and Language Processing*](https://web.stanford.edu/~jurafsky/slp3/) — Daniel Jurafsky and James H. Martin, 3rd ed. The chapters on N-gram language models and neural language models are the canonical reference for this whole post.
+- [*A Neural Probabilistic Language Model*](https://www.jmlr.org/papers/v3/bengio03a.html) — Bengio et al., 2003. The paper that first plugged a neural net into the language-modeling objective.
+- [*Long Short-Term Memory*](https://www.bioinf.jku.at/publications/older/2604.pdf) — Hochreiter and Schmidhuber, 1997. The original LSTM paper.
+- [*Deep Contextualized Word Representations (ELMo)*](https://arxiv.org/abs/1802.05365) — Peters et al., 2018.
+- [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) — Vaswani et al., 2017. The transformer paper.
+- [*BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding*](https://arxiv.org/abs/1810.04805) — Devlin et al., 2018.
+- [*Language Models are Few-Shot Learners (GPT-3)*](https://arxiv.org/abs/2005.14165) — Brown et al., 2020.
+- [*DistilBERT, a distilled version of BERT*](https://arxiv.org/abs/1910.01108) — Sanh et al., 2019.
+- [*Energy and Policy Considerations for Deep Learning in NLP*](https://arxiv.org/abs/1906.02243) — Strubell, Ganesh, and McCallum, 2019. The paper behind the CO₂ figures.

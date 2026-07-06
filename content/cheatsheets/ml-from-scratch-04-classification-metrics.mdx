@@ -1,168 +1,91 @@
 ---
 slug: ml-from-scratch-04-classification-metrics
-title: "Part 4 · Classification Metrics — Cheat Sheet"
-subtitle: Confusion matrix, precision/recall trade-off, F1, MCC, Cohen's Kappa, and what to use when classes are imbalanced.
+title: "Part 4 · Evaluation Metrics — Cheat Sheet"
+subtitle: Six illustrated pages — foundations, classification, regression, probability estimation, clustering, and model validation.
 sourcePost: ml-from-scratch-04-classification-metrics
 sourceLabel: Read the full post (Part 4)
+image: /images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-1-foundations.png
 topic: Machine Learning
 tags:
   - Machine Learning
-  - Metrics
+  - Evaluation
   - Classification
+  - Regression
+  - Probability
+  - Clustering
+  - Validation
   - Interview prep
 updated: June 2026
 ---
 
-<CheatRule label="The single most important rule">
-  <Highlight>Accuracy is almost always the wrong metric.</Highlight> Pick the metric that matches the cost of being wrong — and the structure of your data (balanced, imbalanced, multi-class).
+<CheatRule label="The single most important idea">
+  Different problems need different metrics. <Highlight>Pick the metric before you train</Highlight> — based on the kind of problem you have (classification, regression, probability, clustering) and the cost of being wrong. If you pick it after, you'll optimise for whichever number makes your model look best.
 </CheatRule>
 
-<CheatGrid columns={2}>
+*This six-page cheat sheet covers all of Session 7-8. Page 6 (Model validation) is the focus of [Part 5 — Model Validation & Cross-Validation](/blog/ml-from-scratch-05-cross-validation) and is included here as context.*
 
-<CheatCard title="Evaluation vs Validation" number="1" accent="navy">
+## Page 1 · Foundations
 
-Often confused — they're different stages:
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-1-foundations.png"
+  alt="Page 1 of 6 of the Evaluation Metrics cheat sheet. Eleven numbered concepts covering: (1) model evaluation — scoring model performance; (2) model validation — checking whether performance generalizes to unseen / production data; (3) metric-business-goal alignment — the metric must match the problem; (4) problem families need different metrics — classification, scoring, probability estimation, clustering; (5) classification problems — predicting labels; (6) scoring / regression problems — predicting numbers; (7) no-target problems — finding structure without labels; (8) probability estimation problems — predicting class probabilities, not only labels; (9) model parameters — learned from data; (10) hyperparameters — chosen / tuned around training, not learned directly; (11) train / validation / test sets — three splits for learn, tune, and final unbiased check."
+  caption="The setup behind every evaluation decision: what you're measuring (evaluation vs validation), what kind of problem you have, and the data splits you'll need."
+/>
 
-| | Validation | Evaluation |
-|---|---|---|
-| **When** | During training / model selection | Once, at the very end |
-| **On what** | Validation fold / set | Held-out test set |
-| **Purpose** | Pick hyperparameters, compare models | Honest production-quality measure |
-| **Frequency** | Many times | **Exactly once** |
+## Page 2 · Classification metrics
 
-If you tune on the test set, your evaluation is no longer evaluation — it's just more validation.
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-2-classification.png"
+  alt="Page 2 of 6. Thirteen concepts: (12) confusion matrix — TP, FP, FN, TN; (13) accuracy = correct predictions / total; (14) why accuracy fails on imbalanced data — 1% positives example, model predicts all negative, accuracy 99% with 0% recall; (15) precision = TP / (TP + FP) — among predicted positives how many are correct; (16) recall / sensitivity = TP / (TP + FN) — among real positives how many are found; (17) specificity = TN / (TN + FP) — among real negatives how many are correctly rejected; (18) precision-recall trade-off — lowering the threshold raises recall and drops precision; (19) F1 = 2PR / (P + R) — harmonic balance of precision and recall; (20) MCC — Matthews Correlation Coefficient, balanced binary-classifier quality, range -1 to +1; (21) accuracy vs recall vs MCC comparison — why MCC is better under imbalance with a four-scenario table; (22) Cohen's kappa = (P(o) - P(e)) / (1 - P(e)) — better than random guessing; (23) what to do with imbalanced data — collect more data, change metric, resample, SMOTE, trees, anomaly detection; (24) choosing the right classification metric by application — accuracy / precision / recall / specificity depending on the business question."
+  caption="How to judge a classifier, especially when classes are imbalanced. The confusion matrix is the foundation; every metric is just a different ratio of its four cells."
+/>
 
-</CheatCard>
+## Page 3 · Regression / scoring metrics
 
-<CheatCard title="The confusion matrix" number="2" accent="blue">
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-3-regression.png"
+  alt="Page 3 of 6. Six concepts: (25) residuals e_i = y_i - ŷ_i — prediction error as the basis of regression metrics; (26) RMSE = sqrt((1/n) sum e_i²) — squared-error metric, same units as the target, penalizes large errors heavily; (27) R-squared / coefficient of determination R² = 1 - RSS / TSS — fraction of target variation explained, range (-∞, 1], 1 = perfect, 0 = no better than mean, < 0 = worse than mean; (28) TSS / RSS decomposition — TSS = total sum of squares, RSS = residual sum of squares, explained = TSS - RSS, more explained variation → higher R²; (29) MAE = (1/n) sum |e_i| — absolute error, less punitive to large errors than RMSE, more robust to outliers; (30) why absolute error is often not a good project objective — absolute error loss L(e) = |e| is non-smooth at zero, squared error loss L(e) = e² is smooth — reportable but not always ideal to optimize."
+  caption="Measuring numeric prediction error. Every regression metric is a different way of squashing the residual vector into one number."
+/>
 
-Every classification metric is born here. For binary:
+## Page 4 · Probability-estimation metrics
 
-|   | Predicted = 1 | Predicted = 0 |
-|---|---|---|
-| **Actual = 1** | **TP** | FN |
-| **Actual = 0** | FP | **TN** |
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-4-probability.png"
+  alt="Page 4 of 6. Five concepts: (31) probability outputs / confidence scores — models can output probabilities, not only labels (example: four observations with scores 0.05, 0.30, 0.70, 0.90); (32) decision thresholds — convert probabilities into predictions by cutting at a threshold (default 0.50), changing the threshold changes precision and recall; (33) ROC curve — trade-off between TPR and FPR across thresholds, plotted against a random-baseline diagonal; (34) AUC — area under the ROC curve summarises overall discriminative ability, 0.5 = random, 1.0 = perfect, higher is better but harder to explain to business users; (35) double density plots — show score distributions for actual positives and negatives overlaid, the overlap region = mistakes / confusion, easier visual explanation of threshold mistakes."
+  caption="Evaluating scores and thresholds. When the model outputs a probability instead of a label, where you put the threshold is its own decision."
+/>
 
-- **TP** — correctly said yes.
-- **FN** — said no when it was yes. *Type II error.*
-- **FP** — said yes when it was no. *Type I error.*
-- **TN** — correctly said no.
+## Page 5 · Clustering evaluation
 
-Every metric is just a different ratio of these four numbers. Learn the matrix, the rest follows.
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-5-clustering.png"
+  alt="Page 5 of 6. Four concepts: (36) choosing k in clustering — try different values, plot within-cluster cost (WCSS) and find the elbow (k = 3 or 4 in the example); (37) compactness / separation — intra-cluster distance should be smaller than inter-cluster distance, good clustering = tight groups + clear separation; (38) silhouette — cohesion vs separation, range -1 to 1, -1.0 = poor (wrong cluster), 0 = okay (overlap), 1.0 = good (well separated), higher silhouette = points are closer to their own cluster than to others; (39) trying different clustering algorithms — k-medians (L1, minimizes Manhattan distances, robust to outliers), k-medoids (PAM, uses actual data points as centers, robust to noise), Gaussian mixtures (GMM, soft assignments, captures overlap), density-based (DBSCAN, finds dense regions of arbitrary shape, marks low-density points as noise)."
+  caption="Judging structure without labels. Clustering metrics measure how compact your clusters are and how distinct they are from one another."
+/>
 
-</CheatCard>
+## Page 6 · Model validation / generalization
 
-<CheatCard title="Accuracy & when it lies" number="3" accent="red">
+<Image
+  src="/images/blog/ml-from-scratch/evaluation-metrics/cheatsheet-page-6-validation.png"
+  alt="Page 6 of 6. Thirteen concepts: (40) model problems — bias (model too simple), variance (model too sensitive), overfit (good on train, poor on new data), nonsignificance (observed improvement likely due to chance); (41) bias-variance trade-off — increase complexity → lower bias, higher variance, find the sweet spot with lowest test error; (42) training error vs test error — training error can dramatically underestimate test error; (43) train-test split is not enough — if you keep choosing models using the test set, it becomes 'used' and unreliable; (44) hold-out validation — 60% train / 20% validation / 20% test, test set never used during model selection; (45) single split vs multiple splits — one split can be lucky or unlucky, multiple splits are more reliable; (46) cross-validation resampling — create many train / validation splits, evaluate on each, then average; (47) k-fold cross-validation — split data into k folds, each fold becomes validation once, average metric over k runs is the CV score; (48) LOOCV / repeated k-fold — leave-one-out (each example out once), or repeated k-fold (R shuffles); (49) retraining with best parameters — after CV, choose best hyperparameters, retrain on full training data, deploy; (50) bootstrapping — original sample → resample with replacement into Sample 1, 2, …, B → useful for small samples and confidence intervals; (51) significance testing / p-values — compare model to a naive / null model, low p-value (e.g. < 0.05) suggests the improvement is significant; (52) distribution drift — training (historical) distribution vs live (current) distribution can change over time, harming performance, monitor and adapt."
+  caption="Checking whether performance holds up on new data. Validation is the discipline of making sure the score you compute on your dataset survives contact with production."
+/>
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$$
+<CheatRule label="Final exam traps" accent="red">
 
-The headline metric — and the most overused.
-
-**It lies when:**
-- **Classes are imbalanced.** Fraud is 0.1 % of transactions → predict "no fraud" always → 99.9 % accuracy → useless.
-- **Mistakes have asymmetric costs.** Missing a cancer is not equivalent to a false alarm. Accuracy weights them the same.
-
-Use accuracy only when classes are roughly balanced AND mistakes cost the same on both sides.
-
-</CheatCard>
-
-<CheatCard title="Precision & Recall" number="4" accent="amber">
-
-The two real questions:
-
-$$\text{Precision} = \frac{TP}{TP + FP} \quad\text{Recall} = \frac{TP}{TP + FN}$$
-
-- **Precision** — *"When my model says yes, how often is it right?"* Punishes **false alarms**.
-- **Recall** — *"Of all the actual yes's, how many did I catch?"* Punishes **misses**.
-
-**Which one matters more?** Depends on the cost of mistakes:
-- **High-stakes screening** (cancer, fraud) → **Recall**. Missing a case is catastrophic.
-- **Costly intervention** (spam filter, manual review queue) → **Precision**. Each false alarm wastes resources.
-
-**The trade-off:** raising the threshold ↑ precision but ↓ recall, and vice versa. There's no free lunch.
-
-</CheatCard>
-
-<CheatCard title="F1 — balancing P & R" number="5" accent="purple">
-
-$$F_1 = 2 \cdot \frac{P \cdot R}{P + R}$$
-
-**Harmonic mean** of precision and recall. Punishes extreme values — if either is near zero, F1 collapses.
-
-- **F1 = 1** → perfect P and R both.
-- **F1 = 0** → at least one of them is 0.
-
-Use F1 when you want **one number** that balances precision and recall and don't have a clear preference.
-
-**F-beta** lets you weight one more than the other:
-$$F_\beta = (1+\beta^2) \frac{PR}{\beta^2 P + R}$$
-
-`β > 1` favours recall; `β < 1` favours precision.
-
-</CheatCard>
-
-<CheatCard title="MCC — the fair one" number="6" accent="green">
-
-**Matthews Correlation Coefficient** — the most honest single-number metric under imbalance.
-
-$$\text{MCC} = \frac{TP \cdot TN - FP \cdot FN}{\sqrt{(TP+FP)(TP+FN)(TN+FP)(TN+FN)}}$$
-
-- Range: **−1 to +1** (1 = perfect, 0 = random, −1 = perfectly wrong).
-- Uses **all four cells** of the confusion matrix — F1 ignores TN.
-- Honest under severe imbalance — accuracy and F1 both can mislead, MCC won't.
-
-**Use MCC** when classes are imbalanced and you want a single trustworthy number.
-
-</CheatCard>
-
-<CheatCard title="Cohen's Kappa" number="7" accent="slate">
-
-**"Better than random chance?"**
-
-$$\kappa = \frac{p_o - p_e}{1 - p_e}$$
-
-Where `p_o` = observed accuracy, `p_e` = accuracy expected by chance.
-
-- **κ = 1** → perfect agreement.
-- **κ = 0** → no better than random guessing weighted by class frequencies.
-- **κ < 0** → worse than random.
-
-Useful when comparing your model against a baseline guesser. Also classic in inter-annotator agreement.
-
-</CheatCard>
-
-<CheatCard title="Multi-class metrics" number="8" accent="blue">
-
-For more than 2 classes, you compute per-class metrics then average. Three ways:
-
-| Averaging | What it does | Use when |
-|---|---|---|
-| **Macro** | Unweighted mean across classes. | All classes equally important. |
-| **Weighted** | Mean weighted by class support. | Account for class imbalance. |
-| **Micro** | Aggregate TP/FP/FN across all classes, then compute. | One overall number; same as accuracy for balanced multi-class. |
-
-**Rule of thumb:** report **macro-F1** if you care about every class equally (esp. minority classes). Report **micro** or **weighted** if you care about overall sample-level performance.
-
-</CheatCard>
-
-</CheatGrid>
-
-<CheatRule label="The honest workflow" accent="navy">
-
-1. **Inspect class balance.** If imbalanced → never use plain accuracy.
-2. **Decide the cost of each mistake type.** That picks precision vs recall priority.
-3. **Pick one headline metric** (F1, MCC, balanced accuracy) for model selection.
-4. **Cross-validate** with that metric.
-5. **Report a full table** at the end: precision, recall, F1, MCC, confusion matrix.
-6. **Compare against a baseline** — random guesser, majority-class predictor, simple rule.
+1. **"My model is 99% accurate"** — what's the class balance? On rare events the majority-class baseline is 99%.
+2. **Lower perplexity / lower RMSE / lower MAE = better.** Easy to flip on a stressed exam. Higher R², higher F1, higher MCC, higher AUC, higher silhouette = better.
+3. **MCC and F1 are not the same.** MCC uses all four cells of the confusion matrix; F1 ignores TN. Under heavy imbalance, prefer MCC.
+4. **ROC AUC is threshold-independent.** A great AUC doesn't tell you the precision and recall at the threshold you'll actually deploy.
+5. **The test set is one-shot.** Every time you peek at it during model selection, you contaminate it.
+6. **Cross-validation gives mean ± std.** Quote both. "85%" is hiding something; "85% ± 1%" is honest.
+7. **Bootstrap doesn't create new data.** It estimates uncertainty in what you have. A biased sample gives you a confident estimate of the biased answer.
+8. **A higher score isn't evidence.** Compare against a naive baseline and check whether the improvement is statistically significant.
+9. **Distribution drift is silent.** The model didn't get worse — the world changed under it. Monitor in production; retrain when the metric drops.
 
 </CheatRule>
 
-<CheatRule label="Common interview traps" accent="red">
-
-- *"My model is 99 % accurate."* → What's the class balance? What does the majority-class baseline score?
-- *"I'll use F1."* → Macro, micro, or weighted? Why?
-- *"Precision is 95 %."* → At what threshold? Recall at that threshold?
-- *"My ROC AUC is 0.92."* → AUC is threshold-independent. PR-AUC is more honest under imbalance.
-
+<CheatRule label="One-line summary" accent="navy">
+  Pick the metric that matches the problem, score it honestly with cross-validation, and never confuse <Highlight>"the number is bigger"</Highlight> with <Highlight>"the model is better."</Highlight>
 </CheatRule>

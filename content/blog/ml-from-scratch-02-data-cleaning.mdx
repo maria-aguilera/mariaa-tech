@@ -299,6 +299,53 @@ In benchmarks on the King County house-prices dataset, switching from one-hot to
 
 **The trade-off:** you lose direct explainability, but you can recover it. The model is now running on "average price in this zip" instead of raw zipcodes — fine for prediction, awkward when the stakeholder asks "which zips drive the price?" *But you can map back* — every encoded value corresponds to a category, so you can always join back to the original codes to explain which zip codes the model considers expensive.
 
+### Two Traps in Target Encoding — and How to Fix Them
+
+Target encoding is one of the highest-leverage moves in this whole post, but it has two failure modes that quietly break models. Both are easy to fix once you know what to look for.
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/target-encoding-leakage-fix.png"
+  alt="A two-card diagram titled 'Target encoding — the two traps' with subtitle 'Both look fine in training, both break in production.' Left card 'Trap 1 — Target leakage' shows three rows of a small dataset with a 'zip' column and a 'price' column. A red arrow loops from the third row's price back into the same row's encoded value, labelled 'row sees its own target'. A red pill annotation underneath reads 'Inflated training scores → collapse in production.' A fix box below shows the formula 'Leave-One-Out — when encoding row i, use the mean of all rows EXCEPT i' in monospace, with a green check mark. Right card 'Trap 2 — Rare categories' shows three categories: 'Cairo' with 1,200 rows, 'Alexandria' with 800 rows, and 'Zone-X' with 2 rows. A red pill annotation reads 'Zone-X mean is noise — overfits hard.' A fix box below shows the smoothing formula 'smoothed = (n × category_mean + m × global_mean) / (n + m)' in monospace with a green check mark, plus a one-line note 'rare categories pull toward the global mean'. Bottom caption strip: 'Leave-One-Out · Smoothing  →  the two fixes that turn target encoding from dangerous to powerful.' Background warm off-white #FAFAF7, white cards with 1px slate border and soft shadow, Inter sans-serif."
+  caption="The two traps — leakage on the way in, noise from rare categories on the way out. Leave-one-out fixes the first; smoothing fixes the second."
+/>
+
+**Trap 1 — Target leakage.** The most common mistake. If you compute the target mean for each category using *all* rows — including the row you're encoding — the encoded value already contains the target you're trying to predict. The model gets handed the answer at training time. Training scores look fantastic. Production scores collapse.
+
+The fix: **Leave-One-Out target encoding.** When encoding row `i`, compute the mean using *every row except `i`*. The signal stays; the leakage goes. Scikit-learn ships this directly as `TargetEncoder` (since v1.3) — `category_encoders` has had it for years.
+
+```python
+from category_encoders import LeaveOneOutEncoder
+
+encoder = LeaveOneOutEncoder(cols=['zipcode'])
+X_train_encoded = encoder.fit_transform(X_train, y_train)
+X_test_encoded  = encoder.transform(X_test)   # no fit on test — same rule as everything else
+```
+
+**Trap 2 — Rare categories.** Imagine `zipcode 98109` shows up only twice in your training set. The "mean price for 98109" is computed from two rows — that's not a category effect, that's noise. The encoder will happily emit that noisy number, and the model will overfit hard.
+
+The fix: **smoothing.** Blend the category-specific mean with the global mean, weighted by how many rows you have for that category:
+
+`smoothed = (n × category_mean + m × global_mean) / (n + m)`
+
+Where:
+
+- `n` = number of observations for that category
+- `m` = a smoothing parameter (hyperparameter; bigger `m` → more trust in the global mean)
+
+A common category (lots of rows) → its own mean dominates. A rare category (few rows) → pulls toward the global mean. The encoder degrades gracefully instead of cliff-edging into noise.
+
+In `category_encoders` you pass `smoothing=` (and `min_samples_leaf=` for an alternative formulation); scikit-learn's `TargetEncoder` uses `smooth='auto'` by default.
+
+```python
+from category_encoders import TargetEncoder
+
+encoder = TargetEncoder(cols=['zipcode'], smoothing=10.0)
+```
+
+<Callout color="red">
+  ⚠️ <Highlight>Always fit target encoders inside the cross-validation loop.</Highlight> Even with Leave-One-Out, computing the category means before splitting leaks <em>aggregate</em> target information across folds. The right place for a target encoder is inside a <code>Pipeline</code>, the same way you'd put any other transformer.
+</Callout>
+
 ### Putting It Together with `ColumnTransformer`
 
 In practice every dataset has a mix of categorical and numerical columns, and you want different transformations on each. `ColumnTransformer` lets you compose them:
@@ -327,6 +374,43 @@ One pipeline, scales the numbers, encodes the categories, all under the same fit
 
 <KeyTerm>Outliers</KeyTerm> are data points that don't follow the distribution of the rest. They bias the overall pattern by forcing the model to accommodate extreme behaviour at the cost of fit on the bulk of the data.
 
+### Before You Detect Anything — Understand the Distribution
+
+You can't talk about outliers without first knowing what the *bulk* of your data looks like. The fastest tool for that — and the one every box plot you'll ever see is built on — is the **five-number summary**.
+
+<Image
+  src="/images/blog/ml-from-scratch/data-cleaning/five-number-summary-boxplot.png"
+  alt="A box plot diagram titled 'The five-number summary' with subtitle 'Everything a box plot is built on'. A horizontal box plot in slate-blue sits across the centre with five labelled markers: Minimum (left whisker tip), Q1 (left edge of the box), Median (line inside the box), Q3 (right edge of the box), Maximum (right whisker tip). The shaded box between Q1 and Q3 is labelled 'IQR — middle 50% of the data' with a thin slate-blue bracket above it. Two red dots beyond the whiskers are labelled 'Outliers — anything past Q1 − 1.5·IQR or Q3 + 1.5·IQR'. Below the diagram, a small grey caption strip lists: Minimum · Q1 · Median · Q3 · Maximum  →  five numbers, one picture, every outlier rule. Background warm off-white #FAFAF7, cards with 1px slate border and soft shadow."
+  caption="Five numbers — minimum, Q1, median, Q3, maximum — and the IQR between Q1 and Q3. Everything else (whiskers, outlier flags, robust scaling) is built on these."
+/>
+
+The five numbers in order:
+
+1. **Minimum** — smallest value in the dataset.
+2. **Q1** (first quartile) — the value below which 25% of the data falls. The bottom edge of the box.
+3. **Median** (Q2) — the middle value. Half the data is below, half above. Median is more reliable than the mean when outliers are present.
+4. **Q3** (third quartile) — the value below which 75% of the data falls. The top edge of the box.
+5. **Maximum** — largest value in the dataset.
+
+From these five numbers you get the <KeyTerm>IQR</KeyTerm> (interquartile range): `IQR = Q3 − Q1`. The middle 50% of your data lives in that interval, ignoring the tails. That's why the IQR is so useful — outliers, by definition, sit *outside* it, so they can't distort it.
+
+Worked example. Dataset = `[2, 4, 5, 7, 8, 10, 15]`:
+
+- Minimum = 2
+- Q1 = 4
+- Median = 7
+- Q3 = 10
+- Maximum = 15
+- IQR = 10 − 4 = 6
+
+From those five numbers alone you already know: most of the data clusters between 4 and 10, no extreme outliers, distribution looks roughly balanced. **That's the entire reason for the box plot you've seen a thousand times** — it's a visual five-number summary.
+
+This is also why `RobustScaler` works the way it does (covered earlier): it scales using the median and the IQR, not the mean and standard deviation, so outliers don't pull the centre or stretch the scale.
+
+<Callout color="blue">
+  💡 Whenever a stakeholder asks for "the average" of a column, push back and report the five-number summary instead. The average is *one* number. The five-number summary is the actual story.
+</Callout>
+
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/outlier-illustration.png"
   alt="Two-panel comparison illustration showing how a single outlier warps a regression line. Left panel labelled 'Without outlier' shows ~15 dark navy dots forming a clear upward diagonal trend with a clean slate-blue regression line passing through them tightly. Caption below: 'Model fits the majority'. Right panel labelled 'With one outlier' shows the same 15 dark navy dots in the same positions, plus one single red dot far away in the upper-right corner. The slate-blue regression line is now visibly tilted upward, dragged toward the outlier and missing most of the dark-navy cloud. Caption below: 'One point warps the fit'."
@@ -354,7 +438,7 @@ Two approaches:
 **Statistic-based.** Compute a metric per row and threshold it.
 
 - **Z-score:** `|x − μ| / σ > 3` flags everything more than 3 standard deviations from the mean. Simple, fast, works on roughly Gaussian features.
-- **Interquartile range (IQR):** anything below `Q1 − 1.5·IQR` or above `Q3 + 1.5·IQR`. More robust because it doesn't assume Gaussian.
+- **Interquartile range (IQR):** anything below `Q1 − 1.5·IQR` or above `Q3 + 1.5·IQR`. This is exactly the **box-plot whisker rule** from the five-number summary above. More robust than the Z-score because it doesn't assume Gaussian — Q1 and Q3 don't get pulled by extreme values.
 
 <Image
   src="/images/blog/ml-from-scratch/data-cleaning/z-score-bell-curve.png"

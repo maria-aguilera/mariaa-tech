@@ -1,0 +1,69 @@
+---
+slug: nlp-from-scratch-04-semantics
+title: "Part 4 · Semantics & Word Embeddings — Cheat Sheet"
+subtitle: Four illustrated pages — lexical relations, similarity and WordNet, distributional semantics, and Word2Vec.
+sourcePost: nlp-from-scratch-04-semantics
+sourceLabel: Read the full post (Part 4)
+image: /images/blog/nlp-from-scratch/semantics/cheatsheet-page-1-lexical.png
+topic: NLP
+tags:
+  - NLP
+  - Semantics
+  - WordNet
+  - Word2Vec
+  - Interview prep
+updated: June 2026
+---
+
+<CheatRule label="The single most important idea">
+  Semantics is about <Highlight>senses, not words</Highlight>. We can either hand-build a database of senses and relationships (WordNet) or learn them from context counts (distributional → PMI → Word2Vec). The distributional approach wins because it scales — and accidentally encodes analogies as <Highlight>directions in vector space</Highlight>.
+</CheatRule>
+
+## Page 1 · Lexical relations
+
+<Image
+  src="/images/blog/nlp-from-scratch/semantics/cheatsheet-page-1-lexical.png"
+  alt="Page 1 of 4 of the semantics cheatsheet. Ten cards covering: one lemma multiple meanings (bank — financial institution / river edge); semantic relationships overview (synonymy, antonymy, polysemy, homonymy, metonymy, hyponymy around word meaning); synonyms (big/large, sofa/couch, begin/start); synonyms are not perfect clones (buy/purchase, child/kid); antonyms (gradable hot/cold, complementary alive/dead, converse buy/sell); homonyms / homographs / homophones (bat, lead, two/too); metonymy and systematic polysemy (White House → institution, school → building/organization); hyponymy and hypernymy (animal → dog → poodle); hierarchical lexical database (entity → animal → canine → dog); WordNet works at the sense level (bass — fish / low voice)."
+  caption="Core word-sense relations, ambiguity, and WordNet basics."
+/>
+
+## Page 2 · Similarity and WordNet
+
+<Image
+  src="/images/blog/nlp-from-scratch/semantics/cheatsheet-page-2-similarity.png"
+  alt="Page 2 of 4. Ten cards: WordNet hierarchy for bass (entity → organism → person → entertainer → musician → singer → bass singer); similarity as a distance metric (red/blue/green markers between 0 and 1); two families of similarity algorithms (thesaurus-based vs distributional); path-based similarity (currency / coin / nickel / dime / United States coin / standard); information-content similarity (entity → animal → dog → poodle, more specific → more information); Dekang Lin similarity (formula sim(c₁,c₂) = 2·IC(LCS) / (IC(c₁)+IC(c₂))); why thesaurus-only methods struggle (scale, low-resource, new words, slang); distributional meaning (WordNet vs corpus-based vector learning); distributional similarity intuition (tesguino — drink, corn, bottle, alcoholic, beverage, similar to beer); term-document matrix reminder."
+  caption="Taxonomies, semantic similarity, and the bridge to distributional meaning."
+/>
+
+## Page 3 · Distributional semantics
+
+<Image
+  src="/images/blog/nlp-from-scratch/semantics/cheatsheet-page-3-distributional.png"
+  alt="Page 3 of 4. Ten cards: term-context matrix (rows = target words, columns = nearby context words); context windows (window size 2 around apricot/pineapple/digital); similarity from context (similar rows mean similar meanings); why raw co-occurrence counts mislead (the/of/in/and dominate); pointwise mutual information PMI formula; applying PMI to a matrix (raw counts → PMI matrix); PPMI and smoothing (PPMI = max(PMI,0), add-k smoothing); linear vs syntactic context; dependency-based co-occurrence vectors (drink with subject-of, object-of, modified-by, with/using); PMI in dependency relations (drink → wine vs drink → it)."
+  caption="Term-context matrices, PMI, and dependency-based context."
+/>
+
+## Page 4 · Word2Vec
+
+<Image
+  src="/images/blog/nlp-from-scratch/semantics/cheatsheet-page-4-word2vec.png"
+  alt="Page 4 of 4. Eight cards: Word2Vec overview (input target word → hidden layer V×d → output context words); training samples (sliding window over 'the quick brown fox jumps over the lazy dog'); hidden layer equals embedding (matrix V×d, each row is a dense word vector); skip-gram vs CBOW (predict context from target vs predict target from context); word-vector analogies (king − man + woman ≈ queen; France:Paris :: Germany:Berlin; walk:walked :: talk:talked); advantages of Word2Vec (dense representations, less sparsity, captures semantic relations, helps downstream NLP); limitations of Word2Vec (one vector per word, weak on word order, domain mismatch, depends on data quality); Anything2Vec extensions (Doc2Vec, FastText, GloVe, Med2Vec, Author2Vec, Concept2Vec)."
+  caption="From context prediction to dense word embeddings."
+/>
+
+---
+
+<CheatRule label="Final exam traps" accent="red">
+
+1. **WordNet is not enough.** Coverage is partial, drift is real, verbs and adjectives are weak. You need word sense disambiguation before you can use it.
+2. **Similarity is not synonymy.** Antonyms and co-hyponyms can have high similarity. Similarity rolls multiple relationships into one number.
+3. **PPMI just thresholds PMI at 0.** That throws away the negative signal — which is mostly noise anyway, but be aware.
+4. **Word2Vec does not understand language.** It predicts context. Everything else is emergent from compression.
+5. **king − man + woman = queen is the byproduct.** The training objective is context prediction, not analogy.
+6. **One vector per word is the limitation.** Polysemy, order, and domain are all broken until contextual embeddings (BERT, transformers) show up — that's Part 10.
+
+</CheatRule>
+
+<CheatRule label="One-line summary" accent="navy">
+  Senses live in a vector space. WordNet hand-drew the map; PMI counted it; Word2Vec learned it from text alone — and discovered <Highlight>analogies as directions</Highlight>.
+</CheatRule>
