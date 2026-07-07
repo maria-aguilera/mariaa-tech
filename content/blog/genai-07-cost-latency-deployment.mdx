@@ -1,10 +1,10 @@
 ---
 slug: genai-07-cost-latency-deployment
-title: "Part 11: Cost, Latency & Deployment"
-subtitle: "The engineering discipline of shipping LLMs into production for real money — model routing, semantic caching, prompt caching, streaming responses, plus the GFT-specific stack (Python + Java + Kafka + microservices)."
+title: "Part 8: Cost, Latency & Deployment"
+subtitle: "The engineering discipline of shipping LLMs into production for real money — model routing, semantic caching, prompt caching, streaming responses, plus the modern enterprise GenAI stack (Python + Java + Kafka + microservices)."
 date: "July 2026"
 updated: "July 2026"
-excerpt: "The GFT JD explicitly names Python + Java + Kafka + microservices under cost + latency management. Full walkthrough of cost optimization (model routing, semantic cache, prompt cache, batching, LLMLingua compression, quantization, small-model fine-tuning), latency optimization (streaming, speculative decoding, async, edge), and the deployment stack (FastAPI microservices, Kafka event streams, Docker/K8s, OpenTelemetry observability). With production architecture diagrams and interview questions."
+excerpt: "The modern GenAI JDs explicitly names Python + Java + Kafka + microservices under cost + latency management. Full walkthrough of cost optimization (model routing, semantic cache, prompt cache, batching, LLMLingua compression, quantization, small-model fine-tuning), latency optimization (streaming, speculative decoding, async, edge), and the deployment stack (FastAPI microservices, Kafka event streams, Docker/K8s, OpenTelemetry observability). With production architecture diagrams and interview questions."
 tags:
   - GenAI
   - Cost Optimization
@@ -14,23 +14,22 @@ tags:
   - Kafka
   - Microservices
   - LLMOps
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 11
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 8
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
-private: true
 ---
 
-*GenAI Engineering — Interview Prep · Part 11 of 15*
+*Generative AI Engineering · Part 8/8*
 
 > "The bitter lesson of production LLMs: the model that wins the benchmark is almost never the model you deploy. You deploy the cheapest one that clears the bar, and you spend the rest of your time making it faster."
 
 ## Part 11: Cost, Latency & Deployment
 
-If you look at the GFT job description for the AI Engineer role in Madrid, one line does a lot of work:
+If you look at a modern Generative AI Engineer job description for the AI Engineer role in Madrid, one line does a lot of work:
 
 > *"Python, Java, Kafka, microservices — designing and operating LLM systems with cost and latency in mind."*
 
@@ -46,7 +45,7 @@ This connects directly back to **[Part 7: RAG](/blog/genai-07-rag)** (where retr
 1. Why cost and latency are engineering concerns (not finance concerns)
 2. Cost optimization — model routing, caching, batching, compression, quantization, fine-tuning
 3. Latency optimization — streaming, speculative decoding, async, edge
-4. The GFT deployment stack — FastAPI, Java, Kafka, Docker/K8s, observability
+4. The an enterprise consultancy deployment stack — FastAPI, Java, Kafka, Docker/K8s, observability
 5. Model serving — managed vs self-hosted (vLLM, TGI, OpenRouter, Portkey)
 6. Scaling patterns — horizontal scaling, queue-based load leveling, circuit breakers
 7. Benchmarking in production — load tests, chaos, latency percentiles
@@ -290,9 +289,9 @@ For patterns where you can *predict* the next request (e.g., a chat where the us
 
 The most under-appreciated latency lever: **use a smaller model.** Haiku is 3–5x faster than Sonnet, Sonnet is 2x faster than Opus. If a small model clears the quality bar, ship it. This is the same lever as model routing but applied at design time instead of request time.
 
-## 4. Deployment stack — the GFT-specific one
+## 4. Deployment stack — the modern enterprise one
 
-The GFT JD lists Python, Java, Kafka, microservices. This is not accidental — it's the stack of European banks and consultancies (banking runs on Java, ML teams run on Python, glue is Kafka). Here's the shape of it.
+The modern GenAI JDs lists Python, Java, Kafka, microservices. This is not accidental — it's the stack of European banks and consultancies (banking runs on Java, ML teams run on Python, glue is Kafka). Here's the shape of it.
 
 ### Python microservices (FastAPI is the default)
 
@@ -302,7 +301,7 @@ The pattern: one FastAPI service per bounded concern. `retrieval-service`, `llm-
 
 ### Java as consumer / integration layer
 
-In banking, the systems of record — the core banking platform, the CRM, the workflow engine — are Java. Your LLM service publishes events to Kafka; Java consumers pick them up and route them into the existing business systems. This is the pattern GFT actually delivers to their banking clients.
+In banking, the systems of record — the core banking platform, the CRM, the workflow engine — are Java. Your LLM service publishes events to Kafka; Java consumers pick them up and route them into the existing business systems. This is the pattern European banks and consultancies actually deliver to their banking clients.
 
 You don't need to write Java for the interview. You need to *understand the seam*: the LLM service exposes REST + Kafka; the Java side speaks Kafka + REST. Contracts are Avro / Protobuf / JSON Schema.
 
@@ -398,7 +397,7 @@ You have two doors. Behind door one, you pay per token and someone else deals wi
 - **Pro**: no GPU ops. State-of-the-art models. Prompt caching, batch API, streaming built in.
 - **Con**: token pricing at scale is brutal. Data goes over their network (compliance issue in banking).
 
-Azure OpenAI is the version banks accept — same models, deployed inside your Azure tenant, contractually compliant. That's what GFT will actually deliver.
+Azure OpenAI is the version banks accept — same models, deployed inside your Azure tenant, contractually compliant. That's what European banks and consultancies actually deliver.
 
 ### Self-hosted (vLLM, TGI, SGLang, Ollama)
 

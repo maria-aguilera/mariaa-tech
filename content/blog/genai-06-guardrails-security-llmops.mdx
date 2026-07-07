@@ -1,10 +1,10 @@
 ---
 slug: genai-06-guardrails-security-llmops
-title: "Part 10: Guardrails, Security & LLMOps"
+title: "Part 7: Guardrails, Security & LLMOps"
 subtitle: "The reliability layer around LLM applications — input/output guardrails, prompt injection defense, PII redaction, observability (LangSmith, Langfuse, Arize), evaluation harnesses, prompt versioning, and the compliance shape banking clients demand."
 date: "July 2026"
 updated: "July 2026"
-excerpt: "The engineering discipline that turns a demo into a shipping product. Full walkthrough of guardrails (input filters + output filters), prompt injection attacks and defenses (allowlists, delimiters, NeMo Guardrails, Rebuff, Lakera), security (PII, data leakage, tool access control), and LLMOps (monitoring with LangSmith/Langfuse, tracing, evaluation harnesses, prompt versioning, cost monitoring). Plus the compliance angle for banking / insurance clients — the GFT context specifically."
+excerpt: "The engineering discipline that turns a demo into a shipping product. Full walkthrough of guardrails (input filters + output filters), prompt injection attacks and defenses (allowlists, delimiters, NeMo Guardrails, Rebuff, Lakera), security (PII, data leakage, tool access control), and LLMOps (monitoring with LangSmith/Langfuse, tracing, evaluation harnesses, prompt versioning, cost monitoring). Plus the compliance angle for banking / insurance clients — in banking and insurance specifically."
 tags:
   - GenAI
   - Guardrails
@@ -13,17 +13,16 @@ tags:
   - Observability
   - Security
   - Compliance
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 10
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 7
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
-private: true
 ---
 
-*GenAI Engineering — Interview Prep · Part 10 of 15*
+*Generative AI Engineering · Part 7/8*
 
 <Callout color="blue">
   This is where the technical interview for a **banking / insurance consulting** role goes deepest. Anyone can wire an LLM to a vector store. The question is what happens on **day 400** when the model is answering 40k customer questions a day, a support engineer has replaced the retrieval index, and legal is asking who signed off on the last prompt change. That is the guardrails + LLMOps question.
@@ -466,7 +465,7 @@ Read it as a stack. Every arrow is a place a check can fire. Every box is a thin
 
 ## 9. Compliance — the banking / insurance shape
 
-The GFT job description mentions banking and insurance clients specifically. Four regulatory pressures you should be able to talk about.
+The a modern Generative AI Engineer job description mentions banking and insurance clients specifically. Four regulatory pressures you should be able to talk about.
 
 ### 9.1 GDPR and data residency
 

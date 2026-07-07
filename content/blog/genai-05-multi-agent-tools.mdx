@@ -1,10 +1,10 @@
 ---
 slug: genai-05-multi-agent-tools
-title: "Part 9: Multi-Agent Systems & Tool Use"
+title: "Part 6: Multi-Agent Systems & Tool Use"
 subtitle: "The JD lists this as a first-class skill area — multi-agent orchestration, tool / function calling design, error handling in tools, and the framework landscape (LangGraph, CrewAI, AutoGen, OpenAI Assistants)."
 date: "July 2026"
 updated: "July 2026"
-excerpt: "Multi-agent patterns are what turn a chat model into a shipping product. Full walkthrough of the pattern space (single-agent, orchestrator, hierarchical, network, sequential, debate), tool / function calling design (schema, description, validation), error handling (retries, fallbacks, circuit breakers), and the framework landscape (LangGraph, CrewAI, AutoGen, OpenAI Assistants, Anthropic tool use). With Python code and interview questions — a critical topic for the GFT JD."
+excerpt: "Multi-agent patterns are what turn a chat model into a shipping product. Full walkthrough of the pattern space (single-agent, orchestrator, hierarchical, network, sequential, debate), tool / function calling design (schema, description, validation), error handling (retries, fallbacks, circuit breakers), and the framework landscape (LangGraph, CrewAI, AutoGen, OpenAI Assistants, Anthropic tool use). With Python code and interview questions — a critical topic for the modern GenAI JD."
 tags:
   - GenAI
   - Multi-Agent
@@ -14,25 +14,24 @@ tags:
   - LangGraph
   - CrewAI
   - AutoGen
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 9
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 6
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
-private: true
 ---
 
-*GenAI Engineering — Interview Prep · Part 9 of 15*
+*Generative AI Engineering · Part 6/8*
 
 <Callout color="blue">
-  This is the topic the GFT JD names most explicitly: **multi-agent orchestration, tool / function calling, and the framework landscape**. If they only dig into one thing on the technical loop, it will be this. Every section below is written assuming the interviewer will follow up with "and how would you build that?"
+  This is the topic the the modern GenAI JD names most explicitly: **multi-agent orchestration, tool / function calling, and the framework landscape**. If they only dig into one thing on the technical loop, it will be this. Every section below is written assuming the interviewer will follow up with "and how would you build that?"
 </Callout>
 
 ## Why this matters
 
-If you read the GFT job description carefully, one sentence stands out: they want someone who has *shipped* multi-agent systems with tool calling, not just fine-tuned a prompt. That is a very specific claim, and it maps to a very specific body of knowledge — patterns (orchestrator, hierarchical, network, sequential, debate), tool schema design, error handling, and the trade-offs between LangGraph, CrewAI, AutoGen, and the OpenAI Agents SDK.
+If you read a modern Generative AI Engineer job description carefully, one sentence stands out: they want someone who has *shipped* multi-agent systems with tool calling, not just fine-tuned a prompt. That is a very specific claim, and it maps to a very specific body of knowledge — patterns (orchestrator, hierarchical, network, sequential, debate), tool schema design, error handling, and the trade-offs between LangGraph, CrewAI, AutoGen, and the OpenAI Agents SDK.
 
 You are going to walk out of this post able to:
 
@@ -163,7 +162,7 @@ The Claude Agent SDK (formerly Claude Code SDK) introduced two terms that show u
 
 The mental model: **skills are things an agent can *do*; subagents are specialist workers the agent can *delegate to*.** They are complementary — a subagent typically has its own set of skills.
 
-If GFT interviews you and mentions "skills-based agents", they mean this — reusable, composable capability bundles, not fine-tuned models.
+If an interviewer mentions "skills-based agents", they mean this — reusable, composable capability bundles, not fine-tuned models.
 
 ## Tool / function calling design
 
@@ -430,7 +429,7 @@ Every framework above compiles down to a client-tool loop on top of this API (or
 
 ## Worked example: a planner-executor multi-agent workflow
 
-Let's build the pattern the cheatsheet lists on page 2 — a **planner** decomposes the task into steps, an **executor** carries out each step with tools, and a **critic** validates the result. This is the pattern GFT is most likely to ask you to whiteboard.
+Let's build the pattern the cheatsheet lists on page 2 — a **planner** decomposes the task into steps, an **executor** carries out each step with tools, and a **critic** validates the result. This is the pattern an interviewer is most likely to ask you to whiteboard.
 
 ### Pseudocode first
 
@@ -576,7 +575,7 @@ The interview answer you want: **"agent evaluation is trajectory-first — I car
 
 ## Common interview questions
 
-The questions I would prepare word-for-word before the GFT loop.
+The questions I would prepare word-for-word before the technical loop.
 
 **Q1. What's the difference between a workflow and an agent?**
 A workflow is LLM + tools with predefined control flow written in code — you as the developer decide the order of steps. An agent lets the LLM decide the control flow at runtime, using tool calls in a loop until it terminates. Workflows are cheaper, more testable, and easier to reason about. Agents are more flexible but harder to evaluate. Anthropic's "Building effective agents" post recommends starting with workflows and only reaching for agents when the problem genuinely needs dynamic control flow.
@@ -610,7 +609,7 @@ Validate every argument against a Pydantic schema before executing the tool. On 
 
 ## Wrapping up
 
-If the GFT interviewer opens with "tell me about a multi-agent system you've built" — start with the *pattern* (orchestrator, network, sequential, debate), then the *tools* (with schema and error handling), then the *framework* (with a one-sentence justification), then *evaluation* (trajectory + cost + latency). That order signals you have shipped one of these, not just watched a demo.
+If the the interviewer opens with "tell me about a multi-agent system you've built" — start with the *pattern* (orchestrator, network, sequential, debate), then the *tools* (with schema and error handling), then the *framework* (with a one-sentence justification), then *evaluation* (trajectory + cost + latency). That order signals you have shipped one of these, not just watched a demo.
 
 Read next: **[Part 6 — Prompting & Reasoning Loops](/blog/genai-02-prompting-reasoning)** for the ReAct / planner / critic scaffolding this post assumes, and **[Part 10 — Guardrails & Safety](/blog/genai-06-guardrails)** for the prompt-injection defenses you now urgently need because your agent has real tools.
 

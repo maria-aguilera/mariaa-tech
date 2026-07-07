@@ -1,10 +1,10 @@
 ---
 slug: genai-01-llm-foundations
-title: "Part 5: LLM Foundations — transformers, RLHF, sampling"
+title: "Part 2: LLM Foundations — transformers, RLHF, sampling"
 subtitle: "Everything you need to know about how modern language models are built, trained, and controlled — from self-attention math through the three-stage post-training pipeline to sampling and in-context learning."
 date: "July 2026"
 updated: "July 2026"
-excerpt: "The foundational deep-dive of the GenAI interview prep series. Transformer architecture (self-attention, multi-head, tokens, context window), the three-stage post-training pipeline (pretraining → SFT → RLHF/DPO), sampling and decoding (temperature, top-k, top-p), prompt structure (system/user/assistant), in-context learning (zero/one/few-shot), chain-of-thought basics, and scaling laws. With interview questions and model answers."
+excerpt: "The foundational deep-dive of the Generative AI Engineering series. Transformer architecture (self-attention, multi-head, tokens, context window), the three-stage post-training pipeline (pretraining → SFT → RLHF/DPO), sampling and decoding (temperature, top-k, top-p), prompt structure (system/user/assistant), in-context learning (zero/one/few-shot), chain-of-thought basics, and scaling laws. With interview questions and model answers."
 tags:
   - GenAI
   - LLM
@@ -12,20 +12,19 @@ tags:
   - RLHF
   - DPO
   - Attention
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 5
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 2
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-1-foundations.png"
-private: true
 ---
 
-*GenAI Engineering — Interview Prep · Part 5/15*
+*Generative AI Engineering · Part 2/8*
 
 <Callout color="blue">
-  This is the foundational post of the interview-prep series. If you're preparing for an AI Engineer or Generative AI role, the interviewer will almost always open here — with "so, what is a large language model?" and drill down from transformers to sampling to alignment. This post walks the whole surface once, slowly, with the diagrams that make each concept click.
+  This is the foundational post of this series. If you're preparing for an AI Engineer or Generative AI role, the interviewer will almost always open here — with "so, what is a large language model?" and drill down from transformers to sampling to alignment. This post walks the whole surface once, slowly, with the diagrams that make each concept click.
 </Callout>
 
 ## Why the interviewer will start here
@@ -366,11 +365,11 @@ The reward model isn't perfect — the policy can find high-reward outputs that 
 
 ## What to read next
 
-The natural next post is **Part 6: Prompting and reasoning loops** — chain-of-thought in depth, self-consistency, tree-of-thoughts, ReAct, and the planner-executor pattern. Everything the interviewer will ask once they're satisfied you understand the model. That builds directly on the CoT basics from section 8 above.
+The natural next post is **Part 3: Prompting and Reasoning Loops** — chain-of-thought in depth, self-consistency, tree-of-thoughts, ReAct, and the planner-executor pattern. Everything the interviewer will ask once they're satisfied you understand the model. That builds directly on the CoT basics from section 8 above.
 
 If any of the language modelling foundations felt fuzzy — n-grams, perplexity, RNNs, BERT vs GPT, transfer learning — the deeper walkthrough is in [NLP Part 5: Language Modeling](/blog/nlp-from-scratch-05-language-modeling). It covers the arc from document-term matrices through Word2Vec, RNNs, ELMo, transformers, BERT, and GPT-3, and it's the post to read alongside this one if you want the "how did we get here" story.
 
-The four-page revision sheet that summarises everything above (and everything coming later in the series) lives at [the GenAI Interview Prep Cheatsheet](/blog/genai-interview-prep-cheatsheet). Read this post to understand it; print that one for the train.
+The four-page revision sheet that summarises everything above (and everything coming later in the series) lives at [the Generative AI Engineering Cheatsheet](/blog/genai-interview-prep-cheatsheet). Read this post to understand it; print that one for the train.
 
 ## Sources
 

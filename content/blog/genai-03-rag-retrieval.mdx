@@ -1,6 +1,6 @@
 ---
 slug: genai-03-rag-retrieval
-title: "Part 7: RAG & Retrieval Deep Dive"
+title: "Part 4: RAG & Retrieval Deep Dive"
 subtitle: "The most-asked GenAI interview topic in one place — RAG pipeline, embeddings, vector databases, chunking, sparse vs dense vs hybrid retrieval, reranking, advanced patterns (HyDE, query expansion), and evaluation with RAGAS."
 date: "July 2026"
 updated: "July 2026"
@@ -12,19 +12,18 @@ tags:
   - Embeddings
   - Vector Database
   - LangChain
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 7
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 4
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-3-rag-memory.png"
-private: true
 ---
 
 ## Why RAG is the number-one GenAI interview topic
 
-If you had to bet on a single topic your GFT interviewer will drill into, bet on RAG. Every production LLM system you will encounter in the wild is a RAG system in disguise — a chatbot on top of a knowledge base, a copilot grounded in internal docs, a customer-support agent that reads a ticket history before answering. The base LLM is a fluent brain with no memory of your business; retrieval is how you plug that brain into your data.
+If you had to bet on a single topic the interviewer will drill into, bet on RAG. Every production LLM system you will encounter in the wild is a RAG system in disguise — a chatbot on top of a knowledge base, a copilot grounded in internal docs, a customer-support agent that reads a ticket history before answering. The base LLM is a fluent brain with no memory of your business; retrieval is how you plug that brain into your data.
 
 The reason RAG dominates interviews is that it forces you to reason across the whole stack at once. You need to talk about **embeddings** (representation learning), **vector databases** (systems), **chunking** (data engineering), **retrieval** (information retrieval), **reranking** (ML), **prompt construction** (LLM engineering) and **evaluation** (statistics). A single "walk me through your RAG pipeline" question is a stealth exam covering half of your technical stack.
 

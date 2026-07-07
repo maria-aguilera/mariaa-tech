@@ -1,6 +1,6 @@
 ---
 slug: genai-04-memory-state
-title: "Part 8: Memory & State Management"
+title: "Part 5: Memory & State Management"
 subtitle: "How to give an LLM app the ability to remember — short-term chat history, long-term user context, session management, semantic caching, and the memory abstractions in LangChain / LangGraph / Mem0."
 date: "July 2026"
 updated: "July 2026"
@@ -11,20 +11,19 @@ tags:
   - LangChain
   - Semantic Cache
   - State Management
-  - Interview prep
-source: Interview prep
+  - Reference
+source: Notes
 topic: NLP
-series: "GenAI Engineering — Interview Prep"
-seriesPart: 8
-seriesTotal: 15
+series: "Generative AI Engineering"
+seriesPart: 5
+seriesTotal: 8
 coverImage: "/images/blog/genai-interview-prep/page-3-rag-memory.png"
-private: true
 ---
 
-*GenAI Engineering — Interview Prep · Part 8*
+*Generative AI Engineering · Part 5/8*
 
 <Callout color="blue">
-  This is Part 8 of my prep for a real Generative AI Engineer interview at **GFT Madrid**. If you're reading this to learn the material with me, start with [Part 1 — the cheatsheet](/blog/genai-interview-prep-cheatsheet) and read forward.
+  Part 5 of the Generative AI Engineering series. If you're reading through top-to-bottom, start with [Part 1 — the cheatsheet](/blog/genai-interview-prep-cheatsheet) and read forward.
 </Callout>
 
 ## The one line that matters
@@ -236,11 +235,11 @@ from langchain_openai import ChatOpenAI
 
 memory = ConversationEntityMemory(llm=ChatOpenAI())
 memory.save_context(
-    {"input": "Maria is preparing for a GFT interview in Madrid."},
+    {"input": "Maria is preparing for a an enterprise consultancy interview in Madrid."},
     {"output": "Good luck with the prep."},
 )
 # memory.entity_store now has:
-# {"Maria": "Preparing for a GFT interview in Madrid.", "GFT": "...", "Madrid": "..."}
+# {"Alice": "Prefers espresso in the mornings.", "coffee": "...", "mornings": "..."}
 ```
 
 This is close to what Mem0 does under the hood, just more structured and less scalable.
@@ -396,11 +395,11 @@ Reported numbers: **91% lower p95 latency** and **90% token reduction** vs full-
 from mem0 import Memory
 
 memory = Memory()
-memory.add("Maria is preparing for a GFT interview in Madrid.", user_id="maria")
+memory.add("Maria is preparing for a an enterprise consultancy interview in Madrid.", user_id="maria")
 
 # Next session
 results = memory.search("what is Maria working on?", user_id="maria")
-# → returns the interview prep fact
+# → returns the beverage preference fact
 ```
 
 ### Zep
