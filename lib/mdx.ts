@@ -159,6 +159,13 @@ export function getMdxPostBySlug(slug: string): MdxPost | null {
       style: normalizeStyle(data.style),
       bannerImage: normalizeText(data.bannerImage) || undefined,
       avatarImage: normalizeText(data.avatarImage) || undefined,
+      topic: normalizeText(data.topic) || undefined,
+      series: normalizeText(data.series) || undefined,
+      seriesPart: typeof data.seriesPart === "number" ? data.seriesPart : undefined,
+      seriesTotal: typeof data.seriesTotal === "number" ? data.seriesTotal : undefined,
+      unlisted: data.unlisted === true,
+      draft: data.draft === true,
+      private: data.private === true,
     },
     content,
   };
