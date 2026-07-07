@@ -51,41 +51,48 @@ export default async function PrivateBlogPostPage({ params }: Props) {
           <span className="post-breadcrumbs__current">{meta.title}</span>
         </nav>
 
-        <div className="post-card">
-          <div className="post-card__meta">
-            <span>Maria Aguilera</span>
-            {meta.date ? <span>· {meta.date}</span> : null}
-            <span
-              style={{
-                marginLeft: "auto",
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                color: "#2563eb",
-                background: "rgba(37, 99, 235, 0.1)",
-                padding: "3px 8px",
-                borderRadius: 999,
-              }}
-            >
-              PRIVATE
-            </span>
-          </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "1rem 0 2rem",
+            fontSize: "0.9rem",
+            color: "#64748b",
+          }}
+        >
+          <span>Maria Aguilera</span>
+          {meta.date ? <span>· {meta.date}</span> : null}
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              color: "#2563eb",
+              background: "rgba(37, 99, 235, 0.1)",
+              padding: "3px 8px",
+              borderRadius: 999,
+            }}
+          >
+            PRIVATE
+          </span>
+        </div>
 
-          <div className="post-content">
-            <MDXRemote
-              source={content}
-              components={
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                mdxComponents as Record<string, any>
-              }
-              options={{
-                mdxOptions: {
-                  remarkPlugins: [remarkGfm, remarkMath],
-                  rehypePlugins: [rehypeKatex],
-                },
-              }}
-            />
-          </div>
+        <div className="post-content">
+          <MDXRemote
+            source={content}
+            components={
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mdxComponents as Record<string, any>
+            }
+            options={{
+              mdxOptions: {
+                remarkPlugins: [remarkGfm, remarkMath],
+                rehypePlugins: [rehypeKatex],
+              },
+            }}
+          />
         </div>
       </article>
     </main>
