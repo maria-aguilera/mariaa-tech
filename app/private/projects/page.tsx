@@ -51,7 +51,7 @@ export default function PrivateProjectsPage() {
               <article
                 key={s.id}
                 style={{
-                  background: "var(--card-bg, #ffffff)",
+                  background: "#ffffff",
                   border: "1px solid rgba(30, 41, 59, 0.12)",
                   borderRadius: 14,
                   padding: "1.5rem",
@@ -61,11 +61,11 @@ export default function PrivateProjectsPage() {
                   {publishedCount} OF {s.posts.length} PUBLISHED · PRIVATE
                 </div>
                 <h2 style={{ marginTop: 12, marginBottom: 8, fontSize: "1.4rem" }}>
-                  <Link href={`/private/series/${s.id}`} style={{ color: "var(--text, #0f172a)", textDecoration: "none" }}>
+                  <Link href={`/private/series/${s.id}`} style={{ color: "#0f172a", textDecoration: "none" }}>
                     {s.title}
                   </Link>
                 </h2>
-                <p style={{ color: "var(--muted, #475569)", marginBottom: 12 }}>{s.description}</p>
+                <p style={{ color: "#475569", marginBottom: 12 }}>{s.description}</p>
                 <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 6 }}>
                   {s.posts.map((p) => {
                     const num = String(p.part).padStart(2, "0");
@@ -79,7 +79,7 @@ export default function PrivateProjectsPage() {
                               gap: 12,
                               padding: "6px 8px",
                               borderRadius: 6,
-                              color: "var(--text, #0f172a)",
+                              color: "#0f172a",
                               textDecoration: "none",
                             }}
                           >
@@ -97,7 +97,7 @@ export default function PrivateProjectsPage() {
                           display: "flex",
                           gap: 12,
                           padding: "6px 8px",
-                          color: "var(--muted, #94a3b8)",
+                          color: "#94a3b8",
                         }}
                       >
                         <span style={{ fontSize: "0.75rem", fontWeight: 700, minWidth: 60 }}>PART {num}</span>
@@ -115,7 +115,7 @@ export default function PrivateProjectsPage() {
           {looseposts.length > 0 ? (
             <article
               style={{
-                background: "var(--card-bg, #ffffff)",
+                background: "#ffffff",
                 border: "1px solid rgba(30, 41, 59, 0.12)",
                 borderRadius: 14,
                 padding: "1.5rem",
@@ -127,7 +127,7 @@ export default function PrivateProjectsPage() {
                   <li key={p.slug}>
                     <Link
                       href={`/private/blog/${p.slug}`}
-                      style={{ color: "var(--text, #0f172a)", textDecoration: "none" }}
+                      style={{ color: "#0f172a", textDecoration: "none" }}
                     >
                       <strong>{p.title}</strong>
                       {p.date ? (

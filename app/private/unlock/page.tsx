@@ -30,17 +30,17 @@ export default async function UnlockPage({ searchParams }: UnlockPageProps) {
         style={{
           width: "100%",
           maxWidth: 380,
-          background: "var(--card-bg, #ffffff)",
+          background: "#ffffff",
           border: "1px solid rgba(30, 41, 59, 0.15)",
           borderRadius: 14,
           padding: "2rem 1.5rem",
           boxShadow: "0 6px 24px rgba(15, 23, 42, 0.06)",
         }}
       >
-        <h1 style={{ margin: 0, fontSize: "1.35rem", color: "var(--text, #0f172a)" }}>
+        <h1 style={{ margin: 0, fontSize: "1.35rem", color: "#0f172a" }}>
           Private work-OS
         </h1>
-        <p style={{ marginTop: 8, fontSize: "0.95rem", color: "var(--muted, #475569)" }}>
+        <p style={{ marginTop: 8, fontSize: "0.95rem", color: "#475569" }}>
           Interview prep, drafts, and notes I don&apos;t want indexed publicly.
           Enter the passphrase to unlock.
         </p>
@@ -51,7 +51,7 @@ export default async function UnlockPage({ searchParams }: UnlockPageProps) {
             marginTop: 20,
             fontSize: "0.85rem",
             fontWeight: 600,
-            color: "var(--text, #0f172a)",
+            color: "#0f172a",
           }}
         >
           Passphrase
@@ -69,8 +69,8 @@ export default async function UnlockPage({ searchParams }: UnlockPageProps) {
               fontSize: "1rem",
               border: "1px solid rgba(30, 41, 59, 0.25)",
               borderRadius: 8,
-              background: "var(--input-bg, #ffffff)",
-              color: "var(--text, #0f172a)",
+              background: "#ffffff",
+              color: "#0f172a",
             }}
           />
         </label>
