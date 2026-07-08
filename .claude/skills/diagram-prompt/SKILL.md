@@ -23,10 +23,10 @@ The bottom summary strip is her signature. Always include it.
 
 ## Batch header
 
-When batching multiple prompts in one message, put the reference line ONCE at the top of the message (not inside every numbered prompt) so ChatGPT doesn't get 10 copies of it — like this:
+When batching multiple prompts in one message, put the reference line AND the aspect ratio ONCE at the top of the message (not inside every numbered prompt) so ChatGPT doesn't get 10 copies of it — like this:
 
 ```
-All 10 images: use the attached wealth-vs-happiness image as the visual reference — match its background, palette, typography, card style, and pill annotations.
+All 10 images: use the attached wealth-vs-happiness image as the visual reference — match its background, palette, typography, card style, and pill annotations. Aspect ratio: landscape 4:3 (or 3:2). All images must be landscape orientation, not portrait.
 
 ---
 
@@ -36,6 +36,10 @@ All 10 images: use the attached wealth-vs-happiness image as the visual referenc
 2. Diagram request: "..."
 ...
 ```
+
+## Aspect ratio — hard rule
+
+Every diagram must be **landscape orientation (4:3 or 3:2)**, never portrait, never square. When ChatGPT is left to pick, it often defaults to portrait 3:4 which does NOT fit the blog's inline `<Image wide />` slot and looks cropped on desktop. Always state the landscape ratio explicitly in the batch header AND, if the batch is only 1 image, at the end of the concept prompt too.
 
 For single-prompt responses, put the reference line inside the code block as line 0.
 

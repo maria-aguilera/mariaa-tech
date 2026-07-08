@@ -46,6 +46,12 @@ The two adjacent posts you want to keep in the same tab are **[Part 6 — Prompt
 
 ## What is an agent?
 
+<Image src="/images/blog/genai/inline/inline-part-6-agent-anatomy.png" alt="The 5 pieces that turn an LLM into an agent — LLM at the centre with goal, tools, memory, and policy around it" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-agent-loop.png" alt="The agent loop — perceive → plan → act → observe, repeated until the goal is reached" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-agent-vs.png" alt="Script vs chatbot vs agent — three levels of autonomy and what each buys you" wide />
+
 Anthropic's "Building effective agents" post makes a distinction that is worth memorising, because interviewers use it:
 
 - A **workflow** is an LLM + tools orchestrated through predefined code paths. Deterministic control flow, LLM inside individual steps.
@@ -90,6 +96,16 @@ def run_agent(user_message, tools, max_steps=10):
 Everything else in this post — CrewAI, LangGraph, AutoGen — is a fancier version of that loop.
 
 ## Multi-agent patterns
+
+<Image src="/images/blog/genai/inline/inline-part-6-pattern-sequential.png" alt="Sequential pipeline — Agent A → Agent B → Agent C, one output becomes the next input" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-pattern-supervisor.png" alt="Supervisor delegates, workers execute — central orchestrator + specialists, with the slow-model/fast-model cost tradeoff" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-pattern-parallel.png" alt="Parallel + merge — workers run concurrently, a merger produces the final answer" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-pattern-router.png" alt="Router pattern — one decision diamond dispatches to one specialist per query" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-patterns-matrix.png" alt="The 2×2 for picking a pattern — task dependency × number of steps → router, parallel+merge, sequential, supervisor" wide />
 
 Here is the pattern zoo. Interviewers love these because they map cleanly to problems you actually see in production.
 
@@ -155,6 +171,8 @@ Multiple LLMs argue about the answer, then a judge (or majority vote) picks a wi
 
 ## Skills + subagents (SDK-level terminology)
 
+<Image src="/images/blog/genai/inline/inline-part-6-skills-subagents.png" alt="Three words the Claude Agent SDK uses — agent, skill, subagent — and the composition tree that ties them together" wide />
+
 The Claude Agent SDK (formerly Claude Code SDK) introduced two terms that show up in Anthropic-flavoured job descriptions:
 
 - **Skills** are callable capabilities the agent can invoke — a "search-jira" skill, an "open-pr" skill, a "run-tests" skill. Practically, a skill is a bundle of *tool definitions + instructions + optional worked examples*, packaged so the agent can load it on demand.
@@ -165,6 +183,14 @@ The mental model: **skills are things an agent can *do*; subagents are specialis
 If an interviewer mentions "skills-based agents", they mean this — reusable, composable capability bundles, not fine-tuned models.
 
 ## Tool / function calling design
+
+<Image src="/images/blog/genai/inline/inline-part-6-tool-schema.png" alt="One tool, four required fields — name, description, parameters, required — with a stacked bar showing how much weight the LLM gives each field" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-function-calling.png" alt="Function calling — the 5-hop round trip from user question through LLM tool call to final answer, and what each hop costs" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-tool-descriptions.png" alt="Bad tool description vs good tool description on the same tool, plus the 4 rules of writing tool descriptions" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-parallel-tools.png" alt="Parallel tool calls — one LLM turn emits many tool calls simultaneously, cutting end-to-end latency" wide />
 
 This is the section they will actually make you write code on.
 
@@ -227,6 +253,12 @@ Rule of thumb: if the LLM would need to call two tools *always in sequence with 
 The heuristic: **bundle when the intermediate result is not useful to the LLM.** Keep separate when the LLM needs to reason about the intermediate.
 
 ## Tool error handling
+
+<Image src="/images/blog/genai/inline/inline-part-6-error-taxonomy.png" alt="The 4 error types your agent will see — transient, permanent, semantic, budget — plus the decision tree the agent should follow" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-retry-backoff.png" alt="Exponential backoff with jitter — one request, up to 5 retries, and why jitter matters at scale" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-graceful-degradation.png" alt="The fallback tree — primary tool → fallback tool → human handoff, with the 3-tier contract" wide />
 
 The moment you give an LLM tools, you sign up for the entire distributed-systems reliability playbook. This is the section that separates "I've built a demo" from "I've shipped this in production."
 
@@ -356,6 +388,14 @@ Without one of these in a multi-agent system, a broken tool becomes a self-infli
 
 ## Frameworks: LangGraph vs CrewAI vs AutoGen vs OpenAI Agents SDK
 
+<Image src="/images/blog/genai/inline/inline-part-6-framework-matrix.png" alt="The framework 2×2 — state model × abstraction level — placing CrewAI, AutoGen, OpenAI Agents SDK, and LangGraph" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-langgraph.png" alt="A LangGraph research-agent state graph — plan_search → run_search → decision diamond → summarise, with the state fields on every edge" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-crewai.png" alt="A CrewAI crew of 3 roles — Researcher, Writer, Editor — each with goal, backstory, and tools, plus the tradeoff CrewAI makes" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-framework-decision.png" alt="A 4-question decision tree that picks the right framework — one agent? roles? group chat? — plus a radar chart of the tradeoffs" wide />
+
 You will get asked "which framework would you use?" Have an opinion and know the trade-offs.
 
 <img src="https://python.langchain.com/svg/langgraph_diagram.svg" alt="LangGraph state-machine diagram — nodes represent agents or tools, edges represent transitions, a central state object flows between them." />
@@ -428,6 +468,10 @@ Every framework above compiles down to a client-tool loop on top of this API (or
 </Callout>
 
 ## Worked example: a planner-executor multi-agent workflow
+
+<Image src="/images/blog/genai/inline/inline-part-6-planner-executor-example.png" alt="A worked planner-executor run — user request → planner produces the plan → executor calls 6 tools → final briefing, with the cost vs quality trade" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-state-transitions.png" alt="Six state transitions during one run — from initial empty state, through partial results, to the final serialised state" wide />
 
 Let's build the pattern the cheatsheet lists on page 2 — a **planner** decomposes the task into steps, an **executor** carries out each step with tools, and a **critic** validates the result. This is the pattern an interviewer is most likely to ask you to whiteboard.
 
@@ -551,6 +595,12 @@ result = crew.kickoff(inputs={"goal": "Book me a flight to Madrid next Tuesday u
 Look at the two implementations side-by-side. LangGraph gives you explicit control over the graph and can replan — you can see the state machine. CrewAI reads like a description of a team but a straight sequential run is what you get by default. Both are correct. **The right framework depends on whether you value control (LangGraph) or ergonomics (CrewAI).**
 
 ## Agent evaluation
+
+<Image src="/images/blog/genai/inline/inline-part-6-agent-evaluation.png" alt="The 4 dimensions of agent evaluation — task success, tool efficiency, cost, latency — plus the one-metric summary formula" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-trace-debugging.png" alt="One run, one full trace — nested spans for planner, executor, tools — with the 5 fields every span should record" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-6-regression-tests.png" alt="The 3-tier test suite every production agent needs — unit, integration, golden set — with the collect-fail-fix-protect lifecycle" wide />
 
 Model evaluation is graded by "did the model return the right token?" Agent evaluation is graded by "did the whole trajectory achieve the goal?" — and that is dramatically harder.
 
