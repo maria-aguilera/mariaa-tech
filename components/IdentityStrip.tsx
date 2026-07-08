@@ -109,7 +109,7 @@ export default function IdentityStrip({
           <li>Now: machine learning and anything that takes time to understand</li>
         </ul>
 
-        <a className="identity-card__cta" href="/blog">
+        <a className="identity-card__cta" href="/projects">
           <span>Read the notes</span>
           <Icon name="arrow-right" aria-hidden="true" />
         </a>

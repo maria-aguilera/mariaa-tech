@@ -68,7 +68,7 @@ export default function Navbar() {
     if (pathname.startsWith("/blog/") || pathname.startsWith("/cheatsheets/")) {
       const slug = pathname.split("/")[2] ?? "";
       const isSeriesPost = series.some((s) => s.posts.some((p) => p.slug === slug));
-      return isSeriesPost ? href === "/series" : href === "/blog";
+      return isSeriesPost ? href === "/series" : href === "/projects";
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
@@ -95,12 +95,12 @@ export default function Navbar() {
           </Link>
         </li>
 
-        {/* Renamed Blog→Projects: this is the /blog page (the filterable index of everything). */}
-        <li className={`navbar__item ${isActive("/blog") ? "active" : ""}`}>
+        {/* Projects — the topic-grouped index at /projects. Individual posts still live at /blog/[slug]. */}
+        <li className={`navbar__item ${isActive("/projects") ? "active" : ""}`}>
           <Link
             className="navbar__link"
-            href="/blog"
-            aria-current={isActive("/blog") ? "page" : undefined}
+            href="/projects"
+            aria-current={isActive("/projects") ? "page" : undefined}
           >
             <FileText size={iconSize} />
             <span>Projects</span>
