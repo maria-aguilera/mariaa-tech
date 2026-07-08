@@ -29,8 +29,6 @@ The reason RAG dominates interviews is that it forces you to reason across the w
 
 This post is your one-stop reference. You will see the full pipeline, compare the main vector databases and embedding models, work through chunking and retrieval strategies, understand why reranking exists, meet the advanced patterns (HyDE, multi-query, parent-child) that keep getting asked about, and finish with the RAGAS evaluation framework. There is LangChain code, comparison tables, and a Q&A section at the end tuned for the questions you are most likely to hear next week.
 
-<img src="https://developer-blogs.nvidia.com/wp-content/uploads/2023/12/rag-pipeline-ingest-query-flows.png" alt="NVIDIA RAG pipeline showing ingest and query flows" />
-
 ## 1. The RAG pipeline, end to end
 
 At its core, RAG is a two-lane system:
@@ -47,8 +45,6 @@ At its core, RAG is a two-lane system:
 ```
 
 The reason to draw both lanes in an interview is that most people forget the ingest lane, then get stuck when the interviewer asks "so how does a new document actually enter the system?".
-
-<img src="https://images.ctfassets.net/xjan103pcp94/4PX0l1ruKqfH17YvUiMFPw/c60a7a665125cb8056bebcc146c23b76/RAG.png" alt="End-to-end retrieval augmented generation flow" />
 
 ### Why RAG exists
 
@@ -80,8 +76,6 @@ An embedding is a dense vector (typically 384 to 3072 dimensions) that represent
 | `NV-Embed-v2`, `Qwen3-Embedding-8B` | NVIDIA / Alibaba | 4096 / 4096 | Open-weight leaders (>70 MTEB) if you can host them. |
 
 **Rule of thumb for the interview:** if you must pick one API model without more info, say `text-embedding-3-large` (OpenAI) — it's a strong retrieval score, cheap, and everyone recognizes it. For open-weights, say `BGE-M3` or `bge-large-en-v1.5`.
-
-<img src="https://cdn.sanity.io/images/vr8gru94/production/13723a17962bcd3d3d81b1a5b1acbfb84a495b58-1920x896.png" alt="Text embeddings as points in vector space" />
 
 ### Vector databases (the ones that come up)
 
