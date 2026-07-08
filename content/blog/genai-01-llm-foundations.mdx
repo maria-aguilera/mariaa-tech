@@ -15,6 +15,7 @@ tags:
   - Reference
 source: Notes
 topic: Generative AI
+coverImage: "/images/blog/genai/part-2-llm-foundations.png"
 series: "Generative AI Engineering"
 seriesPart: 2
 seriesTotal: 8
@@ -43,6 +44,8 @@ The "large" part is the interesting bit. Modern LLMs have somewhere between $10^
 **Interview angle.** If they ask "what is an LLM?", don't just say "it predicts the next word." Say it predicts the next *token*, mention the scale (parameters, tokens, compute), and mention that most modern LLMs are **decoder-only** transformers trained autoregressively. That last sentence signals you know the architecture matters — encoder-only (BERT), decoder-only (GPT), and encoder-decoder (T5, original transformer) are three different beasts. Modern chat models are almost all decoder-only.
 
 ## 2. Transformer architecture and self-attention
+
+<Image src="/images/blog/genai/inline/inline-part-2-attention.png" alt="How much does each word care about each other word — attention grid over 'The cat sat on the mat', plus the Q · K · V flow through softmax" wide />
 
 This is the section they will spend the most time on. If you nail the transformer, you've bought yourself a lot of goodwill for the rest of the interview.
 
@@ -91,6 +94,8 @@ Around every attention block and every feed-forward block, you wrap a **residual
 
 ## 3. Tokens and context window
 
+<Image src="/images/blog/genai/inline/inline-part-2-context-window.png" alt="Same sentence tokenised three ways (GPT-4, LLaMA, character-level), plus a bar chart comparing context windows across frontier LLMs in 2026" wide />
+
 The transformer doesn't see characters or words. It sees **tokens** — chunks of characters, usually a subword. The word `unhappiness` might be one token, or it might be split into `un` + `happi` + `ness`, depending on how frequent the whole word was in training.
 
 The tokenisation algorithm most modern LLMs use is **Byte-Pair Encoding (BPE)**. Start with every character as a token. Then repeatedly merge the most frequent adjacent pair of tokens into a new token, until you hit a target vocabulary size (usually 30k–100k). Frequent words stay whole; rare words get broken into pieces; the vocabulary is fixed but you can still handle any input.
@@ -129,6 +134,8 @@ Attention itself is permutation-invariant — if you shuffle the input tokens, y
 **Interview angle.** If they ask about the context window, be able to say why it's expensive (quadratic attention), and mention RoPE or ALiBi if positional encoding comes up. If they ask "how many tokens is this sentence?" — reach for tiktoken, don't guess. A common trap: candidates confuse **context window** (max tokens per call) with **training context length** (how long the sequences were during pretraining). Models can sometimes be extended past their training context via RoPE scaling, but performance degrades past what they saw during training.
 
 ## 4. The three-stage post-training pipeline
+
+<Image src="/images/blog/genai/inline/inline-part-2-post-training.png" alt="Pretraining → Supervised fine-tuning → RLHF/DPO, with a table showing which capabilities each stage unlocks" wide />
 
 This is the concept the interviewer wants you to nail because it's what turns a raw next-token predictor into something you'd actually want to talk to. A base LLM out of pretraining will happily continue a sentence, but it won't follow instructions, it won't refuse harmful requests, and it will happily produce whatever comes next in its training distribution — which might not be what you asked for.
 
@@ -191,6 +198,8 @@ Where $y_w$ is the winner, $y_l$ the loser, $\pi_\theta$ the current policy, $\p
 
 ## 5. Sampling and decoding
 
+<Image src="/images/blog/genai/inline/inline-part-2-sampling.png" alt="Same next-token distribution at three temperatures (0.0 / 0.7 / 1.5), and how top-k vs top-p prune the distribution differently" wide />
+
 Once the model is trained, you still have to decide how to *use* it. Every forward pass gives you a probability distribution over the next token. Sampling is the algorithm that picks one.
 
 ### Greedy decoding
@@ -252,6 +261,8 @@ response = client.chat.completions.create(
 
 ## 6. Prompt structure: system, user, assistant
 
+<Image src="/images/blog/genai/inline/inline-part-2-prompt-structure.png" alt="The four message roles (system, user, assistant, tool) as stacked bubbles, plus the JSON messages array the API actually sees" wide />
+
 Modern chat LLMs don't take raw text. They take a **chat template** — a structured sequence of messages, each with a role. Three roles matter:
 
 - **`system`** — the frame. Persona, task, constraints, output format. Sent once at the start. This is where you write "You are a helpful assistant. Reply only in JSON." The system prompt has the strongest influence on model behaviour.
@@ -276,6 +287,8 @@ Notice the assistant message in the middle — that's how you give the model a m
 **Interview angle.** If they ask about prompt structure, mention the three roles and what each is for. If they ask about **prompt injection** (which will come up in Part 8 of this series), the system prompt is where the vulnerability lives — a user message that says "ignore the above instructions" can sometimes override the system message. That's why role separation is a security concern, not just a formatting concern.
 
 ## 7. In-context learning: zero-shot, one-shot, few-shot
+
+<Image src="/images/blog/genai/inline/inline-part-2-in-context.png" alt="Zero-shot vs one-shot vs few-shot on the same sentiment task, with the accuracy-vs-number-of-shots diminishing-returns curve underneath" wide />
 
 One of the most surprising things about LLMs is that they can learn a task at inference time, just by showing examples in the prompt. No gradient updates. No fine-tuning. This is called **in-context learning**, and it's the phenomenon that made GPT-3 famous.
 
@@ -308,6 +321,8 @@ Sentiment:"""
 
 ## 8. Chain-of-thought prompting (basics)
 
+<Image src="/images/blog/genai/inline/inline-part-2-cot-basics.png" alt="Same word problem answered without CoT (wrong) vs with the six words 'Let's think step by step' (correct), plus a diagram of why the reasoning gets externalised" wide />
+
 Reasoning-heavy questions — arithmetic, logic puzzles, multi-hop questions — are where LLMs used to fall apart. [Wei et al. 2022](https://arxiv.org/abs/2201.11903) found something almost embarrassingly simple: if you show the model examples where the answer includes the intermediate reasoning steps, and then ask a new question, the model starts producing intermediate reasoning steps too — and its accuracy jumps.
 
 The classic example from the paper:
@@ -330,6 +345,8 @@ Chain-of-thought is only the tip of the iceberg — self-consistency, tree-of-th
 **Interview angle.** Be ready to explain why CoT works (it lets the model *use* its later tokens to condition on earlier reasoning — the extra compute is what buys the accuracy), and when it doesn't (small models, tasks that don't decompose into steps, cases where the model hallucinates confident-but-wrong reasoning). Also mention: CoT trades tokens for accuracy. If your budget is tight, it costs you.
 
 ## 9. Scaling laws and emergent behaviour
+
+<Image src="/images/blog/genai/inline/inline-part-2-scaling-laws.png" alt="Three model families plotted on the compute-optimal frontier — GPT-3 above the optimum, Chinchilla on it, modern LLMs below (over-trained on purpose)" wide />
 
 The last big idea. Why did all of this suddenly *work* around 2020? Because we discovered that LLM performance scales predictably with three things: **parameters** ($N$), **data** ($D$), and **compute** ($C$).
 

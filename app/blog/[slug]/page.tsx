@@ -167,7 +167,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               ›
             </span>
             {meta.series ? (
-              <Link href="/series">Guides</Link>
+              <Link href="/guides">Guides</Link>
             ) : (
               <Link href="/projects">Projects</Link>
             )}

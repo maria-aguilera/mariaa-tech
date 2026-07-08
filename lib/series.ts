@@ -63,7 +63,7 @@ export const series: Series[] = [
   {
     id: "generative-ai-engineering",
     title: "Generative AI Engineering",
-    description: "Modern GenAI engineering, one topic at a time — LLMs, prompting, RAG, agents, guardrails, LLMOps. A 4-page visual cheatsheet plus 7 in-depth deep dives, each with example prompts, Python code, comparison tables, and the questions a GenAI Engineer interviewer typically asks on that topic.",
+    description: "An 8-part walkthrough of modern GenAI engineering — LLMs, prompting, RAG, agents, guardrails, LLMOps.",
     posts: [
       { part: 1, title: "The Generative AI Engineering Cheatsheet",         slug: "genai-interview-prep-cheatsheet",             published: true  },
       { part: 2, title: "LLM Foundations — transformers, RLHF, sampling",   slug: "genai-01-llm-foundations",                    published: true  },

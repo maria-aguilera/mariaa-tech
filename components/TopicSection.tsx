@@ -73,7 +73,7 @@ export default function TopicSection({
       {series && (
         <article className="blog-series-panel">
           <Link
-            href={`/series/${series.id}`}
+            href={`/guides/${series.id}`}
             className="blog-series-panel__hero"
             aria-label={`Read the ${series.title} series overview`}
           >

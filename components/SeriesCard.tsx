@@ -25,18 +25,16 @@ export default function SeriesCard({ id, title, description, posts }: Props) {
   const total = posts.length;
   const publishedCount = posts.filter((p) => p.published).length;
 
-  // Only published posts are reachable; start at the first published one.
   const publishedPosts = posts.filter((p) => p.published);
   const [index, setIndex] = useState(0);
 
   if (publishedPosts.length === 0) {
-    // Edge case: no published posts yet — render a plain card.
     return (
       <article className="series-card series-card--empty">
         <span className="series-card__chip">{publishedCount} of {total} published</span>
         <h2 className="series-card__title">{title}</h2>
         <p className="series-card__desc">{description}</p>
-        <Link href={`/series/${id}`} className="series-card__cta">View all parts →</Link>
+        <Link href={`/guides/${id}`} className="series-card__cta">View all parts →</Link>
       </article>
     );
   }
@@ -97,7 +95,7 @@ export default function SeriesCard({ id, title, description, posts }: Props) {
         <Link href={`/blog/${current.slug}`} className="series-card__read">
           Read this part →
         </Link>
-        <Link href={`/series/${id}`} className="series-card__all">
+        <Link href={`/guides/${id}`} className="series-card__all">
           View all parts
         </Link>
       </div>

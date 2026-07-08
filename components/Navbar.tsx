@@ -68,7 +68,7 @@ export default function Navbar() {
     if (pathname.startsWith("/blog/") || pathname.startsWith("/cheatsheets/")) {
       const slug = pathname.split("/")[2] ?? "";
       const isSeriesPost = series.some((s) => s.posts.some((p) => p.slug === slug));
-      return isSeriesPost ? href === "/series" : href === "/projects";
+      return isSeriesPost ? href === "/guides" : href === "/projects";
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
@@ -109,7 +109,7 @@ export default function Navbar() {
 
         {/* Guides: dedicated landing for multi-part walkthroughs, with dropdown of each series on hover. */}
         <li
-          className={`navbar__item navbar__item--has-menu ${isActive("/series") ? "active" : ""}`}
+          className={`navbar__item navbar__item--has-menu ${isActive("/guides") ? "active" : ""}`}
           onMouseEnter={() => setBlogMenuOpen(true)}
           onMouseLeave={() => setBlogMenuOpen(false)}
           onFocus={() => setBlogMenuOpen(true)}
@@ -122,8 +122,8 @@ export default function Navbar() {
         >
           <Link
             className="navbar__link"
-            href="/series"
-            aria-current={isActive("/series") ? "page" : undefined}
+            href="/guides"
+            aria-current={isActive("/guides") ? "page" : undefined}
             aria-haspopup="menu"
             aria-expanded={blogMenuOpen}
           >
@@ -136,7 +136,7 @@ export default function Navbar() {
               <ul className="navbar__series-list">
                 {series.map((s) => (
                   <li key={s.id}>
-                    <Link href={`/series/${s.id}`} className="navbar__series-link" role="menuitem">
+                    <Link href={`/guides/${s.id}`} className="navbar__series-link" role="menuitem">
                       <div>
                         <div className="navbar__series-title">{s.title}</div>
                         <div className="navbar__series-desc">{s.description}</div>

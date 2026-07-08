@@ -15,6 +15,7 @@ tags:
   - Reference
 source: Notes
 topic: Generative AI
+coverImage: "/images/blog/genai/part-3-prompting-reasoning.png"
 series: "Generative AI Engineering"
 seriesPart: 3
 seriesTotal: 8
@@ -32,6 +33,8 @@ That is the mental jump the interview is testing. Anyone can write "you are a he
 
 ## 1. Prompt engineering principles
 
+<Image src="/images/blog/genai/inline/inline-part-3-prompt-anatomy.png" alt="The 6 anchors of every well-engineered prompt — role, task, context, constraints, output format, quality bar — with the same prompt assembled as one block" wide />
+
 Before any of the fancy stuff, there is a base pattern that every strong prompt tends to have. Five ingredients: **task, context, constraints, examples, output format**.
 
 - **Task** — the thing you want done, stated as a single verb + object. "Summarise this email." "Classify this ticket." Not "help me with this."
@@ -39,6 +42,8 @@ Before any of the fancy stuff, there is a base pattern that every strong prompt 
 - **Constraints** — the boundaries. "Under 100 words." "Do not invent product names." "If you are not sure, say so."
 - **Examples** — one to five demonstrations of input → output. This is few-shot, and it is almost always the single biggest lever you have.
 - **Output format** — what the response should look like. Plain text, JSON, XML, a specific set of section headers.
+
+<Image src="/images/blog/genai/inline/inline-part-3-few-shot.png" alt="Same sentiment task without examples (inconsistent) vs with 2 examples (clean, stable format), plus the table of what few-shot actually buys you" wide />
 
 A good mental model is: the LLM has seen billions of documents, so it will pattern-match on the closest one it has seen. Your prompt's job is to make sure the closest one is the one you actually want. Example, side by side:
 
@@ -66,9 +71,15 @@ Email: <<< {email_text} >>>
 Output:
 ```
 
+<Image src="/images/blog/genai/inline/inline-part-3-structured-prompts.png" alt="Messy free-text prompt vs the same prompt structured with delimited ROLE / TASK / DATA / OUTPUT blocks, and why separators help" wide />
+
 The strong version wins for three reasons: the model knows the domain (fintech support), the label space is closed (four options), and the example anchors the output shape. Anthropic recommends the same skeleton in their [prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), and they add one Claude-specific tip: wrap parts of the prompt in XML tags (`<instructions>`, `<data>`, `<examples>`) because Claude was trained to attend to that structure.
 
 **Interview angle.** If they ask "how do you approach a new prompting task," this five-part skeleton is the answer, plus one sentence about *iterating on evals*, not on vibes. You never ship the first prompt. You build a small eval set of 20 to 50 examples and you check every prompt change against it.
+
+<Image src="/images/blog/genai/inline/inline-part-3-debugging-prompts.png" alt="The four ways prompts fail (ambiguity, missing context, conflicting instructions, open-ended output) and the 4-step debug loop" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-3-instruction-hierarchy.png" alt="The instruction stack inside a chat — SYSTEM → USER → ASSISTANT — and who wins when they conflict" wide />
 
 ## 2. Task decomposition
 
@@ -161,6 +172,8 @@ Then you take the "sure" nodes, expand each of them the same way, and repeat unt
 
 ## 6. ReAct (Reason + Act)
 
+<Image src="/images/blog/genai/inline/inline-part-3-react.png" alt="ReAct end-to-end: Question → Thought → Action (tool call) → Observation → Answer, plus why interleaving cognition and tool use beats either alone" wide />
+
 Everything so far has been the model reasoning inside its own head. ReAct is the first pattern where the model gets to *act on the world* between reasoning steps.
 
 <img src="https://blog.tobiaszwingmann.com/content/images/2024/02/react_prompt.png" alt="ReAct loop diagram: an LLM alternates between Thought (reasoning about the state), Action (calling a tool like search or a calculator), and Observation (reading the tool result), then loops back to Thought until it produces a final Answer." />
@@ -232,6 +245,8 @@ There is a common upgrade to this called **ReWOO** (Reasoning WithOut Observatio
 
 ## 8. Reasoning loops and iterative refinement
 
+<Image src="/images/blog/genai/inline/inline-part-3-iterative-refinement.png" alt="How good prompts are actually built — the hypothesis → write → test → inspect → refine loop, plus the metrics to measure while iterating" wide />
+
 The general shape underneath ReAct, planner-executor, and reflection is the same: **run the model, evaluate the output, feed the evaluation back in, run again**. That is the reasoning loop.
 
 The simplest version is a retry loop with a validator:
@@ -254,6 +269,8 @@ The validator can be anything — a JSON schema check, a unit test, a regex, a c
 **Interview angle.** They will ask about latency and cost. A retry loop can 3× your token bill in the worst case. Guardrail it: cap `max_attempts`, log every retry so you can see when your prompt is systematically failing, and if retries are common you have a prompt problem, not a runtime problem.
 
 ## 9. Reflection and self-critique
+
+<Image src="/images/blog/genai/inline/inline-part-3-reflection.png" alt="Draft → Critique → Revise on the same question, plus a table of what changes before vs after reflection (specificity, evidence, error checking, clarity)" wide />
 
 Reflection is the specific case of an iterative loop where **the model evaluates its own output**. The pattern:
 
@@ -294,6 +311,10 @@ Improved answer:
 **Interview angle.** If they ask about improving agent reliability, reflection is the canonical answer *after* you have already talked about tests, evals, and structured output. It is a nice-to-have, not a fix for a bad prompt.
 
 ## 10. Structured output
+
+<Image src="/images/blog/genai/inline/inline-part-3-structured-output.png" alt="Ask for prose vs ask for JSON on the same risk-report task, plus a table of when structured output wins vs free text" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-3-function-calling.png" alt="Function calling — one tool definition, four moving parts, plus the 4-hop round trip and the 2×2 that decides your prompting technique" wide />
 
 Everything above assumes you can actually read the model's answer. In practice, "read" means "parse as JSON with a fixed schema so my downstream code doesn't crash." Getting reliable structured output is the single most important production-grade prompting skill.
 
@@ -351,6 +372,8 @@ result: TicketLabel = chain.invoke({"ticket": email_text})
 **Interview angle.** They will ask "how do you make sure the output is parseable?" The good answer is a stack: function calling / structured outputs as the primary mechanism, Pydantic (Python) or Zod (TS) as the schema, and a retry loop with the parse error fed back into the prompt as the fallback. If you name constrained decoding as an option when function calling isn't available, that is bonus points.
 
 ## When to use what — one table to remember
+
+<Image src="/images/blog/genai/inline/inline-part-3-decision-tree.png" alt="A decision tree for prompt design — six branches from 'What kind of task is this?' to Zero-shot, Few-shot, CoT, RAG, Tool use/ReAct, Planner-Executor — plus the quick cheat sheet" wide />
 
 | Technique | What it does | Cost | Use when | Skip when |
 |---|---|---|---|---|
