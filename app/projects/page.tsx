@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 // Ordered topic list. Posts with topics not listed here fall into "Other".
 const TOPIC_ORDER = [
   "Machine Learning",
+  "Generative AI",
   "NLP",
   "Reinforcement Learning",
   "Networking",
@@ -75,10 +76,12 @@ export default function BlogIndexPage() {
     ...[...byTopic.keys()].filter((t) => !TOPIC_ORDER.includes(t as (typeof TOPIC_ORDER)[number])),
   ];
 
-  // For the Machine Learning topic, suppress posts that belong to the series
-  // (the series card represents them).
+  // For topics with a featured series, suppress individual posts that belong
+  // to that series — the series card represents them.
   const mlSeries = allSeries.find((s) => s.id === "ml-from-scratch");
   const mlSeriesSlugs = new Set(mlSeries?.posts.map((p) => p.slug) ?? []);
+  const genaiSeries = allSeries.find((s) => s.id === "generative-ai-engineering");
+  const genaiSeriesSlugs = new Set(genaiSeries?.posts.map((p) => p.slug) ?? []);
 
   return (
     <main id="main-content" className="blog-page">
@@ -93,20 +96,29 @@ export default function BlogIndexPage() {
             let seriesCard: SeriesCard | undefined;
             let visiblePosts = allTopicPosts;
 
-            if (topic === "Machine Learning" && mlSeries) {
-              const publishedCount = mlSeries.posts.filter((p) => p.published).length;
+            const featuredSeries =
+              topic === "Machine Learning" ? mlSeries :
+              topic === "Generative AI" ? genaiSeries :
+              undefined;
+            const featuredSlugs =
+              topic === "Machine Learning" ? mlSeriesSlugs :
+              topic === "Generative AI" ? genaiSeriesSlugs :
+              undefined;
+
+            if (featuredSeries) {
+              const publishedCount = featuredSeries.posts.filter((p) => p.published).length;
               // Cover image: use the first post in the series as the visual.
-              const firstSlug = mlSeries.posts[0]?.slug;
+              const firstSlug = featuredSeries.posts[0]?.slug;
               const cover =
                 firstSlug && mdxBySlug.get(firstSlug)?.coverImage;
               seriesCard = {
-                id: mlSeries.id,
-                title: mlSeries.title,
-                description: mlSeries.description,
-                partCount: mlSeries.posts.length,
+                id: featuredSeries.id,
+                title: featuredSeries.title,
+                description: featuredSeries.description,
+                partCount: featuredSeries.posts.length,
                 publishedCount,
                 coverImage: cover,
-                parts: mlSeries.posts.map((p) => ({
+                parts: featuredSeries.posts.map((p) => ({
                   part: p.part,
                   title: p.title,
                   slug: p.slug,
@@ -120,7 +132,7 @@ export default function BlogIndexPage() {
                 })),
               };
               // Hide individual series posts from the topic grid.
-              visiblePosts = allTopicPosts.filter((p) => !mlSeriesSlugs.has(p.slug));
+              visiblePosts = allTopicPosts.filter((p) => !featuredSlugs!.has(p.slug));
             }
 
             const topicSlug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
