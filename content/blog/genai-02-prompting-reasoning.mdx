@@ -71,17 +71,19 @@ Email: <<< {email_text} >>>
 Output:
 ```
 
-<Image src="/images/blog/genai/inline/inline-part-3-structured-prompts.png" alt="Messy free-text prompt vs the same prompt structured with delimited ROLE / TASK / DATA / OUTPUT blocks, and why separators help" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-prompt-separators.png" alt="Messy free-text prompt vs the same prompt structured with delimited ROLE / TASK / DATA / OUTPUT blocks, and why separators help" wide />
 
 The strong version wins for three reasons: the model knows the domain (fintech support), the label space is closed (four options), and the example anchors the output shape. Anthropic recommends the same skeleton in their [prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), and they add one Claude-specific tip: wrap parts of the prompt in XML tags (`<instructions>`, `<data>`, `<examples>`) because Claude was trained to attend to that structure.
 
 **Interview angle.** If they ask "how do you approach a new prompting task," this five-part skeleton is the answer, plus one sentence about *iterating on evals*, not on vibes. You never ship the first prompt. You build a small eval set of 20 to 50 examples and you check every prompt change against it.
 
-<Image src="/images/blog/genai/inline/inline-part-3-debugging-prompts.png" alt="The four ways prompts fail (ambiguity, missing context, conflicting instructions, open-ended output) and the 4-step debug loop" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-debugging-bad-prompts.png" alt="The four ways prompts fail (ambiguity, missing context, conflicting instructions, open-ended output) and the 4-step debug loop" wide />
 
-<Image src="/images/blog/genai/inline/inline-part-3-instruction-hierarchy.png" alt="The instruction stack inside a chat — SYSTEM → USER → ASSISTANT — and who wins when they conflict" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-instruction-stack.png" alt="The instruction stack inside a chat — SYSTEM → USER → ASSISTANT — and who wins when they conflict" wide />
 
 ## 2. Task decomposition
+
+<Image src="/images/blog/genai/inline/inline-part-3-task-decomposition.png" alt="One monolithic prompt vs the same task decomposed into 4 small sequential prompts, plus the decomposition tree — leaves are LLM calls, everything above is code" wide />
 
 The next thing you learn the hard way is that you cannot fit an entire complex task into one prompt and expect the model to nail it. If the task has more than one "step" in a human's head, split it into more than one prompt.
 
@@ -97,6 +99,8 @@ Each sub-prompt is a small, focused task with a clear input and output. This is 
 **Interview angle.** When they hand you a scenario ("build me an agent that…"), the first move is *always* to decompose the task on the whiteboard before writing any prompt. Interviewers are watching for whether you jump straight into a giant prompt or whether you naturally break the problem down.
 
 ## 3. Chain-of-thought (CoT)
+
+<Image src="/images/blog/genai/inline/inline-part-3-cot-vs-zeroshot.png" alt="Same maths problem: zero-shot answers 27 (wrong) vs chain-of-thought showing the 3 reasoning lines that arrive at 11 (correct), plus the GSM8K accuracy jump" wide />
 
 Chain-of-thought is the trick that turned prompting from "hope it works" into "you can reason about it." The idea is embarrassingly simple: instead of asking the model for the final answer, ask it to write out its reasoning first, then the answer.
 
@@ -131,6 +135,8 @@ Modern models (Claude with extended thinking, o-series reasoning models, Gemini 
 
 ## 4. Self-consistency
 
+<Image src="/images/blog/genai/inline/inline-part-3-self-consistency.png" alt="One question, five reasoning chains — 4 arrive at 11 (green), 1 at 9 (red) — with the vote counter, plus the accuracy jump from single CoT to self-consistency@k=5" wide />
+
 Chain-of-thought gives you one reasoning path. Self-consistency gives you a bag of them and picks the most common answer.
 
 The idea, from Wang et al.'s [Self-Consistency Improves Chain of Thought Reasoning in Language Models](https://arxiv.org/abs/2203.11171) (2022): sample **N** independent CoT traces at a non-zero temperature (say `temperature=0.7`, N=10 or 40), extract the final answer from each, and take the majority vote.
@@ -147,6 +153,8 @@ Two things to remember:
 **Interview angle.** If they ask "how would you improve accuracy on this math task without fine-tuning?" self-consistency is the second answer after CoT. They also love the trade-off question: "how do you set N?" You test on your eval set — usually you see diminishing returns after 10 to 20 samples.
 
 ## 5. Tree of Thoughts (ToT)
+
+<Image src="/images/blog/genai/inline/inline-part-3-tot.png" alt="Branching + evaluating + backtracking — a small ToT search tree with per-node scores, best path in green, pruned branches in red — plus the Game-of-24 accuracy where ToT (74%) crushes CoT (4%)" wide />
 
 If self-consistency is "sample many chains, vote," Tree of Thoughts is "search over reasoning paths on purpose."
 
@@ -172,7 +180,7 @@ Then you take the "sure" nodes, expand each of them the same way, and repeat unt
 
 ## 6. ReAct (Reason + Act)
 
-<Image src="/images/blog/genai/inline/inline-part-3-react.png" alt="ReAct end-to-end: Question → Thought → Action (tool call) → Observation → Answer, plus why interleaving cognition and tool use beats either alone" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-react-loop.png" alt="ReAct end-to-end: Question → Thought → Action (tool call) → Observation → Answer, plus why interleaving cognition and tool use beats either alone" wide />
 
 Everything so far has been the model reasoning inside its own head. ReAct is the first pattern where the model gets to *act on the world* between reasoning steps.
 
@@ -207,6 +215,8 @@ The [Prompt Engineering Guide's ReAct page](https://www.promptingguide.ai/techni
 **Interview angle.** ReAct is the default agent pattern to reach for in a system design question. If they ask "how would you build an agent that answers questions using a search API and a database," the answer starts with a ReAct loop with two tools. Follow-up they love: "how do you stop it from looping forever?" Answer: a max-iterations budget, plus a termination tool (`Finish[answer]`) the model has to call to end the loop.
 
 ## 7. Planner-Executor pattern
+
+<Image src="/images/blog/genai/inline/inline-part-3-planner-executor.png" alt="Planner (slow, cheap-token model) writes the numbered plan; Executor (fast, real-tool model) runs it — plus the full loop with a 'replan on failure' feedback arrow" wide />
 
 ReAct decides one step at a time. That works, but it has a real weakness: the model rethinks the whole strategy on every turn, and for long horizon tasks it drifts. The planner-executor pattern separates concerns.
 
@@ -245,7 +255,7 @@ There is a common upgrade to this called **ReWOO** (Reasoning WithOut Observatio
 
 ## 8. Reasoning loops and iterative refinement
 
-<Image src="/images/blog/genai/inline/inline-part-3-iterative-refinement.png" alt="How good prompts are actually built — the hypothesis → write → test → inspect → refine loop, plus the metrics to measure while iterating" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-prompt-iteration.png" alt="How good prompts are actually built — the hypothesis → write → test → inspect → refine loop, plus the metrics to measure while iterating" wide />
 
 The general shape underneath ReAct, planner-executor, and reflection is the same: **run the model, evaluate the output, feed the evaluation back in, run again**. That is the reasoning loop.
 
@@ -373,7 +383,9 @@ result: TicketLabel = chain.invoke({"ticket": email_text})
 
 ## When to use what — one table to remember
 
-<Image src="/images/blog/genai/inline/inline-part-3-decision-tree.png" alt="A decision tree for prompt design — six branches from 'What kind of task is this?' to Zero-shot, Few-shot, CoT, RAG, Tool use/ReAct, Planner-Executor — plus the quick cheat sheet" wide />
+<Image src="/images/blog/genai/inline/inline-part-3-technique-decision-tree.png" alt="A decision tree for prompt design — six branches from 'What kind of task is this?' to Zero-shot, Few-shot, CoT, RAG, Tool use/ReAct, Planner-Executor — plus the quick cheat sheet" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-3-technique-matrix.png" alt="The 2×2 that decides your technique — task complexity × confidence needed → Zero-shot / CoT / ReAct / ToT+reflection — plus the cost-vs-quality scatter of each technique" wide />
 
 | Technique | What it does | Cost | Use when | Skip when |
 |---|---|---|---|---|
