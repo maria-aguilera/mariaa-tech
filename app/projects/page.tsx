@@ -1,47 +1,21 @@
 import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
-import TopicSection, { type SeriesCard } from "@/components/TopicSection";
+import BlogIndex, { type BlogIndexPost } from "@/components/BlogIndex";
 import { blogPosts } from "@/lib/blog-posts";
 import { getPublicMdxPostMeta } from "@/lib/mdx";
-import { series as allSeries } from "@/lib/series";
 
 export const metadata: Metadata = {
   title: "Projects",
   description:
-    "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
+    "Writing on machine learning, data engineering, and the practical side of building AI systems.",
   alternates: { canonical: "/projects" },
   openGraph: {
     title: "Projects · Maria Aguilera",
     description:
-      "Builds, experiments, and case studies across machine learning, forecasting, reinforcement learning, and graph analysis.",
+      "Writing on machine learning, data engineering, and the practical side of building AI systems.",
     url: "/projects",
   },
 };
-
-// Ordered topic list. Posts with topics not listed here fall into "Other".
-const TOPIC_ORDER = [
-  "Machine Learning",
-  "Generative AI",
-  "NLP",
-  "Reinforcement Learning",
-  "Networking",
-  "Data Projects",
-  "Privacy & Security",
-] as const;
-
-// Sort key derived from a date string like "June 2024" / "2020".
-function dateSortKey(s: string): number {
-  if (!s) return 0;
-  const m = s.match(/(\w+)?\s*(\d{4})/);
-  if (!m) return 0;
-  const months = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december",
-  ];
-  const year = Number(m[2]);
-  const month = m[1] ? months.indexOf(m[1].toLowerCase()) + 1 : 1;
-  return year * 100 + (month > 0 ? month : 1);
-}
 
 export default function BlogIndexPage() {
   const mdxPosts = getPublicMdxPostMeta();
@@ -57,31 +31,15 @@ export default function BlogIndexPage() {
   );
   const allPosts = [...mergedPosts, ...extraMdxPosts];
 
-  // Group by topic.
-  const byTopic = new Map<string, typeof allPosts>();
-  for (const post of allPosts) {
-    const topic = ("topic" in post && post.topic) || "Other";
-    if (!byTopic.has(topic)) byTopic.set(topic, []);
-    byTopic.get(topic)!.push(post);
-  }
-
-  // Sort each topic's posts newest-first.
-  for (const [, posts] of byTopic) {
-    posts.sort((a, b) => dateSortKey(b.date) - dateSortKey(a.date));
-  }
-
-  // Build the section list in deterministic order.
-  const orderedTopics = [
-    ...TOPIC_ORDER.filter((t) => byTopic.has(t)),
-    ...[...byTopic.keys()].filter((t) => !TOPIC_ORDER.includes(t as (typeof TOPIC_ORDER)[number])),
-  ];
-
-  // For topics with a featured series, suppress individual posts that belong
-  // to that series — the series card represents them.
-  const mlSeries = allSeries.find((s) => s.id === "ml-from-scratch");
-  const mlSeriesSlugs = new Set(mlSeries?.posts.map((p) => p.slug) ?? []);
-  const genaiSeries = allSeries.find((s) => s.id === "generative-ai-engineering");
-  const genaiSeriesSlugs = new Set(genaiSeries?.posts.map((p) => p.slug) ?? []);
+  const indexPosts: BlogIndexPost[] = allPosts.map((post) => ({
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    date: post.date,
+    tags: post.tags,
+    coverImage: post.coverImage,
+    source: post.source,
+  }));
 
   return (
     <main id="main-content" className="blog-page">
@@ -89,72 +47,7 @@ export default function BlogIndexPage() {
 
       <section className="blog-body">
         <div className="blog-body__container">
-          {orderedTopics.map((topic) => {
-            const allTopicPosts = byTopic.get(topic) ?? [];
-
-            // Featured series for this topic (only Machine Learning for now).
-            let seriesCard: SeriesCard | undefined;
-            let visiblePosts = allTopicPosts;
-
-            const featuredSeries =
-              topic === "Machine Learning" ? mlSeries :
-              topic === "Generative AI" ? genaiSeries :
-              undefined;
-            const featuredSlugs =
-              topic === "Machine Learning" ? mlSeriesSlugs :
-              topic === "Generative AI" ? genaiSeriesSlugs :
-              undefined;
-
-            if (featuredSeries) {
-              const publishedCount = featuredSeries.posts.filter((p) => p.published).length;
-              // Cover image: use the first post in the series as the visual.
-              const firstSlug = featuredSeries.posts[0]?.slug;
-              const cover =
-                firstSlug && mdxBySlug.get(firstSlug)?.coverImage;
-              seriesCard = {
-                id: featuredSeries.id,
-                title: featuredSeries.title,
-                description: featuredSeries.description,
-                partCount: featuredSeries.posts.length,
-                publishedCount,
-                coverImage: cover,
-                parts: featuredSeries.posts.map((p) => ({
-                  part: p.part,
-                  title: p.title,
-                  slug: p.slug,
-                  published: p.published,
-                  children: p.children?.map((c) => ({
-                    part: c.part,
-                    title: c.title,
-                    slug: c.slug,
-                    published: c.published,
-                  })),
-                })),
-              };
-              // Hide individual series posts from the topic grid.
-              visiblePosts = allTopicPosts.filter((p) => !featuredSlugs!.has(p.slug));
-            }
-
-            const topicSlug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-            return (
-              <TopicSection
-                key={topic}
-                title={topic}
-                anchor={topicSlug}
-                series={seriesCard}
-                posts={visiblePosts.map((p) => ({
-                  slug: p.slug,
-                  title: p.title,
-                  excerpt: p.excerpt,
-                  date: p.date,
-                  tags: p.tags,
-                  coverImage: p.coverImage,
-                }))}
-                maxVisible={5}
-                topicSlug={topicSlug}
-              />
-            );
-          })}
+          <BlogIndex posts={indexPosts} minTagCount={2} defaultSource="Blog" />
         </div>
       </section>
     </main>
