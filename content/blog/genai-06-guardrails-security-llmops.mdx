@@ -41,7 +41,6 @@ For an AI Engineer position at a consultancy whose largest customers are banks a
 
 If you can hold a 20-minute conversation across those six bullets, you are already ahead of most candidates. This post is the reference for that conversation.
 
-<img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1600&q=80" alt="A padlock overlaid on a network — the security-first mental model for LLM applications." />
 
 ## 1. What guardrails actually are
 
@@ -59,7 +58,6 @@ Two filters. That is the whole idea. Everything else is a variation on:
 
 Guardrails are **not the model**. They are the belt-and-braces around the model. If the model is a probabilistic system, guardrails are the deterministic system that catches its worst outputs before a customer sees them.
 
-<img src="https://docs.nvidia.com/nemo/guardrails/latest/_images/programmable_guardrails_flow.png" alt="NeMo Guardrails flow diagram — input rails, dialog rails, retrieval rails, output rails wrapping the LLM." />
 
 *The five rail categories NeMo Guardrails ships with: input, dialog, retrieval, execution, output. For this post we mostly care about input and output.*
 
@@ -119,7 +117,6 @@ Symmetric to input moderation. Even a well-prompted model can output something r
 
 The output equivalent of PII redaction. Regex-scan the model's response for anything that looks like an API key, a secret token, an internal URL, or a customer identifier. This is the last line of defence if a prompt injection convinced the model to reveal something it shouldn't.
 
-<img src="https://images.datacamp.com/image/upload/v1723118034/image_a5d3ac9adf.png" alt="A layered LLM guardrail architecture — user request flows through input guardrails, then the LLM, then output guardrails before returning." />
 
 ## 4. Prompt injection — the #1 LLM security risk
 
@@ -228,7 +225,6 @@ Five checks, four of which run outside the LLM. That is the shape a compliance o
 | **Canary tokens** | Secret markers in the system prompt that reveal leakage | Detecting when your prompt has been exfiltrated |
 | **Human-in-the-loop** | Any destructive tool call requires explicit approval | Anything involving money movement or writes |
 
-<img src="https://miro.medium.com/v2/resize:fit:1400/1*XeHR-tE-uP1ZQqR6iSJfNw.png" alt="Illustration of a prompt injection attack — hostile instructions embedded inside seemingly innocuous user content, hijacking the model's behaviour." />
 
 ## 5. NeMo Guardrails in ~30 lines
 
@@ -341,11 +337,9 @@ The four platforms that dominate this space:
 
 For a banking client I would default to **Langfuse self-hosted** (data residency is trivial) or Datadog (if the client is already on it).
 
-<img src="https://langfuse.com/images/docs/tracing-overview.gif" alt="A Langfuse trace view — nested spans for prompt, retrieval, model call, tool call, and response, each with latency and token count." />
 
 *A Langfuse trace: one nested tree per request, one span per LLM/tool/retrieval step. This is the artefact you show an auditor.*
 
-<img src="https://images.datacamp.com/image/upload/v1720006515/langsmith_dashboard_9b8ce1b0e5.png" alt="LangSmith dashboard screenshot — traces list on the left, span-level detail on the right showing prompt, output, tokens, latency." />
 
 *LangSmith's equivalent: same information, LangChain-native.*
 
@@ -423,7 +417,6 @@ Cost is a **product metric** for LLM apps. You want a dashboard that answers:
 
 Langfuse, LangSmith, Datadog, and Arize all give you these out of the box once you're instrumented. The trap is *not* instrumenting.
 
-<img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" alt="A dashboard-style monitor with charts — the LLMOps observability layer that catches regressions before customers do." />
 
 ## 8. The LLMOps stack — mental map
 
@@ -487,7 +480,6 @@ Article 22 of GDPR gives individuals the right to **not be subject to a solely a
 
 If a customer requests deletion, you must be able to remove their data — including from **prompts, traces, eval sets, and fine-tuning datasets**. This is the reason self-hosted observability wins for banking clients: you control the storage, so deletion is a delete query rather than a legal request to a vendor.
 
-<img src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1600&q=80" alt="Regulatory documents and a laptop — the compliance overhead that banking and insurance customers layer on top of an LLM system." />
 
 ## 10. Common interview questions
 

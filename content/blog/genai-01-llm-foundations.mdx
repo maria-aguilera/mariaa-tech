@@ -51,7 +51,6 @@ This is the section they will spend the most time on. If you nail the transforme
 
 The transformer was introduced in [Vaswani et al. 2017, "Attention is All You Need"](https://arxiv.org/abs/1706.03762). Before that, sequence models were RNNs and LSTMs — they processed tokens one at a time, which was slow and struggled with long-range dependencies. The transformer replaced recurrence with **self-attention**, which lets every token look at every other token in parallel.
 
-<img src="https://jalammar.github.io/images/t/The_transformer_encoders_decoders.png" alt="Transformer as a stack of encoders and decoders, from Jay Alammar's Illustrated Transformer" />
 
 *The classic view: a stack of encoders on the left feeding a stack of decoders on the right. Modern chat LLMs (GPT, Claude, Llama) drop the encoder and use only the decoder stack.* Source: [Jay Alammar — The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/).
 
@@ -72,11 +71,9 @@ Piece by piece:
 - $\text{softmax}(...)$ — turn scores into a probability distribution across all tokens. Now each row sums to 1.
 - Multiply by $V$ — take a weighted average of the value vectors, using those attention weights. The output for token $i$ is a blend of all other tokens' values, weighted by how relevant they are to $i$.
 
-<img src="https://jalammar.github.io/images/t/transformer_self_attention_vectors.png" alt="Self-attention Q, K, V vectors from Jay Alammar's Illustrated Transformer" />
 
 *Each input embedding produces three vectors — Query, Key, Value — via three learned weight matrices.* Source: [Jay Alammar — The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/).
 
-<img src="https://jalammar.github.io/images/t/self-attention-output.png" alt="Full self-attention computation producing the output vector" />
 
 *The full computation: score, scale, softmax, weighted sum of values. This is what runs for every token, in parallel.*
 
@@ -84,7 +81,6 @@ Piece by piece:
 
 One attention head learns one type of relationship — maybe syntactic, maybe co-reference. **Multi-head attention** runs $h$ heads in parallel with separate $W_Q$, $W_K$, $W_V$ matrices, then concatenates the outputs and projects them back down. Each head is free to specialise. GPT-3 used 96 heads. Empirically, some heads track subjects and verbs, some track names, some track punctuation. You never tell them what to specialise in — they self-organise from the pretraining objective.
 
-<img src="https://jalammar.github.io/images/t/transformer_attention_heads_qkv.png" alt="Multi-head attention showing multiple Q, K, V projections" />
 
 *Multi-head attention. Each head has its own W_Q, W_K, W_V — the model gets several independent "views" of the sequence.* Source: [Jay Alammar — The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/).
 
@@ -141,7 +137,6 @@ This is the concept the interviewer wants you to nail because it's what turns a 
 
 The pipeline that fixes this has three stages: **pretraining → supervised fine-tuning (SFT) → reinforcement learning from human feedback (RLHF)**, or its increasingly popular replacement, **DPO**.
 
-<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/rlhf/pretraining.png" alt="Stage 1: pretraining a base language model, from Hugging Face's Illustrating RLHF post" />
 
 *Stage 1: pretraining. Diagram from [Hugging Face — Illustrating RLHF](https://huggingface.co/blog/rlhf).*
 
@@ -159,13 +154,11 @@ SFT gets you a lot of the way, but you can go further by teaching the model *pre
 
 1. **Train a reward model.** For each prompt, ask humans to rank several model responses from best to worst. Train a separate neural network (usually a copy of the LLM with a scalar head on top) to predict which of two responses a human would prefer. The reward model outputs a single scalar — higher means "humans like this response more."
 
-<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/rlhf/reward-model.png" alt="Training a reward model from human preference rankings" />
 
 *Reward model training. Humans rank pairs of responses; the reward model learns to score any response the way humans would.* Source: [Hugging Face — Illustrating RLHF](https://huggingface.co/blog/rlhf).
 
 2. **Fine-tune with PPO.** Now use the reward model as a reward signal in a reinforcement learning loop. **Proximal Policy Optimization (PPO)** updates the LLM to produce responses the reward model scores highly, while adding a **KL penalty** against the SFT model to stop the policy from drifting too far from sensible language. Without the KL term, the model gaming the reward model produces gibberish that scores well but is unreadable (this is called **reward hacking**).
 
-<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/rlhf/rlhf.png" alt="Full three-stage RLHF pipeline: pretraining, supervised fine-tuning, reward model, PPO" />
 
 *The full RLHF loop. The SFT model is copied twice — once frozen (reference for the KL penalty), once trained by PPO against the reward model.* Source: [Hugging Face — Illustrating RLHF](https://huggingface.co/blog/rlhf).
 
@@ -228,7 +221,6 @@ Only sample from the top $k$ most likely tokens. Everything else gets zeroed out
 
 Introduced in [Holtzman et al. 2019](https://arxiv.org/abs/1904.09751). Instead of a fixed $k$, take the smallest set of tokens whose cumulative probability exceeds $p$. If $p = 0.9$, you sample from whatever tokens make up the top 90% of probability mass. The nucleus adapts — when the model is confident, only a few tokens are in the pool; when uncertain, more.
 
-<img src="https://sebastianraschka.com/images/faqs/temperature-topk-topp-sampling/top-k-vs-top-p.png" alt="Top-k vs top-p sampling comparison showing how each restricts the token pool" />
 
 *How top-k and top-p carve up the probability distribution differently. Source: [Sebastian Raschka — Temperature, top-k, top-p FAQ](https://sebastianraschka.com/faq/docs/temperature-topk-topp-sampling.html).*
 
@@ -327,7 +319,6 @@ Reasoning-heavy questions — arithmetic, logic puzzles, multi-hop questions —
 
 The classic example from the paper:
 
-<img src="https://ar5iv.labs.arxiv.org/html/2201.11903/assets/x1.png" alt="Chain-of-thought prompting example from Wei et al. 2022 showing standard prompting vs chain-of-thought prompting" />
 
 *Left: standard prompting gives the answer directly and gets it wrong. Right: chain-of-thought prompting shows the reasoning first, and gets it right.* Source: [Wei et al. 2022 — Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903).
 

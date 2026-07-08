@@ -44,7 +44,6 @@ Three constraints collide the moment you go past a demo:
 
 Memory is the layer that reconciles those three things. It decides *what to keep, what to compress, what to forget, and what to look up on demand.*
 
-<img src="https://mem0.ai/_next/image?url=%2Fblog%2Fai-agent-memory%2Fmemory-types.png&w=1920&q=75" alt="Diagram of AI agent memory hierarchy — short-term (working), long-term (episodic, semantic, procedural), and how they relate to the LLM context window." />
 
 The rest of this post is the vocabulary you need to talk about this in an interview and the code patterns you need to actually build it.
 
@@ -133,7 +132,6 @@ The typical pattern:
 2. Store those facts somewhere queryable (vector store keyed by embedding, or a KV store keyed by user + entity).
 3. At the start of the next session, retrieve the facts relevant to the current query and inject them into the system prompt.
 
-<img src="https://blog.getzep.com/content/images/size/w2000/2024/08/zep-memory-diagram.png" alt="Zep long-term memory architecture — extraction, storage in a temporal knowledge graph, and retrieval for a new session." />
 
 ### Interview angle
 
@@ -256,7 +254,6 @@ memory.save_context(
 
 This is close to what Mem0 does under the hood, just more structured and less scalable.
 
-<img src="https://python.langchain.com/assets/images/memory_diagram-a5b7dda03a13f7c22d34c95c5cf3aec6.png" alt="LangChain memory diagram — how a memory module reads from and writes to the conversation state around the LLM call." />
 
 ### Interview angle
 
@@ -327,7 +324,6 @@ The two knobs you tune:
 - **Similarity threshold.** Too low → false positives (you serve the wrong answer). Too high → false negatives (you re-call the LLM for near-duplicates). Start at **0.92**, watch false-positive rate over 48 hours, adjust in 0.01 increments.
 - **TTL.** How long a cached answer stays valid. Recommended defaults: **24h for news/current events, 72h for stable factual content, 7 days for FAQ-style answers.**
 
-<img src="https://cdn.zilliz.com/statics/gptcache_arch.png" alt="GPTCache architecture — embedding model, vector store, similarity evaluator, cache storage, and eviction policy." />
 
 The main open-source implementation is **GPTCache** (Zilliz). Redis has native semantic caching via RedisVL. LangChain has `RedisSemanticCache` as a drop-in `.set_llm_cache(...)` layer.
 
