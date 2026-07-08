@@ -63,6 +63,8 @@ RAG solves four hard problems that plain LLMs can't:
 
 ## 2. Embeddings and vector databases
 
+<Image src="/images/blog/genai/inline/inline-part-4-embeddings.png" alt="Text becomes a vector and vectors have neighbours — 2-D scatter showing pets / capitals / finance clusters, plus the two operations (cosine similarity and nearest-neighbour retrieval) that make RAG work" wide />
+
 An embedding is a dense vector (typically 384 to 3072 dimensions) that represents the meaning of a piece of text. Semantically similar texts land close together in vector space, so "what is the return policy?" and "how do I send this back?" have vectors with high cosine similarity even though they share no words.
 
 ### Embedding models you should know
@@ -100,6 +102,8 @@ Under the hood most of these use **HNSW** (Hierarchical Navigable Small World) a
 
 ## 3. Chunking strategies
 
+<Image src="/images/blog/genai/inline/inline-part-4-chunking.png" alt="Same document, three chunk overlays: fixed-size (breaks mid-word, red), recursive (respects paragraph boundaries, slate-blue), semantic (topic-aware, green), plus the cost/recall/coherence tradeoff table" wide />
+
 Chunking is where most RAG systems live or die, and it's the least glamorous part. Feed the retriever chunks that are too small and you lose context; too big and the embedding averages out the meaning and you retrieve garbage.
 
 ### The five you need to know
@@ -134,6 +138,8 @@ chunks = splitter.split_documents(docs)
 A trick that works surprisingly well: embed and search on *small* child chunks (~200 tokens) for precision, but return the *parent* chunk (~1500 tokens) to the LLM for context. LangChain has a `ParentDocumentRetriever` for exactly this. Reported gains: 15–30% accuracy on queries that need broad context.
 
 ## 4. Retrieval methods: sparse, dense, hybrid
+
+<Image src="/images/blog/genai/inline/inline-part-4-retrieval-methods.png" alt="Same query handled three ways: BM25 sparse (inverted-index match), dense vector (nearest-neighbour in embedding space), hybrid (reciprocal rank fusion) — plus when each wins" wide />
 
 ### Sparse retrieval (BM25 / TF-IDF)
 
@@ -178,6 +184,8 @@ hybrid = EnsembleRetriever(
 
 ## 5. Reranking
 
+<Image src="/images/blog/genai/inline/inline-part-4-reranking.png" alt="Two-stage retrieval funnel — retriever pulls top-100 (fast, imprecise), cross-encoder reranker narrows to top-10 (slow, precise) — with the recall jump from 68% to 91%" wide />
+
 Even with hybrid retrieval, your top-k is noisy. This is where a **cross-encoder reranker** comes in. Where a bi-encoder embedding model encodes the query and document *separately* and then measures similarity, a cross-encoder feeds the pair `[query, document]` through a single transformer, letting every query token attend to every document token. It's much more accurate — and much more expensive, which is why you only run it on the top ~50 candidates, not the whole corpus.
 
 <img src="https://miro.medium.com/v2/resize:fit:1400/1*hyu6vNRPBM6t72fBw7ZuJg.png" alt="Cross encoder reranker versus bi-encoder retriever" />
@@ -203,6 +211,8 @@ top5 = [doc for _, doc in sorted(zip(scores, top50), reverse=True)[:5]]
 **Interview angle.** "Why not use a cross-encoder for the initial retrieval?" Because it's O(N) in corpus size — you'd have to score the query against every one of your millions of chunks. Bi-encoders precompute chunk embeddings once and use ANN indexes; cross-encoders can't be precomputed because the score depends on the pair.
 
 ## 6. Advanced patterns
+
+<Image src="/images/blog/genai/inline/inline-part-4-advanced-patterns.png" alt="Multi-query (broaden recall), HyDE (match answer-space not question-space), self-query (extract metadata filters) — three query-side patterns for messy retrieval" wide />
 
 Once the basics are wired up, these are the techniques that show up in senior interviews:
 
@@ -235,6 +245,8 @@ A superset of the above — the LLM rewrites the raw query into a cleaner, more 
 Covered above under chunking. Worth mentioning again because it's the single most effective "advanced" trick and takes ten lines to implement.
 
 ## 7. RAG evaluation with RAGAS
+
+<Image src="/images/blog/genai/inline/inline-part-4-ragas.png" alt="The 4 RAGAS metrics — faithfulness, answer relevance, context precision, context recall — as a 2×2, plus how they decompose into retrieval quality vs generation quality" wide />
 
 The single biggest mistake juniors make is shipping a RAG pipeline without a way to measure it. The framework the industry has converged on is **[RAGAS](https://docs.ragas.io/)** — four metrics that pull apart retrieval quality from generation quality.
 
@@ -270,6 +282,8 @@ print(result)  # e.g. {'faithfulness': 1.0, 'answer_relevancy': 0.95, ...}
 **Interview angle.** Be ready for "how would you evaluate a RAG system?". The wrong answer is "we look at some outputs and see if they look good". The right answer names the four RAGAS metrics, splits retrieval vs generation, and mentions building a small (100–500) hand-labeled eval set.
 
 ## 8. Common RAG failure modes
+
+<Image src="/images/blog/genai/inline/inline-part-4-failure-modes.png" alt="Where RAG breaks — 2×2 of retrieval quality vs generation quality showing the 4 failure modes (bad chunks, fluent hallucination, ignored context, the goal), plus a diagnostic question tree" wide />
 
 Interviewers love this question because it separates people who have shipped RAG from people who have only read about it.
 
