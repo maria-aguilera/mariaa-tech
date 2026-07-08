@@ -52,6 +52,10 @@ The rest of this post is the vocabulary you need to talk about this in an interv
 
 ## 1. Short-term memory (the chat buffer)
 
+<Image src="/images/blog/genai/inline/inline-part-5-chat-buffer.png" alt="One conversation as a growing list of turns, with the context window bracketing the top 4 turns while older ones drop out, plus the messages JSON the API actually sees" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-5-context-overflow.png" alt="Five snapshots of the same 128k-token bar as history piles up — green with headroom, tight, at the limit, overflowing — plus the three ways overflow shows up in production" wide />
+
 ### What it is
 
 Short-term memory is the current conversation. Turn 1, Turn 2, Turn 3 — the running back-and-forth. In LLM apps this is almost always just a Python list of messages that you re-send with every request.
@@ -101,6 +105,10 @@ Bonus points if you mention that in **LangChain 1.x**, `ConversationBufferMemory
 
 ## 2. Long-term memory (across sessions)
 
+<Image src="/images/blog/genai/inline/inline-part-5-long-term-memory.png" alt="Same user across three sessions weeks apart — facts distilled in session A flow up into session B and C's system prompt, personalising without the user re-stating anything" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-5-fact-extraction.png" alt="One conversation, three facts distilled — chat log on the left, phrases highlighted, fact extractor LLM in the middle, dated fact cards stored on the right" wide />
+
 ### What it is
 
 Long-term memory is anything you want to remember *between* sessions. The user closes the tab, comes back tomorrow, and the app knows their preferences, their previous projects, their tone.
@@ -134,6 +142,8 @@ If they ask *"how do you make an agent remember a user across sessions?"* — de
 ---
 
 ## 3. Session state (the thread abstraction)
+
+<Image src="/images/blog/genai/inline/inline-part-5-session-state.png" alt="One user, many threads — user_id tree branching into independent thread IDs, each holding its own ordered messages + state + metadata" wide />
 
 ### What it is
 
@@ -172,6 +182,8 @@ If they ask about **stateful agents** or **long-running workflows**, this is the
 ---
 
 ## 4. The four memory types you should be able to name
+
+<Image src="/images/blog/genai/inline/inline-part-5-memory-types.png" alt="The four memory types every agent needs — working, episodic, semantic, procedural — as a 2×2 with the classic Python-data-structure analogy underneath" wide />
 
 This is the comparison table every interviewer wants to hear.
 
@@ -260,6 +272,10 @@ If asked *"which memory type would you pick?"* — **decision framework**, not o
 
 ## 5. Semantic cache (the one that actually saves money)
 
+<Image src="/images/blog/genai/inline/inline-part-5-semantic-cache.png" alt="Cache hit vs cache miss on the same-shape query — hit returns cached answer at 0ms/$0, miss forwards to the LLM — plus the threshold sweet-spot chart" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-5-cache-invalidation.png" alt="Three cache invalidation triggers (data changed, user changed, TTL expired), plus the TTL / version-key / manual-bust strategy triangle" wide />
+
 ### What it is
 
 A normal cache checks: *did I see this exact string before?* A **semantic cache** checks: *did I see something that means roughly the same thing before?*
@@ -334,6 +350,8 @@ Both caches compose. Semantic cache handles duplicate *queries*. Prompt cache ha
 
 ## 6. The three history strategies — pick your poison
 
+<Image src="/images/blog/genai/inline/inline-part-5-history-strategies.png" alt="Full buffer (blows the window, red) vs sliding window (forgets earlier, slate-blue) vs summarising (compresses meaning, green) — plus the cost/faithfulness/quality tradeoff table" wide />
+
 Once your conversation gets long, you have three ways to send it back to the model. Every framework wraps this same choice.
 
 | Strategy | What you send | Cost | Recall of old detail | Coherence |
@@ -353,6 +371,8 @@ There's also a fourth option — **vector retrieval over conversation history** 
 ---
 
 ## 7. Context window budgeting
+
+<Image src="/images/blog/genai/inline/inline-part-5-context-budget.png" alt="128k tokens allocated by role — system prompt, long-term memory, retrieved chunks, chat history, current message, reserved output — plus the growth curves showing history is what blows the budget" wide />
 
 The context window is a shared budget. Everything competes for it: system prompt, chat history, retrieved RAG chunks, tool schemas, and the space you need to *leave for the model's response.*
 
@@ -378,6 +398,10 @@ The rule of thumb: **budget backwards from the response.** Reserve response spac
 ---
 
 ## 8. Memory-augmented agents (Mem0, Zep, MemGPT)
+
+<Image src="/images/blog/genai/inline/inline-part-5-memory-agents.png" alt="Mem0, Zep, MemGPT side by side — each framework's memory architecture (fact extractor vs summariser+extractor vs OS-style paging) and which problem it solves" wide />
+
+<Image src="/images/blog/genai/inline/inline-part-5-memgpt-paging.png" alt="MemGPT's two-tier memory — main context vs external context — with page_in and page_out tool calls, plus a ReAct trace showing the model deciding when to page" wide />
 
 The three names you should know cold.
 
