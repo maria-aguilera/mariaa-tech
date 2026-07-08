@@ -166,7 +166,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <span className="post-breadcrumbs__sep" aria-hidden="true">
               ›
             </span>
-            <Link href="/blog">Blog</Link>
+            {meta.series ? (
+              <Link href="/series">Guides</Link>
+            ) : (
+              <Link href="/blog">Projects</Link>
+            )}
             <span className="post-breadcrumbs__sep" aria-hidden="true">
               ›
             </span>
@@ -287,7 +291,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <span className="post-breadcrumbs__sep" aria-hidden="true">
             ›
           </span>
-          <Link href="/blog">Blog</Link>
+          <Link href="/blog">Projects</Link>
           <span className="post-breadcrumbs__sep" aria-hidden="true">
             ›
           </span>
