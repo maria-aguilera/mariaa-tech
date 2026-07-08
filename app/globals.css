@@ -7900,22 +7900,27 @@ body.theme-dark .cheat-preview__hint { color: #94A3B8; }
 .series-index__inner {
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
-  max-width: none;
-  padding: 2.5rem 1.25rem 4rem;
-}
-.series-index__list {
-  max-width: 1100px;
+  width: 100%;
+  max-width: min(72rem, 100vw);
   margin: 0 auto;
+  padding: 2.5rem 1rem 4rem;
 }
 .series-index__list {
   list-style: none;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 440px));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
-  justify-content: center;
-  max-width: 1100px;
+  justify-content: stretch;
+}
+.series-index__list > li { display: flex; }
+.series-index__list > li > .series-card { flex: 1; }
+@media (max-width: 960px) {
+  .series-index__list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .series-index__list { grid-template-columns: 1fr; }
 }
 .series-card {
   display: flex;
