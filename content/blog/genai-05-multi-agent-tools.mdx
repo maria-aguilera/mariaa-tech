@@ -62,6 +62,7 @@ An agent, minimally, is four things:
 
 Wrap all of that in **a loop** that keeps calling the LLM until it says "I'm done" (or a step budget runs out), and you have an agent.
 
+<img src="https://www-cdn.anthropic.com/images/4zrzovbb/website/2661f3f5f5a91b48e4d3b02aa2d2c40d15c1e79f-2401x1000.png" alt="Anthropic diagram of an autonomous agent loop — LLM at the centre, connected to tools and an environment, with a feedback loop that repeats until a stop condition." />
 
 The simplest possible agent is under 30 lines of Python:
 
@@ -102,6 +103,7 @@ One agent, a big toolbox. The LLM decides which tool to call, in which order. Si
 
 ### 2. Orchestrator / supervisor pattern
 
+<img src="https://langchain-ai.github.io/langgraph/concepts/img/multi_agent/supervisor.png" alt="LangGraph supervisor pattern diagram — a supervisor node routes requests to specialised worker agents, collects results, and returns a final response." />
 
 One "supervisor" LLM sits at the top, receives the user request, and routes to specialised worker agents (a "research agent", a "code agent", a "writing agent"). Each worker returns its result to the supervisor, which synthesises the final response.
 
@@ -121,6 +123,7 @@ The supervisor pattern, recursed. A "manager" agent can spawn a "team" of worker
 
 ### 4. Network (peer-to-peer handoffs)
 
+<img src="https://langchain-ai.github.io/langgraph/concepts/img/multi_agent/network.png" alt="LangGraph network pattern — peer agents connected in a mesh, each able to hand off to any other agent based on the task." />
 
 No supervisor. Each agent can hand off to any other agent when it decides the other one is better suited. This is what OpenAI's Swarm framework popularised — a handoff is literally just a function that returns "the next agent."
 
@@ -130,6 +133,7 @@ No supervisor. Each agent can hand off to any other agent when it decides the ot
 
 ### 5. Sequential pipeline (agent 1 → agent 2 → agent 3)
 
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*L0GRE0ZgSSfhTkE01dLtdA.png" alt="Sequential agent pipeline diagram — a straight-line workflow where the output of agent 1 becomes the input of agent 2, which becomes the input of agent 3." />
 
 A hard-coded pipeline: research agent → outline agent → writing agent → editor agent. Each step is an LLM call with a fixed prompt.
 
@@ -354,6 +358,7 @@ Without one of these in a multi-agent system, a broken tool becomes a self-infli
 
 You will get asked "which framework would you use?" Have an opinion and know the trade-offs.
 
+<img src="https://python.langchain.com/svg/langgraph_diagram.svg" alt="LangGraph state-machine diagram — nodes represent agents or tools, edges represent transitions, a central state object flows between them." />
 
 ### LangChain / LangGraph
 
@@ -367,6 +372,7 @@ You will get asked "which framework would you use?" Have an opinion and know the
 
 ### CrewAI
 
+<img src="https://cdn.prod.website-files.com/66cf2bfc3ed15b02da0ca770/66d07240057721394308addd_Logo%20(1).svg" alt="CrewAI logo — role-based multi-agent framework logo." />
 
 **Mental model:** a "crew" of role-based agents. Each agent has a `role`, `goal`, `backstory`, and a list of tools. Tasks are assigned to agents; the crew executes them (sequential or hierarchical process).
 
@@ -388,6 +394,7 @@ You will get asked "which framework would you use?" Have an opinion and know the
 
 ### OpenAI Agents SDK (formerly Swarm)
 
+<img src="https://cdn.openai.com/API/docs/images/orchestration.png" alt="OpenAI Agents SDK orchestration diagram — routing agent hands off to specialist agents based on the user's intent." />
 
 **Mental model:** agents + handoffs. An agent is a system prompt plus a list of functions. A handoff is a function that returns *the next agent*. That's it.
 
@@ -547,6 +554,7 @@ Look at the two implementations side-by-side. LangGraph gives you explicit contr
 
 Model evaluation is graded by "did the model return the right token?" Agent evaluation is graded by "did the whole trajectory achieve the goal?" — and that is dramatically harder.
 
+<img src="https://langchain-ai.github.io/langgraph/tutorials/img/langsmith-agent-eval.png" alt="LangSmith agent trajectory evaluation view — a timeline of LLM calls and tool calls with per-step latency, cost, and correctness annotations." />
 
 Five things you evaluate for agents:
 

@@ -104,6 +104,7 @@ Each sub-prompt is a small, focused task with a clear input and output. This is 
 
 Chain-of-thought is the trick that turned prompting from "hope it works" into "you can reason about it." The idea is embarrassingly simple: instead of asking the model for the final answer, ask it to write out its reasoning first, then the answer.
 
+<img src="https://learnprompting.org/assets/images/chain_of_thought_example-16ac3d628b6d8213a80ba59b78ff1e2f.png" alt="Chain-of-thought prompting example from Wei et al. 2022, side by side with a standard prompt. The standard prompt asks a math word problem and the model answers wrong. The CoT prompt gives an example that includes intermediate reasoning steps, and the model produces the same style of reasoning and gets the answer right." />
 
 Wei et al. introduced this in [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903) (2022). The paper showed that on arithmetic, commonsense and symbolic reasoning tasks, prompting a 540B model with just eight CoT exemplars beat fine-tuned GPT-3 with a verifier on GSM8K. Reasoning is not something you have to fine-tune in — you can *elicit* it with the prompt.
 
@@ -140,6 +141,7 @@ Chain-of-thought gives you one reasoning path. Self-consistency gives you a bag 
 
 The idea, from Wang et al.'s [Self-Consistency Improves Chain of Thought Reasoning in Language Models](https://arxiv.org/abs/2203.11171) (2022): sample **N** independent CoT traces at a non-zero temperature (say `temperature=0.7`, N=10 or 40), extract the final answer from each, and take the majority vote.
 
+<img src="https://learnprompting.org/assets/images/self_consistency_prompting-b9f14ce4d13ad7f28edb1c5836bd35b6.png" alt="Self-consistency diagram: one question is fed to the LLM multiple times with different sampling. Each run produces a different reasoning path but they mostly converge to the same final answer, and the majority vote wins." />
 
 The intuition is that the greedy path is not necessarily the best one — a wrong reasoning chain tends to be *individually* wrong in its own way, while correct chains tend to converge on the same answer. Sampling multiple traces lets the correct-answer basin dominate.
 
@@ -156,6 +158,7 @@ Two things to remember:
 
 If self-consistency is "sample many chains, vote," Tree of Thoughts is "search over reasoning paths on purpose."
 
+<img src="https://learnprompting.org/assets/images/tree_of_thoughts-6c86e75b4a08a1f3eb9c39d5c50f2d31.png" alt="Tree of Thoughts diagram from Yao et al. 2023. Comparison of four approaches: (a) Input-Output prompt goes straight from input to output. (b) Chain of Thought goes input to reasoning to output as a linear chain. (c) Self-Consistency samples multiple chains and votes. (d) Tree of Thoughts explores a tree of reasoning steps, with each node being a thought and the tree being navigated by BFS or DFS, with an evaluator scoring which nodes to expand." />
 
 Yao et al. proposed ToT in [Tree of Thoughts: Deliberate Problem Solving with Large Language Models](https://arxiv.org/abs/2305.10601) (2023). Each node in the tree is a *thought* — a coherent intermediate reasoning step. The LLM plays two roles: a **generator** that proposes several next thoughts, and an **evaluator** that scores each thought's promise (e.g., "sure / likely / impossible"). You then navigate the tree with BFS or DFS, pruning branches the evaluator kills.
 
@@ -181,6 +184,7 @@ Then you take the "sure" nodes, expand each of them the same way, and repeat unt
 
 Everything so far has been the model reasoning inside its own head. ReAct is the first pattern where the model gets to *act on the world* between reasoning steps.
 
+<img src="https://blog.tobiaszwingmann.com/content/images/2024/02/react_prompt.png" alt="ReAct loop diagram: an LLM alternates between Thought (reasoning about the state), Action (calling a tool like search or a calculator), and Observation (reading the tool result), then loops back to Thought until it produces a final Answer." />
 
 Yao et al. introduced ReAct in [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) (2022). The pattern is a loop:
 
@@ -285,6 +289,7 @@ Reflection is the specific case of an iterative loop where **the model evaluates
 3. Rewrite the answer using the critique.
 4. Repeat until the critique says "good enough" or a max-iterations budget hits.
 
+<img src="https://cdn.prod.website-files.com/6473d8d02092c4e7a5b31648/66c48b73dc1cad7e11bf16d3_650bc98e50c7a4930cef6ce6_reflexion.png" alt="Reflexion diagram from Shinn et al. 2023: an actor LLM produces an action trajectory, an evaluator scores it, a self-reflection module writes verbal feedback based on the score, and that feedback is stored in an episodic memory buffer and used to condition the actor on the next trial." />
 
 Shinn et al. formalised this in [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) (2023). Their framing is important: the reflection is *verbal* — natural-language feedback stored in an episodic memory buffer, not a gradient. The agent gets a task, tries it, an evaluator (which can be a test suite, a rubric, another LLM) scores the attempt, and then the self-reflection module writes down what went wrong in plain English. That reflection joins the context for the next attempt.
 

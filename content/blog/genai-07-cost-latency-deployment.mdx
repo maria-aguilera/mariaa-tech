@@ -71,6 +71,7 @@ Latency hides in three places:
 
 The rest of this post walks each of those, one at a time.
 
+<img src="https://images.ctfassets.net/xjan103pcp94/2AZmZwR7z1cD8pFqSY9lVE/6b3e2f9b2f8b2f8b2f8b2f8b2f8b2f8b/llm-cost-optimization-diagram.png" alt="Cost and latency optimization stack for production LLM systems — routing, caching, batching, compression, streaming layered on top of the base model" />
 
 ## 2. Cost optimization
 
@@ -100,6 +101,7 @@ def answer(query):
 
 *How do you measure confidence?* A few options: token-level log-probs from the small model, a self-eval prompt ("rate your own answer 0–1"), or a separate cheap verifier. None are perfect. In practice teams use a combination.
 
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*7g9y7wG5g8kSg2p8mQpS3g.png" alt="LLM model cascade — small draft model, escalation to medium, then to large model based on confidence" />
 
 ### Semantic caching (embedding-similarity cache)
 
@@ -131,6 +133,7 @@ Two things to watch out for:
 - **The threshold matters.** Too loose, and you return the wrong cached answer to a semantically different question. Too tight, and you never hit the cache. Instrument the hit rate and the false-hit rate on a labeled eval set before you touch production.
 - **Changing embedding model invalidates the cache.** If you re-embed with a different model, all your cached vectors are in a different space.
 
+<img src="https://redis.io/wp-content/uploads/2024/01/semantic-caching-diagram.png" alt="Semantic cache flow — query embedding compared against stored embeddings in Redis, cache hit returns stored response, cache miss triggers LLM call and stores new pair" />
 
 ### Prompt caching (Anthropic + OpenAI)
 
@@ -192,6 +195,7 @@ compressed = compressor.compress_prompt(
 # use compressed["compressed_prompt"] in your actual LLM call
 ```
 
+<img src="https://www.microsoft.com/en-us/research/uploads/prod/2023/12/llmlingua-diagram.png" alt="LLMLingua prompt compression pipeline — small language model identifies non-essential tokens and drops them before sending to the large model" />
 
 ### Quantization + smaller models
 
@@ -344,6 +348,7 @@ asyncio.run(worker())
 
 The consumer group is where scaling happens — start 10 worker pods, they share the partitions of the topic, throughput scales linearly.
 
+<img src="https://www.confluent.io/wp-content/uploads/kafka-event-driven-microservices-architecture.png" alt="Event-driven microservices with Kafka — producers publish events to topics, consumer groups process them, decoupled services communicate asynchronously through the event log" />
 
 ### Docker + Kubernetes
 
@@ -471,6 +476,7 @@ The gap between p50 and p99 is where the bugs hide — GC pauses, cache misses, 
 
 Now let's stitch the whole picture together. This is the shape of what you'd whiteboard in the interview if they asked *"design a production RAG system."*
 
+<img src="https://images.datacamp.com/image/upload/v1707993926/marketing/blog/production_rag_architecture.png" alt="Production RAG architecture — client, API gateway, FastAPI microservices, semantic cache, retriever, reranker, LLM providers with model routing, Kafka event log, vector database, observability stack" />
 
 The flow, step by step:
 

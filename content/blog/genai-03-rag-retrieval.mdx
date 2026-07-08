@@ -29,6 +29,8 @@ The reason RAG dominates interviews is that it forces you to reason across the w
 
 This post is your one-stop reference. You will see the full pipeline, compare the main vector databases and embedding models, work through chunking and retrieval strategies, understand why reranking exists, meet the advanced patterns (HyDE, multi-query, parent-child) that keep getting asked about, and finish with the RAGAS evaluation framework. There is LangChain code, comparison tables, and a Q&A section at the end tuned for the questions you are most likely to hear next week.
 
+<img src="https://developer-blogs.nvidia.com/wp-content/uploads/2023/12/rag-pipeline-ingest-query-flows.png" alt="NVIDIA RAG pipeline showing ingest and query flows" />
+
 ## 1. The RAG pipeline, end to end
 
 At its core, RAG is a two-lane system:
@@ -45,6 +47,8 @@ At its core, RAG is a two-lane system:
 ```
 
 The reason to draw both lanes in an interview is that most people forget the ingest lane, then get stuck when the interviewer asks "so how does a new document actually enter the system?".
+
+<img src="https://images.ctfassets.net/xjan103pcp94/4PX0l1ruKqfH17YvUiMFPw/c60a7a665125cb8056bebcc146c23b76/RAG.png" alt="End-to-end retrieval augmented generation flow" />
 
 ### Why RAG exists
 
@@ -77,6 +81,8 @@ An embedding is a dense vector (typically 384 to 3072 dimensions) that represent
 
 **Rule of thumb for the interview:** if you must pick one API model without more info, say `text-embedding-3-large` (OpenAI) — it's a strong retrieval score, cheap, and everyone recognizes it. For open-weights, say `BGE-M3` or `bge-large-en-v1.5`.
 
+<img src="https://cdn.sanity.io/images/vr8gru94/production/13723a17962bcd3d3d81b1a5b1acbfb84a495b58-1920x896.png" alt="Text embeddings as points in vector space" />
+
 ### Vector databases (the ones that come up)
 
 | DB | Type | Best for | Watch out for |
@@ -90,6 +96,7 @@ An embedding is a dense vector (typically 384 to 3072 dimensions) that represent
 
 Under the hood most of these use **HNSW** (Hierarchical Navigable Small World) as the approximate nearest neighbor index — a graph structure that gets you sub-linear search over billions of vectors. If asked, you should be able to say "ANN search with HNSW, tuning the `ef_search` parameter trades recall for latency."
 
+<img src="https://weaviate.io/assets/images/hnsw-layers-a63aad5c73dcb1a5c5a83c3773b5abd0.png" alt="HNSW graph index used by most vector databases" />
 
 **Interview angle.** If the interviewer says "which vector DB would you pick?", don't just name-drop. Ask about scale, whether they already run Postgres, whether they need hybrid search, and whether they can accept a managed service. Then justify one choice — the reasoning matters more than the answer.
 
@@ -109,6 +116,7 @@ Chunking is where most RAG systems live or die, and it's the least glamorous par
 | **Semantic** | Embed each sentence, start a new chunk when consecutive-sentence similarity drops below a threshold. | Best accuracy, expensive to compute. Great for technical docs. |
 | **Document-aware** | Use structure (Markdown headers, HTML tags, code fences, tables) to split. | Wikis, code repos, structured PDFs. |
 
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*_5UhMFxWCw5-mo7c4dxJVw.png" alt="Comparison of chunking strategies for RAG" />
 
 A working default for most workloads is: **recursive character splitter, 512 tokens per chunk, 15–20% overlap**. That's what LangChain's `RecursiveCharacterTextSplitter` gives you and it's rarely wrong to start there.
 
@@ -151,6 +159,7 @@ $$
 
 RRF is score-agnostic (it operates on ranks, so you don't need to normalize wildly different score scales from BM25 vs cosine), and it rewards documents that both rankers agree on. Reported gain on the WANDS e-commerce benchmark: ~7.4% NDCG lift over either alone.
 
+<img src="https://weaviate.io/assets/images/hybrid-search-fusion-16bc8ec3f2e1b81a9be2b2b6ce4b1e33.png" alt="Reciprocal Rank Fusion combining BM25 and dense retrieval" />
 
 ```python
 from langchain_community.retrievers import BM25Retriever
@@ -179,6 +188,7 @@ hybrid = EnsembleRetriever(
 
 Even with hybrid retrieval, your top-k is noisy. This is where a **cross-encoder reranker** comes in. Where a bi-encoder embedding model encodes the query and document *separately* and then measures similarity, a cross-encoder feeds the pair `[query, document]` through a single transformer, letting every query token attend to every document token. It's much more accurate — and much more expensive, which is why you only run it on the top ~50 candidates, not the whole corpus.
 
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*hyu6vNRPBM6t72fBw7ZuJg.png" alt="Cross encoder reranker versus bi-encoder retriever" />
 
 Standard pipeline: retrieve top 50 with hybrid search (cheap), rerank to top 5 with a cross-encoder (accurate), pass those 5 to the LLM.
 
@@ -240,6 +250,7 @@ Covered above under chunking. Worth mentioning again because it's the single mos
 
 The single biggest mistake juniors make is shipping a RAG pipeline without a way to measure it. The framework the industry has converged on is **[RAGAS](https://docs.ragas.io/)** — four metrics that pull apart retrieval quality from generation quality.
 
+<img src="https://docs.ragas.io/en/stable/_static/imgs/component-wise-metrics.png" alt="RAGAS component-wise metrics diagram" />
 
 | Metric | What it measures | Failure mode it catches |
 |---|---|---|
@@ -279,6 +290,7 @@ Interviewers love this question because it separates people who have shipped RAG
 - **Irrelevant retrieval.** Top-k doesn't contain the answer. Fix: better chunking, hybrid search, reranking, larger k, or query rewriting.
 - **Lost in the middle.** [Liu et al., 2023](https://arxiv.org/abs/2307.03172) showed LLMs pay much more attention to the beginning and end of long contexts than the middle. If you cram 20 chunks into a prompt, the ones in positions 8–13 might as well not exist. Fix: rerank so the best chunk is at position 1 (or last), and keep context short.
 
+<img src="https://miro.medium.com/v2/resize:fit:1400/1*QqTYWJXgqE9pJwrO9k5Z-A.png" alt="Lost in the middle: LLM accuracy drops for information in the middle of long contexts" />
 
 - **Hallucination despite context.** The retrieved chunks are correct but the LLM ignores them and invents an answer anyway. Fix: instruct the model to answer *only* from the context, cite chunk IDs, and refuse if the answer isn't there.
 - **Contradictory chunks.** Retriever returns two chunks that disagree (e.g. an old policy and a new one). Fix: recency-aware retrieval, metadata filters, or a reconciliation step.
