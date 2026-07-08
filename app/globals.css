@@ -2257,6 +2257,34 @@ body.theme-dark .post-content__table tbody tr:hover {
   margin: 0 auto;
 }
 
+/* Wide variant — for cheatsheet pages and dense reference visuals.
+   Breaks out of the 720px content column, no height cap, and the whole
+   figure is a link that opens the full-resolution source in a new tab. */
+.post-figure--wide {
+  max-width: min(1400px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.post-figure--wide img {
+  max-height: none;
+  max-width: 100%;
+  width: 100% !important;
+  height: auto !important;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  cursor: zoom-in;
+}
+
+.post-figure__link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.post-figure__link:hover img {
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
 .post-video {
   margin: 1.5rem 0 2rem;
 }
@@ -6700,6 +6728,18 @@ body.theme-dark .cheat-index__groupTitle {
   margin: 0.5rem 0 1rem;
 }
 
+/* Cheatsheet body figures render at the same width as the printable preview
+   above — they are full poster pages, not inline illustrations. */
+.cheat-body .post-figure {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.cheat-body .post-figure img {
+  max-height: none !important;
+  width: 100% !important;
+}
+
 /* Dark mode ------------------------------------------ */
 /* Dark mode: mirror the rest of the site — body becomes near-black, cards lift to slate-900. */
 body.theme-dark .cheat-index,
@@ -7869,11 +7909,13 @@ body.theme-dark .cheat-preview__hint { color: #94A3B8; }
 }
 .series-index__list {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 440px));
   gap: 1.5rem;
+  justify-content: center;
+  max-width: 1100px;
 }
 .series-card {
   display: flex;
@@ -7924,7 +7966,8 @@ body.theme-dark .cheat-preview__hint { color: #94A3B8; }
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: #F8FAFC;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
+  max-height: 240px;
   transition: border-color 150ms ease;
 }
 .series-card__cover-link:hover {

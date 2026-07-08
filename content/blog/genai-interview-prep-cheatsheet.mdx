@@ -37,6 +37,7 @@ It's dense on purpose. Three columns per page, one concept per numbered block, s
 ## Page 1 · LLM Foundations
 
 <Image
+  wide
   src="/images/blog/genai-interview-prep/page-1-foundations.png"
   alt="Page 1 of 4 — LLM Foundations. Nine numbered concept blocks in a dense 3-column layout: (1) What is a Large Language Model, (2) Transformer + self-attention, (3) Tokens and context window, (4) Pretraining → instruction tuning → RLHF / DPO three-stage pipeline, (5) Sampling: temperature / top-k / top-p / greedy, (6) Prompt structure: system / user / assistant roles, (7) Zero-shot vs one-shot vs few-shot in-context learning, (8) Chain-of-thought prompting basics, (9) Scaling laws + emergent behavior. Navy headings, slate-blue accents, off-white background."
   caption="The transformer + LLM refresher. If you can't explain the three-stage post-training pipeline (pretrain → instruction-tune → RLHF/DPO), start here."
@@ -45,6 +46,7 @@ It's dense on purpose. Three columns per page, one concept per numbered block, s
 ## Page 2 · Prompting + Reasoning Loops
 
 <Image
+  wide
   src="/images/blog/genai-interview-prep/page-2-prompting-reasoning.png"
   alt="Page 2 of 4 — Prompting + Reasoning Loops. Ten numbered concept blocks: (10) Prompt engineering principles (task/context/constraints/examples/output format), (11) Task decomposition, (12) Chain-of-thought (deeper — reasoning traces), (13) Self-consistency (sample multiple CoTs, majority vote), (14) Tree of Thoughts (ToT), (15) ReAct pattern (Reason + Act loop), (16) Planner-Executor pattern, (17) Reasoning loops / iterative refinement, (18) Reflection / self-critique, (19) Structured output (JSON mode, function calling). Includes a ReAct loop diagram and a small tree diagram for ToT."
   caption="From single-shot prompts to reasoning loops. ReAct and the planner-executor pattern are the ones that come up in agent design questions."
@@ -53,6 +55,7 @@ It's dense on purpose. Three columns per page, one concept per numbered block, s
 ## Page 3 · RAG + Memory + State
 
 <Image
+  wide
   src="/images/blog/genai-interview-prep/page-3-rag-memory.png"
   alt="Page 3 of 4 — RAG + Memory + State. Nine numbered concept blocks: (20) RAG pipeline overview (query → retriever → context → LLM → answer), (21) Embeddings + vector databases with a comparison chart, (22) Chunking strategies (fixed, semantic, sliding window), (23) Retrieval: sparse (BM25) vs dense vs hybrid, (24) Reranking with cross-encoders, (25) Short-term vs long-term memory, (26) Session state / conversation memory, (27) Semantic cache, (28) RAG evaluation (faithfulness, context precision, answer relevance). Includes a compact end-to-end RAG diagram and a sparse-vs-dense-vs-hybrid trade-off table."
   caption="The retrieval half of production LLM systems. RAG is the single most-asked topic in this class of interview — the questions almost always drill into chunking, reranking, and evaluation."
@@ -61,6 +64,7 @@ It's dense on purpose. Three columns per page, one concept per numbered block, s
 ## Page 4 · Agents + Tools + Guardrails + LLMOps
 
 <Image
+  wide
   src="/images/blog/genai-interview-prep/page-4-agents-guardrails.png"
   alt="Page 4 of 4 — Agents + Tools + Guardrails + LLMOps. Ten numbered concept blocks: (29) Multi-agent patterns (single, orchestrator, hierarchical, network), (30) Skills + subagents, (31) Tool / function calling design (name, description, args schema), (32) Tool error handling (retries, timeouts, fallbacks, arg validation), (33) Guardrails: input filters + output filters, (34) Prompt injection defense (allowlists, delimiters, LLM firewall), (35) Security: PII redaction, data leakage, allowlisted tools, (36) LLMOps: monitoring, tracing, evaluation, dataset curation, (37) Cost + latency: batching, streaming, model routing, caching, quantization, (38) Deployment: Python + microservices + Kafka + observability. Includes a multi-agent diagram, a tool schema example, and a cost/latency trade-off table."
   caption="The engineering side. Multi-agent patterns, tool calling, prompt injection defense, LLMOps, cost and latency — the stuff that turns a chat model into a shipping product."

@@ -70,20 +70,47 @@ export function PostImage({
   src,
   alt,
   caption,
+  wide,
 }: {
   src: string;
   alt: string;
   caption?: string;
+  /**
+   * True for dense visuals (cheatsheets, wide diagrams) that need to break
+   * out of the ~720px content column. Renders larger and taps open the
+   * full-resolution source in a new tab so you can pinch-zoom on mobile.
+   */
+  wide?: boolean;
 }) {
+  const img = (
+    <Image
+      src={src}
+      alt={alt}
+      width={1600}
+      height={1000}
+      sizes={
+        wide
+          ? "(min-width: 1440px) 1400px, (min-width: 1024px) 90vw, 100vw"
+          : "(min-width: 1024px) 720px, 90vw"
+      }
+    />
+  );
+
   return (
-    <figure className="post-figure">
-      <Image
-        src={src}
-        alt={alt}
-        width={1200}
-        height={700}
-        sizes="(min-width: 1024px) 720px, 90vw"
-      />
+    <figure className={`post-figure${wide ? " post-figure--wide" : ""}`}>
+      {wide ? (
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open full-size image"
+          className="post-figure__link"
+        >
+          {img}
+        </a>
+      ) : (
+        img
+      )}
       {caption ? (
         <figcaption className="post-figure__caption">{caption}</figcaption>
       ) : null}
