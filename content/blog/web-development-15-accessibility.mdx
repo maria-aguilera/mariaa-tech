@@ -1,0 +1,135 @@
+---
+slug: web-development-15-accessibility
+title: "Post 15 — Accessibility: the four things you can't skip"
+subtitle: "Semantic HTML, keyboard navigation, contrast, and alt text. If you get these four right, 90% of accessibility is done."
+date: "August 2026"
+updated: "August 2026"
+excerpt: "Accessibility isn't a plugin you install at the end. It's four habits you build into every component from day one — semantic HTML, keyboard operability, colour contrast, and text alternatives. Get those and the rest is refinement."
+tags:
+  - Web Development
+  - Accessibility
+  - a11y
+  - HTML
+source: Notes
+topic: Web Development
+series: "Web Development"
+seriesPart: 15
+seriesTotal: 15
+coverImage: "/images/blog/web-development/inline-web-accessibility.png"
+---
+
+*Web Development · Post 15/15*
+
+Accessibility (often written **a11y** — 11 letters between "a" and "y") is the practice of making sure everyone can use your site — people using screen readers, keyboard-only users, colour-blind users, users on old browsers, users on bad connections. It's not a legal compliance box, it's the discipline that makes the interface work under conditions you didn't design for.
+
+The good news: 90% of it is four habits that don't cost you anything if you build them in from the start.
+
+## The four essentials
+
+<img src="/images/blog/web-development/inline-web-accessibility.png" alt="The four accessibility essentials — semantic HTML, keyboard operability, sufficient contrast, and text alternatives for non-text content." />
+
+<img src="/images/blog/web-development/web_accessibility_the_4_essentials.png" alt="Web accessibility — the 4 essentials with icons and one-line rules for each." />
+
+## 1. Semantic HTML — use the right element for the job
+
+If it's a button, use `<button>`. If it's a link, use `<a>`. If it's a heading, use `<h1>`–`<h6>` in order. If it's a list, use `<ul>` or `<ol>`.
+
+```html
+<!-- ❌ Wrong -->
+<div onclick="submit()" class="button">Save</div>
+
+<!-- ✅ Right -->
+<button type="submit">Save</button>
+```
+
+The `<div>` version:
+
+- Doesn't respond to Enter or Space keys.
+- Isn't announced as a button by screen readers.
+- Doesn't get keyboard focus by default.
+
+The `<button>` version does all of those for free. You didn't have to think about it because the browser does the work — *if you used the right tag*.
+
+Rule: **never build an interactive element from a `<div>` when there's a native HTML element for it**. Almost every accessibility bug comes from doing this.
+
+## 2. Keyboard operability — everything works without a mouse
+
+Every interactive thing must be reachable and operable with the keyboard:
+
+- **Tab** moves forward through interactive elements.
+- **Shift + Tab** moves backward.
+- **Enter** activates links and buttons.
+- **Space** activates buttons and checkboxes.
+- **Arrow keys** navigate inside menus, tabs, and lists.
+
+If you can't do the task with only a keyboard, keyboard-only users can't do it either. This is the accessibility test that catches the most bugs, and it costs nothing to run — you're already at the keyboard.
+
+Related: focus management (Post 14). When a modal opens, focus should move *into* it. When it closes, focus should move back to the button that opened it.
+
+## 3. Contrast — text is readable
+
+WCAG (the web accessibility standard) says:
+
+- **Body text**: contrast ratio of at least **4.5:1** against background.
+- **Large text** (18px+, or 14px bold+): at least **3:1**.
+- **Non-text elements** (icons, borders on inputs): at least **3:1**.
+
+Use a contrast checker. Chrome DevTools has one built in (right-click any text → Inspect → click the colour swatch → contrast ratio shows up). Don't guess. Retina displays and calibrated screens hide contrast problems that show up on real laptops.
+
+## 4. Text alternatives — non-text content has text equivalents
+
+- **Images**: `alt` attribute. Descriptive, not "image1.png." Empty `alt=""` for decorative images (so screen readers skip them).
+- **Icons in buttons**: `aria-label` on the button.
+- **Videos**: captions.
+- **Audio**: transcripts.
+
+```html
+<!-- Decorative image -->
+<img src="ornament.svg" alt="" />
+
+<!-- Content image -->
+<img src="chart.png" alt="Bar chart showing 40% growth in Q3" />
+
+<!-- Icon button -->
+<button aria-label="Close dialog">
+  <svg><!-- X icon --></svg>
+</button>
+```
+
+## Simplicity is accessibility
+
+A page that does one thing well is accessible by default. A page that does twelve things at once is hard for *everyone* — but especially hard for anyone who can't see the whole picture at a glance, or who needs extra time to parse it.
+
+<img src="/images/blog/web-development/20-simple-over-complicated.png" alt="Design principle 20 — simple over complicated; the fewer elements on the page, the easier every element is to use." />
+
+<img src="/images/blog/web-development/simplicity_vs_complexity_in_design.png" alt="Simplicity vs complexity — the same feature shown as an overloaded interface versus a stripped-down one, showing how much easier the simpler version is to scan." />
+
+The accessible move is usually the simpler move. Fewer choices. Bigger targets. More whitespace. Clearer labels. This isn't a compromise — it's what makes the interface better for people who *don't* have accessibility needs too.
+
+## What "90% is done" doesn't cover
+
+The last 10% is the specialised stuff:
+
+- **ARIA** — custom widgets that HTML doesn't provide (tab panels, tree views, complex menus). Every ARIA rule is a fallback for when you had to build something HTML doesn't have — always try HTML first.
+- **Screen reader testing** — actually running VoiceOver (Mac) or NVDA (Windows) on your site. Reveals bugs you can't see.
+- **Animation preferences** — respect `prefers-reduced-motion` (Post 14).
+- **Focus management in dynamic UIs** — modals, toasts, live regions.
+
+But do those four essentials first. They're the foundation, and no amount of ARIA will fix a page built on divs and empty alts.
+
+## Where this series ends
+
+You've now got the fifteen-post floor for web interfaces:
+
+- **1–5** — the layout foundations (box model, Flexbox, Grid, responsive).
+- **6–10** — the design system layer (tokens, colour, type, spacing, shadows).
+- **11–14** — the component patterns (buttons, forms, cards, states).
+- **15** — the accessibility that ties it all together.
+
+There's more to learn — animation, motion design, framework-specific patterns, performance, testing. But everything above is the shared vocabulary. Every React component you'll ever write, every design system you'll ever use, every framework you pick — they all sit on top of these 15 posts.
+
+Build something. That's the only way any of this sticks.
+
+---
+
+**All 15 parts — [Layout foundations: 1](/blog/web-development-01-box-model) · [2](/blog/web-development-02-flexbox) · [3](/blog/web-development-03-grid) · [4](/blog/web-development-04-responsive-basics) · [5](/blog/web-development-05-responsive-modern) · [Design system: 6](/blog/web-development-06-design-tokens) · [7](/blog/web-development-07-color-hierarchy) · [8](/blog/web-development-08-type-scale) · [9](/blog/web-development-09-spacing-scale) · [10](/blog/web-development-10-shadow-hierarchy) · [Components: 11](/blog/web-development-11-buttons) · [12](/blog/web-development-12-forms) · [13](/blog/web-development-13-cards) · [14](/blog/web-development-14-component-states) · Post 15 (you are here).**

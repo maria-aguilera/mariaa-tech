@@ -1,0 +1,107 @@
+---
+slug: web-development-05-responsive-modern
+title: "Post 5 — Modern responsive: container queries and clamp()"
+subtitle: "Two 2023-era features that quietly killed a lot of media queries. Component-level responsive with container queries, and fluid typography with one line of clamp()."
+date: "August 2026"
+updated: "August 2026"
+excerpt: "Media queries look at the viewport. Container queries look at the parent — so the same component behaves differently in a sidebar vs full-width. clamp() replaces a whole stack of media queries for font sizes and spacing. Both are now safe to use in production."
+tags:
+  - Web Development
+  - CSS
+  - Container Queries
+  - Fluid Typography
+  - Responsive Design
+source: Notes
+topic: Web Development
+series: "Web Development"
+seriesPart: 5
+seriesTotal: 15
+coverImage: "/images/blog/web-development/inline-web-container-queries.png"
+---
+
+*Web Development · Post 5/15*
+
+Everything in Post 4 is still true — but a couple of newer CSS features let you do a lot of it with less code and cleaner mental models. Both landed in every browser between 2023 and 2024, so they're safe to use without polyfills now.
+
+## Container queries — sizing based on the parent, not the viewport
+
+Media queries look at the *viewport*. That's the whole browser window. Which means the same card component behaves the same whether it lives in a sidebar (narrow), a modal (medium), or the full page (wide) — because none of those change the viewport size.
+
+Container queries look at the *parent* element instead.
+
+<img src="/images/blog/web-development/inline-web-container-queries.png" alt="Container queries vs media queries — the same card component adapting to its parent width (narrow sidebar, medium modal, wide main area) instead of the viewport width." />
+
+<img src="/images/blog/web-development/css_container_queries_vs_media_queries.png" alt="CSS container queries vs media queries — side-by-side comparison of when each fires and what they measure." />
+
+The syntax is two steps: declare an element as a container, then query it.
+
+```css
+.card-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 400px) {
+  .card {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+  }
+}
+```
+
+Now `.card` reflows into an image-left layout whenever *its container* is at least 400px wide — regardless of what the viewport is doing. You drop the same card into a sidebar and it stays stacked; drop it into the main area and it goes side-by-side. Same component, different context, zero if-statements in your JavaScript.
+
+The same component in three different containers, showing why this is different from media queries:
+
+<img src="/images/blog/web-development/container_queries_responsive_components_compared.png" alt="Container queries in practice — a card component rendered in narrow, medium, and wide containers, adapting to each parent independently." />
+
+This is the fix for the oldest complaint about media queries: they force every component to know about the global page width.
+
+## clamp() — fluid typography in one line
+
+The typical media-query approach to typography:
+
+```css
+h1 { font-size: 1.5rem; }
+@media (min-width: 640px)  { h1 { font-size: 2rem;   } }
+@media (min-width: 1024px) { h1 { font-size: 2.5rem; } }
+@media (min-width: 1280px) { h1 { font-size: 3rem;   } }
+```
+
+Four rules, three breakpoints, and it jumps in steps. `clamp()` replaces all of that with one line:
+
+```css
+h1 { font-size: clamp(1.5rem, 4vw, 3rem); }
+```
+
+<img src="/images/blog/web-development/inline-web-fluid-typography.png" alt="The clamp() function visualised — a minimum size, a preferred fluid value that grows with the viewport, and a maximum size." />
+
+<img src="/images/blog/web-development/understanding_fluid_typography_with_clamp.png" alt="Understanding fluid typography with clamp — how min, preferred (vw), and max combine to produce a smoothly scaling font size." />
+
+Three arguments, in this order:
+
+- **min** — the smallest the value is allowed to be (`1.5rem`).
+- **preferred** — the ideal value, usually written in `vw` so it scales with the viewport (`4vw`).
+- **max** — the largest the value is allowed to be (`3rem`).
+
+The browser picks the preferred value, but never goes below min or above max. Between the breakpoints, the size grows *smoothly* with the window — no jumps.
+
+Use it for the same things you used media queries for on typography: `font-size`, `padding`, `gap`, `margin`, `border-radius`. Any length can be fluid.
+
+## What still needs a media query
+
+Some things haven't got a "modern" replacement. Reach for a media query when:
+
+- The whole *layout structure* changes (e.g., sidebar hides on mobile, becomes a bottom sheet).
+- You're toggling entire components on and off.
+- You need to swap navigation patterns (horizontal to hamburger).
+- You're targeting `prefers-color-scheme`, `prefers-reduced-motion`, or `print`.
+
+The rule of thumb: **media queries for structural breakpoints, container queries and clamp() for the sizing in between**.
+
+## Where we're going next
+
+That closes the layout & responsive foundations. The next 10 posts move from *how to arrange things* to *how to design what's inside them* — colours, typography, spacing, shadows, components. The design system layer that sits on top of everything you learned above.
+
+---
+
+**Next up — [Post 6: Design tokens — the single source of truth](/blog/web-development-06-design-tokens).**

@@ -1,0 +1,88 @@
+---
+slug: web-development-13-cards
+title: "Post 13 — Cards: the universal container"
+subtitle: "Header, media, body, actions. The one component that shows up on every product you've ever used."
+date: "August 2026"
+updated: "August 2026"
+excerpt: "A card is a self-contained rectangle of related content. Blog previews, product listings, dashboard widgets, chat previews — they're all the same shape underneath. Learn the anatomy once and every list view in every product is the same problem."
+tags:
+  - Web Development
+  - Components
+  - Cards
+  - UI Design
+source: Notes
+topic: Web Development
+series: "Web Development"
+seriesPart: 13
+seriesTotal: 15
+coverImage: "/images/blog/web-development/inline-web-card-variants.png"
+---
+
+*Web Development · Post 13/15*
+
+Look at any product homepage and you'll see cards everywhere — blog previews, product listings, feature grids, testimonials, dashboard widgets. Different content, same shape. The card is the workhorse of the interface.
+
+## The four regions of a card
+
+Almost every card has some subset of:
+
+<img src="/images/blog/web-development/inline-web-card-variants.png" alt="Card variants — basic card, media card (with cover image), product card, and profile card, showing the four regions in each." />
+
+<img src="/images/blog/web-development/card_design_system_cheat_sheet.png" alt="Card design system cheat sheet — every card variant with its structure and use case laid out in a grid." />
+
+- **Media** (optional) — an image, illustration, or thumbnail at the top.
+- **Header** — title, subtitle, maybe a badge or timestamp.
+- **Body** — the main content. Text, metadata, a chart.
+- **Actions** — buttons or links at the bottom. "Read more," "Add to cart," "Learn about this."
+
+Not every card has all four. A blog card has media + header + body. A pricing card is header + body + actions. A statistic card is just header + body. The regions are a menu, not a checklist.
+
+## The one CSS pattern
+
+A card is a `div` with:
+
+```css
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+```
+
+Every token from the previous posts shows up here. Spacing scale, colour tokens, radius, shadow. This is the payoff — you're not making decisions per card, you're referencing decisions you already made.
+
+## Interactive cards
+
+If the whole card is clickable, the outermost element should be an `<a>`, not a `<div>` with a `onClick` handler. Why:
+
+- Right-click "open in new tab" works.
+- Middle-click works.
+- Focus and keyboard navigation work.
+- Screen readers announce it as a link.
+
+```html
+<a href="/post/slug" class="card card--linked">
+  <img src="..." />
+  <h3>Title</h3>
+  <p>Excerpt</p>
+</a>
+```
+
+The hover state is where you get to add polish — a subtle lift (`transform: translateY(-2px)`), a shadow bump (`--shadow-md`), a border colour change. Don't do all three at once, one is usually enough.
+
+## The "card in a card" trap
+
+If you find yourself putting a card inside a card, stop. It almost always means the outer container should be a section (with a heading and no border), not a card. Cards are for **one thing** — one product, one post, one feature. Nesting them makes the visual hierarchy collapse.
+
+## Cards in a grid
+
+The moment you have cards, you have a card grid. That's Post 3 — `repeat(auto-fit, minmax(280px, 1fr))`. Cards + grid + spacing scale = 90% of every list view in every product ever made.
+
+---
+
+**Next up — [Post 14: Component states](/blog/web-development-14-component-states).**

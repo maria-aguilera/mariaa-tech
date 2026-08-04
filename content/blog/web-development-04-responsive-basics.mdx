@@ -1,0 +1,108 @@
+---
+slug: web-development-04-responsive-basics
+title: "Post 4 — Responsive design: breakpoints and mobile-first"
+subtitle: "How a site goes from a 380px phone to a 2560px monitor. The four breakpoints that cover 95% of devices, why mobile-first wins, and what actually changes between screen sizes."
+date: "August 2026"
+updated: "August 2026"
+excerpt: "Responsive design is not 'add more CSS as the screen gets bigger.' It's 'design for the smallest thing first, then add complexity as you get more space.' Four breakpoints, one meta tag, and a small set of transformations."
+tags:
+  - Web Development
+  - CSS
+  - Responsive Design
+  - Media Queries
+source: Notes
+topic: Web Development
+series: "Web Development"
+seriesPart: 4
+seriesTotal: 15
+coverImage: "/images/blog/web-development/inline-web-breakpoints.png"
+---
+
+*Web Development · Post 4/15*
+
+The device your reader has is not the device you have. It might be a phone in the metro, a tablet on the sofa, or a 27" monitor at a desk. Responsive design is the discipline of making one HTML file look intentional on all of them.
+
+## Before anything else: the viewport meta tag
+
+Without this line in your `<head>`, mobile browsers will pretend the screen is 980px wide and shrink your entire page to fit. You'll wonder why nothing you do matters.
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+```
+
+Every modern framework adds this for you. If you're writing plain HTML, you have to remember. If you skip it, no amount of CSS will save you on mobile.
+
+## The four breakpoints that cover 95% of devices
+
+You don't need eighteen media queries. You need four.
+
+<img src="/images/blog/web-development/inline-web-breakpoints.png" alt="The four breakpoints — mobile, tablet, laptop, desktop — with typical widths and the Tailwind naming convention." />
+
+Same idea, drawn with the actual Tailwind prefixes and typical devices in each range:
+
+<img src="/images/blog/web-development/responsive_breakpoints_and_tailwind_design_guide.png" alt="Responsive breakpoints and Tailwind design guide — sm, md, lg, xl, 2xl with example devices." />
+
+- **Mobile** — up to ~640px. Phones in portrait.
+- **Tablet** — ~640 to 1024px. Tablets, small laptops, phones in landscape.
+- **Laptop** — ~1024 to 1280px. Most laptops, big tablets.
+- **Desktop** — 1280px and up. Monitors.
+
+Tailwind uses the prefixes `sm:`, `md:`, `lg:`, `xl:` for exactly these ranges. If you're not using Tailwind, plain CSS looks like this:
+
+```css
+/* mobile styles here — no media query needed */
+
+@media (min-width: 640px)  { /* tablet+  (sm) */ }
+@media (min-width: 1024px) { /* laptop+  (lg) */ }
+@media (min-width: 1280px) { /* desktop+ (xl) */ }
+```
+
+Notice all of them use `min-width`. That's mobile-first — and that's the next thing.
+
+## Mobile-first vs desktop-first (and why mobile-first wins)
+
+Two ways to think about responsive:
+
+- **Desktop-first**: write CSS for the big screen, then use `max-width` media queries to *remove* things as the screen shrinks.
+- **Mobile-first**: write CSS for the small screen, then use `min-width` media queries to *add* things as the screen grows.
+
+<img src="/images/blog/web-development/inline-web-mobile-first.png" alt="Mobile-first vs desktop-first — the mental model of starting with the smallest screen and adding complexity, versus starting with the biggest screen and removing complexity." />
+
+<img src="/images/blog/web-development/responsive_design_mobile_first_vs_desktop_first.png" alt="Responsive design comparison — mobile-first (add complexity as screen grows) vs desktop-first (remove complexity as screen shrinks)." />
+
+Mobile-first wins for one reason: **the mobile version is the hardest**. You have the least space, the fewest columns, the fewest CSS features you can afford. If you start there, everything you add afterwards is a bonus — an extra column, a wider sidebar, more type. If you start desktop-first, every media query is an act of *taking things away*, which is much harder to keep consistent as the site grows.
+
+There's also a performance argument: mobile devices only load the CSS they need, not the full desktop CSS plus overrides. But the real reason is the design discipline.
+
+## What actually changes between screen sizes
+
+Responsive isn't really about pixel widths — it's about a small vocabulary of *transformations* that repeat on every site.
+
+<img src="/images/blog/web-development/inline-web-responsive-patterns.png" alt="The four canonical responsive transformations — nav bar collapses to hamburger, card grid reflows columns, sidebar moves under content, data table becomes cards." />
+
+<img src="/images/blog/web-development/responsive_ui_patterns_guide.png" alt="Responsive UI patterns guide — hamburger nav, reflowing card grid, sidebar-to-bottom, table-to-cards, split view, and drawer patterns." />
+
+Four patterns cover most sites:
+
+1. **Nav bar → hamburger menu.** Horizontal links collapse into a menu icon. This is almost universal below ~768px.
+2. **Multi-column grid → single column.** A 3-column card grid becomes 2, then 1. `auto-fit + minmax` from Post 3 handles this for free.
+3. **Side-by-side → stacked.** Sidebar + content becomes content + sidebar-below. This is a `flex-direction: column` toggle at the tablet breakpoint.
+4. **Data table → cards.** Wide tables can't shrink gracefully. Below tablet width, each row becomes its own card. This one has no automatic solution — you rewrite the markup.
+
+If you can implement those four transformations, you can make almost any site responsive.
+
+## The full responsive toolkit
+
+Breakpoints, media queries, viewport units, container queries, clamp — all in one reference:
+
+<img src="/images/blog/web-development/responsive_design_toolkit_cheat_sheet.png" alt="Responsive design toolkit cheat sheet — breakpoints, media queries, viewport units, container queries, and clamp() reference." />
+
+<img src="/images/blog/web-development/responsive_design_cheat_sheet_overview.png" alt="Responsive design cheat sheet overview — a compact one-glance version of the full toolkit." />
+
+## The one non-CSS thing you can't skip: touch targets
+
+Buttons and links need to be at least **44×44 pixels** on touch devices (Apple's Human Interface Guidelines). Google says 48×48. Smaller than that and thumbs miss. This isn't a media query — it's a minimum size you enforce on every interactive element from the start.
+
+---
+
+**Next up — [Post 5: Modern responsive — container queries and clamp()](/blog/web-development-05-responsive-modern).**

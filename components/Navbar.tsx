@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import {
   Award,
   BookOpen,
@@ -14,51 +14,42 @@ import {
 import { series } from "@/lib/series";
 
 const THEME_STORAGE_KEY = "site-theme";
-const THEME_CHANGE_EVENT = "site-theme-change";
 
 type Theme = "light" | "dark";
 
-function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
-}
-
-function subscribeToTheme(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === THEME_STORAGE_KEY) {
-      onStoreChange();
-    }
-  };
-
-  const handleThemeChange = () => onStoreChange();
-
-  window.addEventListener("storage", handleStorage);
-  window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
-
-  return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
-  };
-}
-
 export default function Navbar() {
-  const theme = useSyncExternalStore(subscribeToTheme, getStoredTheme, () => "light");
   const pathname = usePathname();
   const [blogMenuOpen, setBlogMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const initial: Theme = stored === "dark" ? "dark" : "light";
+    setTheme(initial);
+    setMounted(true);
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === THEME_STORAGE_KEY) {
+        setTheme(event.newValue === "dark" ? "dark" : "light");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     document.body.classList.toggle("theme-dark", theme === "dark");
     document.documentElement.style.colorScheme = theme;
-  }, [theme]);
+  }, [theme, mounted]);
 
   const handleToggle = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+    setTheme((prev) => {
+      const next: Theme = prev === "light" ? "dark" : "light";
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
+      return next;
+    });
   };
 
   const isActive = (href: string) => {

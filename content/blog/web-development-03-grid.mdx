@@ -1,0 +1,109 @@
+---
+slug: web-development-03-grid
+title: "Post 3 — CSS Grid: 2D layouts"
+subtitle: "Rows AND columns at the same time. fr units, minmax, and auto-fit — the trio that gives you responsive card grids without a single media query."
+date: "August 2026"
+updated: "August 2026"
+excerpt: "Grid is Flexbox's older, more ambitious sibling. It lets you arrange things in two directions at once — magazine layouts, dashboards, photo galleries, card grids that reflow on their own. And once you meet minmax + auto-fit, you stop writing media queries for a lot of layouts."
+tags:
+  - Web Development
+  - CSS
+  - Grid
+  - Layout
+source: Notes
+topic: Web Development
+series: "Web Development"
+seriesPart: 3
+seriesTotal: 15
+coverImage: "/images/blog/web-development/inline-web-grid-mental-model.png"
+---
+
+*Web Development · Post 3/15*
+
+If Flexbox is "arrange things in one direction," Grid is "define a grid of cells, then drop things into them." Rows AND columns at the same time. This is what you want for anything that reads as a *layout* rather than a *list*.
+
+## The mental model: templates first, then items
+
+With Flexbox you set properties on the container and hope the children fall into place. With Grid you *declare the grid up front* — how many columns, how wide each is, how tall each row is — and then the children just slot in.
+
+<img src="/images/blog/web-development/inline-web-grid-mental-model.png" alt="CSS Grid mental model — 2D layout with rows, columns, fr units, and gap." />
+
+Same idea, drawn as a full infographic — grid tracks, cells, gaps, and how items span multiple cells:
+
+<img src="/images/blog/web-development/css_grid_mental_model_infographic.png" alt="CSS Grid mental model infographic — tracks, cells, gaps, and item spanning across rows and columns." />
+
+Two properties define the grid itself:
+
+- `grid-template-columns` → the column tracks.
+- `grid-template-rows` → the row tracks.
+
+And this is where the `fr` unit shows up, which is the thing that makes Grid feel magical.
+
+## `fr` — the "fraction of remaining space" unit
+
+`fr` stands for *fraction*. It divides up whatever space is left after fixed sizes are accounted for.
+
+```css
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr;
+}
+```
+
+The first column is a fixed 200px sidebar. The remaining space gets split evenly between the other two columns. Resize the window, and only those two columns stretch. That's what you want.
+
+Compare to percentages: `200px 40% 40%` breaks the moment the container isn't wide enough for 200px + 80%. `fr` never fights you.
+
+## minmax + auto-fit — responsive without media queries
+
+This is the pattern I copy-paste the most:
+
+```css
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+```
+
+Breaking it down:
+
+- `minmax(280px, 1fr)` → each column is at least 280px wide, but grows to fill available space.
+- `repeat(auto-fit, ...)` → fit as many of those as the container allows. When there's room for 4, show 4. When the window shrinks and 3 no longer fit, drop to 2. Then 1.
+
+**No media queries.** No breakpoints. The grid figures it out from a single line. This is why so many modern sites feel responsive without you being able to point at when the layout "flipped" — because it's not flipping, it's flowing.
+
+## The six real Grid layouts
+
+Just like Flexbox, you'll build the same handful of Grid layouts on repeat:
+
+<img src="/images/blog/web-development/inline-web-grid-recipes.png" alt="Six CSS Grid layout patterns — card grid, sidebar + content, magazine, dashboard, photo gallery, and 12-column layout." />
+
+<img src="/images/blog/web-development/a_guide_to_css_grid_layout.png" alt="A guide to CSS grid layout — the practical patterns with their CSS shown side by side." />
+
+1. **Card grid** — the `auto-fit + minmax` pattern above.
+2. **Sidebar + content** — `grid-template-columns: 240px 1fr`.
+3. **Magazine** — a mix of column and row spans (`grid-column: span 2`, `grid-row: span 2`).
+4. **Dashboard** — same as magazine, but with more cells and typically named grid areas.
+5. **Photo gallery** — `auto-fit` with `minmax(200px, 1fr)` and `aspect-ratio: 1`.
+6. **12-column layout** — the Bootstrap-style `repeat(12, 1fr)` that lets you place things on any column line.
+
+## Full grid reference
+
+Every property, every value, every keyword you'll actually use — bookmark all three:
+
+<img src="/images/blog/web-development/css_grid_layout_cheat_sheet.png" alt="CSS Grid layout cheat sheet — grid-template, grid-column/row, gap, and all named line syntax." />
+
+<img src="/images/blog/web-development/css_grid_cheat_sheet_overview.png" alt="CSS Grid cheat sheet overview — compact reference of every grid property." />
+
+<img src="/images/blog/web-development/css_grid_layout_guide_and_tips.png" alt="CSS Grid layout guide and tips — practical patterns and gotchas from real projects." />
+
+## When Grid beats Flexbox (and when it doesn't)
+
+If you're aligning items in *one direction* and letting them wrap, Flexbox is simpler. If you're placing items in *two directions* — where things need to line up across rows AND columns — Grid wins every time.
+
+The give-away that you're reaching for the wrong tool: **nesting**. Nesting three flex containers to fake a grid is a smell. Nesting a grid inside a grid inside a grid to align things in one direction is also a smell. Match the tool to the axis count.
+
+---
+
+**Next up — [Post 4: Responsive design — breakpoints and mobile-first](/blog/web-development-04-responsive-basics).**
