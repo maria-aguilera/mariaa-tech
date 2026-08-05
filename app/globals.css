@@ -79,11 +79,15 @@ body {
   /* SOLID (like before) */
   background: var(--nav);
 
-  border-bottom: 1.5px solid var(--divider);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--text);
 
   /* consistent spacing between BRAND | MENU | TOGGLE */
   gap: var(--nav-gap);
+}
+
+body.theme-dark .navbar {
+  border-bottom-color: rgba(148, 163, 184, 0.25);
 }
 
 /* =====================================================
