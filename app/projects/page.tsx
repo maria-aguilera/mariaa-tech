@@ -29,7 +29,11 @@ export default function BlogIndexPage() {
   const extraMdxPosts = mdxPosts.filter(
     (post) => !blogSlugs.has(post.slug) && !post.unlisted && !post.draft,
   );
-  const allPosts = [...mergedPosts, ...extraMdxPosts];
+  // Posts that belong to an editorial series live under /guides — hide them
+  // here so /projects only shows standalone posts and one-off case studies.
+  const allPosts = [...mergedPosts, ...extraMdxPosts].filter(
+    (post) => !("series" in post && (post as { series?: string }).series),
+  );
 
   const indexPosts: BlogIndexPost[] = allPosts.map((post) => ({
     slug: post.slug,
@@ -47,7 +51,7 @@ export default function BlogIndexPage() {
 
       <section className="blog-body">
         <div className="blog-body__container">
-          <BlogIndex posts={indexPosts} minTagCount={2} defaultSource="Blog" />
+          <BlogIndex posts={indexPosts} minTagCount={4} defaultSource="Blog" />
         </div>
       </section>
     </main>
