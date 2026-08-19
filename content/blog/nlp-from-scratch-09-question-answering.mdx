@@ -36,7 +36,11 @@ In [Part 8](/blog/nlp-from-scratch-08-information-retrieval) you built a search 
 
 That distinction is the whole reason QA exists. IR is a **filter** — it surfaces relevant documents. QA is **focused** — it tries to give you the specific fact, the specific span of text, the specific entity that answers your question. Google now does both: type a question, and you often see the answer at the top *and* a list of links below it. The answer box is QA. The blue links are IR.
 
-> 🖼️ **Image placeholder** — brand concept card titled "QA vs IR" — left side: query "who is the author of macbeth?"; arrow into IR system; output: ranked list of Wikipedia / blog / encyclopedia links. Right side: same query; arrow into QA system; output: a single answer card "William Shakespeare". Slate-blue + green accents, clean comparison layout.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/search-vs-question-answering.png"
+  alt="Comparison between search and question answering: search returns documents, while question answering returns a direct answer."
+  caption="Search returns documents. Question answering returns answers."
+/>
 
 Because of that focus, QA and IR are also tightly coupled. IR is almost always *inside* the QA pipeline — you cannot answer a question over a billion documents without first filtering down to a handful of candidates.
 
@@ -55,7 +59,11 @@ But the most important practical lesson from this whole arc is:
 
 Build a QA system that answers *anything* about *everything*, and the performance will be bad. Narrow the domain to "questions about our HR policy" or "questions about our docs", and the same model will work much better. This is the dominant piece of advice for commercial QA: *do not* try to build the next Google. Pick a domain. Then narrow it again.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Narrow the domain" — funnel illustration: at the top, "any question, any topic" (red, hard); narrowing down to "questions about company docs" (amber, easier); narrowing again to "questions about a specific product manual" (green, tractable). Bottom callout: "Performance scales with how narrow you go". Off-white bg, red/amber/green accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/open-vs-closed-domain.png"
+  alt="Open-domain question answering covers many topics, while closed-domain question answering narrows the source of knowledge."
+  caption="The narrower the domain, the easier it is to answer reliably."
+/>
 
 ## The two paradigms
 
@@ -66,7 +74,11 @@ State-of-the-art QA splits into two paradigms:
 
 The main difference is the **source system** for the candidate answers. Everything else (question processing, answer extraction) is similar.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Two QA paradigms" — left column "IR-based" with logos/icons for Google + Wikipedia docs; right column "Knowledge-based" with icons for IBM Watson, Apple Siri, Wolfram Alpha; arrow from each into a shared "answer extraction" block. Slate-blue + amber accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/question-answering-mental-map.png"
+  alt="Mental map of question answering paths: provided context, large document corpus, or structured knowledge base."
+  caption="QA systems differ mostly in where the evidence comes from."
+/>
 
 We will look at IR-based first (because it is the more common paradigm), then knowledge-based, then hybrid.
 
@@ -74,7 +86,11 @@ We will look at IR-based first (because it is the more common paradigm), then kn
 
 Before deep learning, the QA pipeline was a chain of manual modules. It looked roughly like this:
 
-> 🖼️ **Image placeholder** — brand concept card titled "Classical QA pipeline" — horizontal flow: Question → Question processing (query formulation + answer type detection) → IR system (with indexed docs) → Passage retrieval (segmentation + ranking) → Answer processing → Answer. Each stage in its own box with small icons. Bottom note: "Each stage can introduce errors that compound downstream". Slate-blue + warm callouts.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/qa-pipeline.png"
+  alt="Question answering pipeline from question to retrieval, reading the context, finding or generating an answer, and returning the answer."
+  caption="Classical QA is a chain: retrieve evidence, read it, extract or generate the answer."
+/>
 
 Each stage is non-trivial, each stage depends on your domain and data, and each stage is a potential source of errors. Errors compound across the pipeline — that is the central weakness of this design. Let us walk through it.
 
@@ -88,7 +104,11 @@ You need this because later, when you are scanning passages, you can throw out a
 
 There is a classic taxonomy from Xin Li & Dan Roth (2002) — a two-level hierarchy with a coarse classifier (ABBREVIATION / ENTITY / DESCRIPTION / HUMAN / LOCATION / NUMERIC) and a fine classifier underneath each coarse type (group / individual / title / description / ...). Real systems can have hundreds of fine types. Jeopardy used about 2,500 distinct types, and the 200 most frequent covered roughly half of them.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Answer type taxonomy" — tree diagram: coarse classifier at the top (ABBREVIATION, ENTITY, DESCRIPTION, HUMAN, LOCATION, NUMERIC); branching down into fine classifiers (group, individual, title, description, ...); right side caption "Xin Li & Dan Roth, 2002". Slate-blue + green nodes.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/machine-reading-comprehension.png"
+  alt="Machine reading comprehension example showing a passage and different question types such as who, where, when, and why."
+  caption="The wording of the question is an early clue about what kind of answer the system should look for."
+/>
 
 The taxonomy size is a problem. Building a classifier over thousands of classes is hard, and you need a labeled training set with question → expected-type pairs. The narrower the domain, the smaller the taxonomy — and the better the classifier. (Same lesson, different stage.)
 
@@ -111,7 +131,11 @@ Whole documents are too big. You probably do not need the entire Wikipedia artic
 
 The output of this stage is a small set of passages ranked by likelihood of containing the answer.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Passage retrieval" — top: a long Wikipedia-style article; arrows fanning out into shorter paragraph cards; each paragraph annotated with small scores; top-scoring paragraph highlighted as "candidate". Slate-blue accent.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/large-corpus-qa.png"
+  alt="Large-corpus question answering pipeline that retrieves likely passages from a large document collection before reading them."
+  caption="Retrieval shrinks the search space before the QA model reads anything."
+/>
 
 ### Stage 4 — Answer extraction
 
@@ -146,7 +170,11 @@ This is the cost of a modular system: every module is a potential error source, 
 
 So here is the state-of-the-art move from the notes: **replace all of these modules with a single deep neural network.**
 
-> 🖼️ **Image placeholder** — brand concept card titled "Replace the pipeline with a single neural net" — left side: classical pipeline with four boxes connected by arrows; arrow with red Xs over the intermediate boxes; right side: same input/output but a single big neural net in the middle replacing the whole chain. Off-white bg, red Xs over modules, green check on the unified model.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/retrieval-plus-qa.png"
+  alt="Retrieval plus question answering pipeline where retrieval finds evidence and a QA model extracts the final answer."
+  caption="Modern systems still retrieve first, then let a reader model answer from the shortlisted evidence."
+/>
 
 You still need IR underneath. You do not want to feed the entire corpus to the neural net for every question — that is wasteful and slow. So IR stays as a *filter* (pull the top-K candidates) and the neural net replaces everything after that.
 
@@ -162,7 +190,11 @@ Before transformers, the standard architecture for QA was an attention-augmented
 
 You train by backpropagating the classification error all the way back through the LSTMs and embeddings.
 
-> 🖼️ **Image placeholder** — brand concept card titled "QA LSTM with attention" — three vertical input columns (Story / Question / Answer), each with an embedding box, each with an LSTM box; two attention arrows connecting Question→Story (labelled "facts attention") and Question→Answer (labelled "answer attention"); below them a concatenation block; below that a dense layer outputting "answer correct? Y/N". Slate-blue + green accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/extractive-qa.png"
+  alt="Extractive question answering flow where a question and context go into a reader model and the output is an answer span."
+  caption="The reader model learns to point to the span that answers the question."
+/>
 
 The intuition: the **facts attention** layer learns *where* in the story the question is asking about (e.g., for *"Who is the author of Macbeth?"*, focus on the sentence about Macbeth's author). The **answer attention** layer learns *whether* the candidate answer is consistent with that focus.
 
@@ -189,7 +221,11 @@ The model is trained to output **two probability distributions** over the tokens
 
 The answer is the span from the most-likely start to the most-likely end. For the question above, the start head would peak on `340` and the end head would peak on `parameters`. Answer: *340M parameters*.
 
-> 🖼️ **Image placeholder** — brand concept card titled "BERT-based QA — start/end heads" — top: input tokens "[CLS] How many parameters does BERT large have ? [SEP] BERT large is really big ... 340 M parameters ! [SEP]"; below: 12 transformer layers stacked; two output heads (blue start distribution and red end distribution) showing peaks on "340" and "parameters". Bottom note: "Answer = span from argmax(start) to argmax(end)". Slate-blue + red accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/bert-qa.png"
+  alt="BERT question answering architecture with question and passage packed into one sequence and start and end probability heads."
+  caption="BERT-style QA predicts where the answer starts and where it ends."
+/>
 
 The training itself is just supervised learning: for each (question, passage, answer-span) example, learn weights so the start head peaks on the first token of the answer and the end head peaks on the last token.
 
@@ -217,7 +253,11 @@ granddaughter-of(?x, ?y)
 
 Run that against the graph and return `?y`.
 
-> 🖼️ **Image placeholder** — brand concept card titled "Knowledge base as a graph" — small entity-relation graph centered on "Seattle" with edges to: Location (Address: 400 Broad St…), Home Field (NFL Seahawks: founded 1976, head coach Pete Carroll), Headquarters (Starbucks: founded 1971, CEO Howard Schultz); each edge labelled with the relation type. Off-white bg, slate-blue + green accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/knowledge-base-qa.png"
+  alt="Knowledge-base question answering where a question is answered by querying structured triples instead of raw text passages."
+  caption="Knowledge-based QA queries structured facts instead of searching raw documents."
+/>
 
 This is appealing because the knowledge base is structured — once you can translate the question into a query, the answer is exact. No string fuzziness, no passage scoring.
 
@@ -228,7 +268,11 @@ But it has serious problems:
 
 So there is active research into both pieces: **automatic KB construction** (extract relations from text to build the graph) and **semantic parsing** (translate natural-language questions into structured queries).
 
-> 🖼️ **Image placeholder** — brand concept card titled "A deep-learning approach to semantic parsing" — top: input sentence "Age of Keir Starmer"; below: sequence-to-sequence model with encoder LSTMs and decoder LSTMs, attention arrows between them; output: a structured query "λx.age(x) person(x) 'Keir Starmer'"; small citations to Dong & Lapata (2016), Ling et al. (2016), Kočiský et al. (2016). Slate-blue + amber accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/semantic-similarity-qa.png"
+  alt="Semantic similarity for question answering, ranking candidate passages by meaning rather than exact word overlap."
+  caption="The hard part is often matching the question to evidence that means the same thing in different words."
+/>
 
 Even when you can solve all of this, two facts make people prefer the IR-based paradigm:
 
@@ -245,7 +289,11 @@ The classic Watson example: the question mentions *"the 400th anniversary of the
 - *"arrival"* and *"landed"* are linguistically similar. (Paraphrase / semantic reasoning — BERT handles this.)
 - *"Kappad Beach"* is *"in India"*. (Geospatial reasoning — KB lookup.)
 
-> 🖼️ **Image placeholder** — brand concept card titled "Hybrid reasoning — Watson example" — top: question "In May 1898 Portugal celebrated the 400th anniversary of the explorer's arrival in India"; supporting evidence: "On the 27th of May 1498, Vasco da Gama landed in Kappad Beach"; in the middle, three reasoning links: temporal (1898 - 400 = 1498), statistical paraphrasing (arrival ≈ landed), geospatial (Kappad Beach ∈ India); on the right, the answer "Vasco da Gama". Slate-blue + amber + green colour-coded reasoning chains.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/answer-with-evidence.png"
+  alt="Question answering diagram showing a retrieved passage, highlighted supporting evidence, and an answer grounded in that evidence."
+  caption="A trustworthy QA system should show where the answer came from."
+/>
 
 An IR-only system, even with BERT under the hood, cannot do that temporal arithmetic or that geospatial lookup. A knowledge base can.
 
@@ -268,7 +316,11 @@ So for production:
 
 The professor's practical advice: **for specific factual things, formalize your knowledge into a rules-based system. Reserve BERT for the parts where linguistic understanding actually helps. Narrow the domain.**
 
-> 🖼️ **Image placeholder** — brand concept card titled "BERT QA caution" — left side: BERT generates a fluent, confident-sounding answer; right side: a red warning callout "Linguistically correct ≠ factually correct"; bottom note: "For specific business rules, use rule-based or KB-based systems. Use BERT for paraphrasing and intent." Red + amber warning accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/qa-failure-modes.png"
+  alt="Question answering failure modes including wrong retrieval, ambiguous question, answer not in context, and shallow pattern match."
+  caption="QA failures can come from retrieval, ambiguity, missing evidence, or weak reasoning."
+/>
 
 ## The GPT-3 shortcut: zero-shot QA
 
@@ -284,7 +336,11 @@ This is called **zero-shot** (or few-shot) question answering. The downsides are
 
 The mental shift: QA used to mean "train a model for the QA task". With GPT-3-class models, QA becomes "**ask the language model the question**, and trust that pretraining gave it the knowledge". Whether you trust that *enough* for production is the real question.
 
-> 🖼️ **Image placeholder** — brand concept card titled "GPT-3 zero-shot QA" — top: a user question; prompt template wraps it ("Answer the following: ..."); arrow into a huge model labelled GPT-3 / GPT-4; output: a single generated answer. Side callout: "No fine-tuning, no IR pipeline — just prompt + huge model"; bottom warning: "Hosted models, API cost, hallucination risk". Slate-blue + amber accents.
+<Image
+  src="/images/blog/nlp-from-scratch/question-answering/generative-qa.png"
+  alt="Generative question answering where a model combines evidence from multiple sources to compose an answer."
+  caption="Generative QA can compose an answer, but it still needs evidence if correctness matters."
+/>
 
 ## What this connects to
 
