@@ -51,7 +51,7 @@ export default function BlogIndexPage() {
 
       <section className="blog-body">
         <div className="blog-body__container">
-          <BlogIndex posts={indexPosts} minTagCount={4} defaultSource="Blog" />
+          <BlogIndex posts={indexPosts} minTagCount={2} defaultSource="Blog" />
         </div>
       </section>
     </main>

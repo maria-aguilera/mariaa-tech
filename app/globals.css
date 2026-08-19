@@ -623,34 +623,38 @@ body.theme-dark .navbar {
 }
 
 .blog-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 900px) {
+  .blog-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .blog-stat {
   background: #ffffff;
-  border-radius: 999px;
+  border-radius: 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  padding: 0.45rem 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: left;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  padding: 1.1rem 1.25rem;
+  text-align: center;
 }
 
 .blog-stat__value {
-  font-size: 0.95rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: #2563eb;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .blog-stat__label {
+  margin-top: 0.25rem;
   font-size: 0.85rem;
   color: #475569;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   text-transform: none;
 }
 
@@ -658,12 +662,16 @@ body.theme-dark .navbar {
   cursor: pointer;
   font: inherit;
   appearance: none;
-  transition: background 150ms ease, border-color 150ms ease;
+  width: 100%;
+  display: block;
+  position: relative;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
 .blog-stat--button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.16);
   border-color: rgba(37, 99, 235, 0.55);
-  background: #f8fafc;
 }
 
 .blog-stat--button:focus-visible {
@@ -672,11 +680,6 @@ body.theme-dark .navbar {
 }
 
 /* Active state: bolder, darker-blue label. No bar, no ring — boxes stay flat. */
-.blog-stat--active {
-  background: #eff6ff;
-  border-color: rgba(37, 99, 235, 0.5);
-}
-
 .blog-stat--active .blog-stat__label {
   color: #1d4ed8;
   font-weight: 600;
@@ -684,18 +687,6 @@ body.theme-dark .navbar {
 
 .blog-stat--active .blog-stat__value {
   color: #1d4ed8;
-}
-
-body.theme-dark .blog-stat {
-  box-shadow: none;
-}
-body.theme-dark .blog-stat--active {
-  background: rgba(37, 99, 235, 0.18);
-  border-color: rgba(96, 165, 250, 0.5);
-}
-body.theme-dark .blog-stat--active .blog-stat__label,
-body.theme-dark .blog-stat--active .blog-stat__value {
-  color: #93c5fd;
 }
 
 /* ---------------- navbar series dropdown ---------------- */
