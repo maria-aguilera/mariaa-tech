@@ -1,0 +1,163 @@
+---
+slug: nlp-foundations-02-semantics
+title: "Post 2 — Semantics and Word Meaning"
+subtitle: "From dictionary definitions to distributional semantics and the embeddings that power modern NLP."
+date: "January 2022"
+updated: "June 2026"
+excerpt: "Semantics is how we capture *meaning* in computation. The big idea is distributional semantics: a word is known by the company it keeps — and that's exactly how word2vec, GloVe and modern embeddings work."
+tags:
+  - NLP
+  - Fundamentals
+source: Notes
+series: "NLP Foundations"
+seriesPart: 2
+seriesTotal: 4
+coverImage: "/images/blog/nlp-from-scratch/s5/s5-page-001.png"
+bannerImage: "/images/blog/nlp-from-scratch/s5/s5-page-001.png"
+unlisted: true
+---
+
+*NLP Foundations · Post 2/4*
+
+## What this post is
+
+Handwritten notes from the semantics session. We go from classical word-sense disambiguation into the distributional hypothesis — "you shall know a word by the company it keeps" — and the embeddings that came out of it. Everything you do later with vector similarity, RAG retrieval, and embedding search is downstream of this idea.
+
+<Callout color="yellow">
+  📓 <strong>Format note:</strong> this post is my original handwritten notes, scanned and embedded
+  below. If you want the modern, typed version with code and diagrams, the
+  <a href="/blog/ml-foundations-01-what-machine-learning-actually-is">ML Foundations</a>
+  series is the polished equivalent — the NLP series will get the same treatment later.
+</Callout>
+
+## Key takeaways (so you can scan)
+
+- **Distributional hypothesis:** words that appear in similar contexts have similar meanings.
+- **Vector embeddings** turn that hypothesis into geometry — similar meaning = small distance in vector space.
+- Cosine similarity over normalized embeddings is the operation behind every modern semantic search engine.
+
+## The handwritten pages
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-001.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 1"
+  caption="Page 1 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-002.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 2"
+  caption="Page 2 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-003.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 3"
+  caption="Page 3 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-004.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 4"
+  caption="Page 4 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-005.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 5"
+  caption="Page 5 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-006.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 6"
+  caption="Page 6 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-007.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 7"
+  caption="Page 7 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-008.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 8"
+  caption="Page 8 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-009.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 9"
+  caption="Page 9 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-010.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 10"
+  caption="Page 10 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-011.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 11"
+  caption="Page 11 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-012.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 12"
+  caption="Page 12 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-013.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 13"
+  caption="Page 13 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-014.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 14"
+  caption="Page 14 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-015.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 15"
+  caption="Page 15 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-016.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 16"
+  caption="Page 16 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-017.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 17"
+  caption="Page 17 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-018.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 18"
+  caption="Page 18 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-019.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 19"
+  caption="Page 19 of 20 — original handwritten notes."
+/>
+
+<Image
+  src="/images/blog/nlp-from-scratch/s5/s5-page-020.png"
+  alt="Post 2 — Semantics and Word Meaning — handwritten notes, page 20"
+  caption="Page 20 of 20 — original handwritten notes."
+/>
+
+---
+
+**Next up — [Post 3](/blog/nlp-foundations-03-text-classification).**
